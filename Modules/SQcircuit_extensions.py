@@ -18,7 +18,7 @@ def truncation_convergence(circuit, n_eig, trunc_nums=False, threshold=1e-3, ref
     '''
 
     if not trunc_nums:
-        trunc_nums = [1] * circuit.n
+        trunc_nums = [2] * circuit.n
 
     ΔE = 1
     E = []
@@ -60,13 +60,13 @@ def truncation_convergence(circuit, n_eig, trunc_nums=False, threshold=1e-3, ref
     if plot:
         print(trunc_nums, E[-1],  ΔE )
         fig, ax = plt.subplots()
-        ax.plot(np.abs(E_conv-np.array(E[1:])))
+        ax.plot(np.abs(E_conv-np.array(E[1:]))/E_conv)
         ax.set_yscale('log')
-        ax.set_ylabel('E')
+        ax.set_ylabel(r'$(E-E_{conv}) / E_{conv}$')
         labels_trunc_nums = [str(l) for l in trunc_nums_list]
         ax.set_xlabel('trunc_nums')
-        ax.set_xticks(np.arange(len(E)),labels_trunc_nums, rotation=-60)
+        ax.set_xticks(np.arange(len(E))[::2],labels_trunc_nums[::2], rotation=-30)
         fig.show()
 
     circuit.set_trunc_nums(trunc_nums)
-    return circuit, E_conv
+    return circuit
