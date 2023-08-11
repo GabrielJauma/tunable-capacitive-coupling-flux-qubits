@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import importlib
 importlib.reload(sq_ext)
 
+
 #%% define the circuit ’s elements
 loop1 = sq.Loop()
 # define the circuit ’s elements
@@ -39,7 +40,7 @@ EJ  = 10.0
 loop = sq.Loop(0.0)  # "Value" corresponds to phiExt / phi0 threading the loop (can change later)
 
 # Circuit elements
-C_01 = sq.Capacitor(C, 'fF')
+C_01 = sq.Capacitor(C*12313, 'fF')
 C_02 = sq.Capacitor(C, 'fF')
 C_12 = sq.Capacitor(CJ+Csh, 'fF')
 C_04 = sq.Capacitor(Cg, 'fF')
@@ -64,6 +65,9 @@ elements = {
 #%%
 cr = sq.Circuit(elements)
 cr.description()
+
+#%%
+cr.C
 
 # %%
 loop1.set_flux(0.5)
