@@ -51,3 +51,28 @@ n_eig = 5
 loop.set_flux(0)
 trunc_nums = [5] * circuit.n
 circuit = sq_ext.truncation_convergence(circuit, n_eig, refine=True, plot=True)
+
+
+#%%
+
+# spectrum of the circuit
+phi = np.linspace(0,1,100)
+n_eig=8
+spec = np.zeros((n_eig, len(phi)))
+E_qubit = np.zeros((n_eig, len(phi)))
+
+eig_colors = plt.get_cmap('viridis_r')(np.linspace(0, 255, n_eig).astype('int'))
+for i in range(len(phi)):
+    # set the external flux for the loop
+    loop.set_flux(phi[i])
+    loop.set_flux(phi[i])
+    # diagonalize the circuit
+    spec[:, i] = circuit.diag(n_eig)[0]
+
+fig, ax = plt.subplots(dpi=150)
+for i in range(n_eig):
+    ax.plot(phi, spec[i,:]- spec[0,:], color=eig_colors[i], linewidth=2)
+
+ax.set_xlabel(r"$\Phi_{ext}/\Phi_0$", fontsize=13)
+ax.set_ylabel(r"$f_i-f_0$[GHz]", fontsize=13)
+fig.show()

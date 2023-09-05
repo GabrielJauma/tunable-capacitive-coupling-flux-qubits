@@ -4,6 +4,14 @@ import matplotlib.pyplot as plt
 plt.rcParams['backend'] = 'QtAgg'
 
 #%%
+def H_eff_SWT(ψb0, ψb, E):
+    Q = ψb0.T.conj() @ ψb
+    U, s, Vh = np.linalg.svd(Q)
+    A = U @ Vh
+    H_eff = A @ np.diag(E) @ A.T.conj()
+    return H_eff
+
+
 def truncation_convergence(circuit, n_eig, trunc_nums=False, threshold=1e-3, refine=True, plot=False):
     '''
     This function tests the convergence of set_trunc_nums.
