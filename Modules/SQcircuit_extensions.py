@@ -4,13 +4,29 @@ import matplotlib.pyplot as plt
 plt.rcParams['backend'] = 'QtAgg'
 
 #%%
-def H_eff_SWT(ψb0, ψb, E):
-    Q = ψb0.T.conj() @ ψb
-    U, s, Vh = np.linalg.svd(Q)
-    A = U @ Vh
-    H_eff = A @ np.diag(E) @ A.T.conj()
-    return H_eff
 
+def decomposition_in_pauli_2x2(A):
+    '''Performs Pauli decomposition of a 2x2 matrix.
+
+    Input:
+    A= matrix to decompose.
+
+    Output:
+    P= 4 coefficients such that A = P[0]*I + P[1]*σx + P[2]*σy + P[3]*σz'''
+
+    # Pauli matrices.
+    I = np.eye(2)
+    σx = np.array([[0, 1], [1, 0]])
+    σy = np.array([[0, -1j], [1j, 0]])
+    σz = np.array([[1, 0], [0, -1]])
+    s = [I, σx, σy, σz]  # array containing the matrices.
+
+    P = np.zeros(4)  # array to store our results.
+    # Loop to obtain each coefficient.
+    for i in range(4):
+        P[i] = 0.5 * np.trace(s[i].T.conjugate() @ A)
+
+    return P
 
 def truncation_convergence(circuit, n_eig, trunc_nums=False, threshold=1e-3, refine=True, plot=False):
     '''
