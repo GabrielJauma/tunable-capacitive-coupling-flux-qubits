@@ -28,6 +28,22 @@ def decomposition_in_pauli_2x2(A):
 
     return P
 
+def real_eigenvectors(U):
+    '''Fixes the phase of a vector.
+
+    Input:
+    U=vector
+
+    Output:
+    U= vector without phase.'''
+
+    l = U.shape[0]
+    avgz = np.sum(U[:l // 2, :] * np.abs(U[:l // 2, :]) ** 2, 0)
+    avgz = avgz / np.abs(avgz)
+    # U(i,j) = U(i,j) / z(j) for all i,j
+    U = U * avgz.conj()
+    return U
+
 def truncation_convergence(circuit, n_eig, trunc_nums=False, threshold=1e-3, refine=True, plot=False):
     '''
     This function tests the convergence of set_trunc_nums.
@@ -94,3 +110,79 @@ def truncation_convergence(circuit, n_eig, trunc_nums=False, threshold=1e-3, ref
 
     circuit.set_trunc_nums(trunc_nums)
     return circuit
+
+    # def flux_op(self, mode: int, basis: str = 'FC') -> Qobj:
+    #     """Return charge operator for specific mode in the Fock/Charge basis or
+    #     the eigenbasis.
+    #
+    #     Parameters
+    #     ----------
+    #         mode:
+    #             Integer that specifies the mode number.
+    #         basis:
+    #             String that specifies the basis. It can be either ``"FC"``
+    #             for original Fock/Charge basis or ``"eig"`` for eigenbasis.
+    #     """
+    #
+    #     error1 = "Please specify the truncation number for each mode."
+    #     assert len(self.m) != 0, error1
+    #
+    #     # charge operator in Fock/Charge basis
+    #     phi_FC = self._memory_ops["phi"][mode-1]
+    #
+    #     if basis == "FC":
+    #
+    #         return phi_FC
+    #
+    #     elif basis == "eig":
+    #
+    #         # number of eigenvalues
+    #         n_eig = len(self.efreqs)
+    #
+    #         phi_eig = np.zeros((n_eig, n_eig), dtype=complex)
+    #
+    #         for i in range(n_eig):
+    #             φ_i = sq.Qobj(real_eigenvectors(self._evecs[i].__array__()))
+    #             for j in range(n_eig):
+    #                 φ_j = sq.Qobj(real_eigenvectors(self._evecs[j].__array__()))
+    #                 phi_eig[i, j] = (φ_i.dag() * phi_FC * φ_j).data[0, 0]
+    #
+    #         return qt.Qobj(phi_eig)
+    #
+    # def charge_op(self, mode: int, basis: str = 'FC') -> Qobj:
+    #     """Return charge operator for specific mode in the Fock/Charge basis or
+    #     the eigenbasis.
+    #
+    #     Parameters
+    #     ----------
+    #         mode:
+    #             Integer that specifies the mode number.
+    #         basis:
+    #             String that specifies the basis. It can be either ``"FC"``
+    #             for original Fock/Charge basis or ``"eig"`` for eigenbasis.
+    #     """
+    #
+    #     error1 = "Please specify the truncation number for each mode."
+    #     assert len(self.m) != 0, error1
+    #
+    #     # charge operator in Fock/Charge basis
+    #     Q_FC = self._memory_ops["Q"][mode-1]
+    #
+    #     if basis == "FC":
+    #
+    #         return Q_FC
+    #
+    #     elif basis == "eig":
+    #
+    #         # number of eigenvalues
+    #         n_eig = len(self.efreqs)
+    #
+    #         Q_eig = np.zeros((n_eig, n_eig), dtype=complex)
+    #
+    #         for i in range(n_eig):
+    #             φ_i = sq.Qobj(real_eigenvectors(self._evecs[i].__array__()))
+    #             for j in range(n_eig):
+    #                 φ_j = sq.Qobj(real_eigenvectors(self._evecs[j].__array__()))
+    #                 Q_eig[i, j] = (φ_i.dag() * Q_FC * φ_j).data[0, 0]
+    #
+    #         return qt.Qobj(Q_eig)
