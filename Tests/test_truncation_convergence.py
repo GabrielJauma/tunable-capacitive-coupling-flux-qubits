@@ -46,6 +46,12 @@ elements = {
 
 circuit = sq.Circuit(elements)
 
+#%%
+circuit.set_trunc_nums([10,10,10])
+
+#%%
+circuit.diag(2)
+
 # %% Test truncation_convergence
 n_eig = 5
 loop.set_flux(0)
