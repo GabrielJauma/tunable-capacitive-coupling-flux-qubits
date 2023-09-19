@@ -24,11 +24,18 @@ def real_eigenvectors(U):
     return U
 
 
-def H_eff_SWT(circuit_0, circuit):
+def H_eff_SWT_circuit(circuit_0, circuit):
     ψb0 = real_eigenvectors(np.array([ψb0_i.__array__()[:,0] for ψb0_i in circuit_0._evecs]).T)
     ψb = real_eigenvectors(np.array([ψb0_i.__array__()[:,0] for ψb0_i in circuit._evecs]).T)
     E = circuit._efreqs
 
+    Q = ψb0.T.conj() @ ψb
+    U, s, Vh = np.linalg.svd(Q)
+    A = U @ Vh
+    H_eff = A @ np.diag(E) @ A.T.conj()
+    return H_eff
+
+def H_eff_SWT_eigs(ψb0, ψb, E):
     Q = ψb0.T.conj() @ ψb
     U, s, Vh = np.linalg.svd(Q)
     A = U @ Vh
