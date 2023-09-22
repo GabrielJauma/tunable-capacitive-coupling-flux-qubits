@@ -4,25 +4,61 @@ import matplotlib.pyplot as plt
 
 plt.rcParams['backend'] = 'QtAgg'
 
+# %%
+def KITqubit(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5):
+
+    # Initialize loop(s)
+    loop = sq.Loop(φ_ext)
+
+    # Circuit components
+    C_01 = sq.Capacitor(C ,      'fF')
+    C_02 = sq.Capacitor(C ,      'fF')
+    C_12 = sq.Capacitor(CJ+Csh,  'fF')
+    L_03 = sq.Inductor(Lr,       'nH')
+    L_31 = sq.Inductor(Lq/2 - Δ, 'nH',  loops=[loop])
+    L_23 = sq.Inductor(Lq/2 + Δ, 'nH',  loops=[loop])
+    JJ_12= sq.Junction(EJ,       'GHz', loops=[loop])
+
+    elements = {
+        (0, 3): [L_03],
+        (0, 1): [C_01],
+        (0, 2): [C_02],
+        (3, 1): [L_31],
+        (1, 2): [C_12, JJ_12],
+        (2, 3): [L_23],
+    }
+
+    # Create and return the circuit
+    return sq.Circuit(elements)
+
+def KITqubit_asym( Cc, α, C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5):
+
+    # Initialize loop(s)
+    loop = sq.Loop(φ_ext)
+
+    # Circuit components
+    C_01 = sq.Capacitor(C + α*Cc, 'fF')
+    C_02 = sq.Capacitor(C + Cc,   'fF')
+    C_12 = sq.Capacitor(CJ+Csh,   'fF')
+    L_03 = sq.Inductor(Lr,        'nH')
+    L_31 = sq.Inductor(Lq/2 - Δ,  'nH',  loops=[loop])
+    L_23 = sq.Inductor(Lq/2 + Δ,  'nH',  loops=[loop])
+    JJ_12= sq.Junction(EJ,        'GHz', loops=[loop])
+
+    elements = {
+        (0, 3): [L_03],
+        (0, 1): [C_01],
+        (0, 2): [C_02],
+        (3, 1): [L_31],
+        (1, 2): [C_12, JJ_12],
+        (2, 3): [L_23],
+    }
+
+    # Create and return the circuit
+    return sq.Circuit(elements)
+
 
 # %%
-
-def real_eigenvectors(U):
-    '''Fixes the phase of a vector.
-
-    Input:
-    U=vector
-
-    Output:
-    U= vector without phase.'''
-
-    l = U.shape[0]
-    avgz = np.sum(U[:l // 2, :] * np.abs(U[:l // 2, :]) ** 2, 0)
-    avgz = avgz / np.abs(avgz)
-    # U(i,j) = U(i,j) / z(j) for all i,j
-    U = U * avgz.conj()
-    return U
-
 
 def H_eff_SWT_circuit(circuit_0, circuit):
     ψb0 = real_eigenvectors(np.array([ψb0_i.__array__()[:,0] for ψb0_i in circuit_0._evecs]).T)
@@ -185,9 +221,17 @@ def truncation_convergence(circuit, n_eig, trunc_nums=False, threshold=1e-3, ref
 #     for i in range(circuit.S.shape[1]):
 #         print(f'Mode {i+1} = {(circuit.S[:,i] / np.abs(circuit.S[:,i]).max()).round(1) }')
 #
-def print_transformation(circuit):
+
+def print_charge_transformation(circuit):
+    for i in range(circuit.R.shape[1]):
+        normalized = circuit.R[:, i] / np.abs(circuit.R[:, i]).max()
+        formatted_vector = [f"{num:5.2f}" for num in normalized]
+        vector_str = ' '.join(formatted_vector)
+        print(f'q_{i + 1} = [{vector_str}]')
+
+def print_flux_transformation(circuit):
     for i in range(circuit.S.shape[1]):
         normalized = circuit.S[:, i] / np.abs(circuit.S[:, i]).max()
-        formatted_vector = [f"{num:5.1f}" for num in normalized]  # Adjust the width (5 in this case) as per your needs
+        formatted_vector = [f"{num:5.2f}" for num in normalized]
         vector_str = ' '.join(formatted_vector)
-        print(f'Mode {i + 1} = [{vector_str}]')
+        print(f'Φ_{i + 1} = [{vector_str}]')
