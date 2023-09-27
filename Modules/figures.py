@@ -77,7 +77,7 @@ def export(fig_title, fig=plt.gcf(), hspace=False, wspace=False):
         fig.subplots_adjust(hspace=hspace)
     if wspace:
         fig.subplots_adjust(wspace=wspace)
-    fig.savefig('Figures/' + fig_title, dpi=200, bbox_inches='tight')
+    fig.savefig('Figures/' + fig_title, bbox_inches='tight')
 
 
 def transparent_cmap(cmap_name, power):
