@@ -72,10 +72,12 @@ def multiline_color_change(ys, colors, fig, ax, x=None, **kwargs):
     ax.set_ylim([ys.min() - abs(ys.min() * 0.1), ys.max() + abs(ys.min() * 0.1)])
 
 
-def export(fig_title):
-    plt.gcf()
-    plt.margins(0, 0)
-    plt.savefig('Figures/' + fig_title, bbox_inches='tight', pad_inches=0)
+def export(fig_title, fig=plt.gcf(), hspace=False, wspace=False):
+    if hspace:
+        fig.subplots_adjust(hspace=hspace)
+    if wspace:
+        fig.subplots_adjust(wspace=wspace)
+    fig.savefig('Figures/' + fig_title, dpi=200, bbox_inches='tight')
 
 
 def transparent_cmap(cmap_name, power):
