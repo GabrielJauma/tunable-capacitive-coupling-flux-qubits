@@ -150,7 +150,7 @@ def real_eigenvectors(U):
     return U
 
 
-def truncation_convergence(circuit, n_eig, trunc_nums=False, threshold=1e-3, refine=True, plot=False):
+def truncation_convergence(circuit, n_eig, trunc_nums=False, threshold=1e-2, refine=True, plot=True):
     '''
     This function tests the convergence of set_trunc_nums.
     It increases the truncation numbers until the convergence condition is met.
