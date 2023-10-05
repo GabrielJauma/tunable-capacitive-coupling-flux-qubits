@@ -59,6 +59,50 @@ def KITqubit_asym( Cc, α, C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, 
 
 
 # %%
+def H_eff_p1(circ_0, circ):
+    ψ = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in circ_0._evecs]).T)
+    H_eff = ψ.conj().T @ circ.hamiltonian().__array__() @ ψ
+    return H_eff
+
+# Second order perturbation theory
+def H_eff_p2(circ_0, circ):
+    ψ_0 = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in circ_0._evecs]).T)
+    ψ = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in circ._evecs]).T)
+    E_0 = circ_0._efreqs
+    E = circ._efreqs
+    H_0 = circ_0.hamiltonian().__array__()
+    H = circ.hamiltonian().__array__()
+
+    n_eig = ψ_0.shape[1]
+    H_eff = np.zeros((n_eig, n_eig), dtype=complex)  # matrix to store our results.
+
+    # This si wrong, I cant do the H-H_0 shit here since they are in diferent basis...
+    # Loop to obtain each element of the matrix: <O>.
+    for i in range(n_eig):
+        for j in range(n_eig):
+            H_eff[i, j] = ψ_0[:, i].T.conj() @ H @ ψ_0[:, j] + 1 / 2 * \
+                          sum(
+                              (1 / (E_0[i] - E[k]) + 1 / (E_0[j] - E[k])) * (ψ_0[:, i].T.conj() @ (H - H_0) @ ψ[:, k]) * \
+                              (ψ[:, k].T.conj() @ (H - H_0) @ ψ_0[:, j])
+                              for k in range(n_eig)
+                          )
+    return H_eff
+
+
+# def H_eff_p2(ψb, Eb, ψs, Es, H0, H):
+#     l = ψb.shape[1]
+#     H_eff = np.zeros((l, l), dtype=complex)  # matrix to store our results.
+#
+#     # Loop to obtain each element of the matrix: <O>.
+#     for i in range(l):
+#         for j in range(l):
+#             H_eff[i, j] = ψb[:, i].T.conj() @ H @ ψb[:, j] + 1 / 2 * \
+#                           sum(
+#                               (1 / (Eb[i] - Es[k]) + 1 / (Eb[j] - Es[k])) * (ψb[:, i].T.conj() @ (H - H0) @ ψs[:, k]) * \
+#                               (ψs[:, k].T.conj() @ (H - H0) @ ψb[:, j])
+#                               for k in range(ψs.shape[1])
+#                           )
+#     return H_eff
 
 def H_eff_SWT_circuit(circuit_0, circuit):
     ψb0 = real_eigenvectors(np.array([ψb0_i.__array__()[:,0] for ψb0_i in circuit_0._evecs]).T)
@@ -131,6 +175,8 @@ def decomposition_in_pauli_4x4(A, rd, Print=True):
                 print(" %s\t*\t %s " % (P[i, j], label))
 
     return P
+
+
 
 #%%
 
