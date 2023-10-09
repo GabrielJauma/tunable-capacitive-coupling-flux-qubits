@@ -11,8 +11,8 @@ def KIT_qubit(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, �
     loop = sq.Loop(φ_ext)
 
     # Circuit components
-    C_01 = sq.Capacitor(C ,      'fF')
-    C_02 = sq.Capacitor(C ,      'fF')
+    C_01 = sq.Capacitor(C,       'fF')
+    C_02 = sq.Capacitor(C,       'fF')
     C_12 = sq.Capacitor(CJ+Csh,  'fF')
     L_03 = sq.Inductor(Lr,       'nH')
     L_31 = sq.Inductor(Lq/2 - Δ, 'nH',  loops=[loop])

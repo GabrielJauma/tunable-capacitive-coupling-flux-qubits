@@ -4,9 +4,33 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.collections import LineCollection
-
+from matplotlib.animation import FuncAnimation
+from IPython.display import HTML
 
 # from palettable.cartocolors.sequential import BluGrn_7
+
+
+# def animation(fig, plots, y_values, param_name, param_values):
+#     def update(i):
+#         for plot, y_value in zip(plots, y_values):
+#             plot.set_ydata(y_value[i])
+#         fig.suptitle(param_name + f'{param_values[i]}')
+#         return plots
+#
+#     # Using FuncAnimation to create the animation
+#     return FuncAnimation(fig, update, frames=len(param_values), blit=True)
+
+def animation(fig, plots, y_values, param_name, param_values):
+    def update(i):
+        for plot, y_value in zip(plots, y_values):
+            # If it's a line plot
+            plot.set_ydata(y_value[i])
+            
+        fig.suptitle(param_name + f'{param_values[i]}')
+        return plots
+
+    # Using FuncAnimation to create the animation
+    return FuncAnimation(fig, update, frames=len(param_values), blit=True)
 
 
 def multiline(c, ys, xs=None, fig= None, ax=None, cb=True, **kwargs):
