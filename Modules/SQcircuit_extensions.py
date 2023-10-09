@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 plt.rcParams['backend'] = 'QtAgg'
 
 # %%
-def KITqubit(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5):
+def KIT_qubit(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5):
 
     # Initialize loop(s)
     loop = sq.Loop(φ_ext)
@@ -57,6 +57,23 @@ def KITqubit_asym( Cc, α, C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, 
     # Create and return the circuit
     return sq.Circuit(elements)
 
+
+def KIT_resonator(C = 15, Lq = 25, Lr = 10, Δ = 0.1):
+    l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
+    resonator_elements = {
+        (0, 1): [sq.Capacitor(C / 2, 'fF'), sq.Inductor(l / Lq, 'nH')],
+    }
+    return sq.Circuit(resonator_elements)
+
+def KIT_fluxonium(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5):
+    l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
+    loop_fluxonium = sq.Loop(φ_ext)
+    fluxonium_elements = {
+        (0, 1): [sq.Capacitor(C / 2 + Csh + CJ, 'fF'),
+                 sq.Inductor(l / (Lq + 4 * Lr), 'nH', loops=[loop_fluxonium]),
+                 sq.Junction(EJ, 'GHz', loops=[loop_fluxonium])],
+    }
+    return sq.Circuit(fluxonium_elements)
 
 # %%
 def H_eff_p1(circ_0, circ):
