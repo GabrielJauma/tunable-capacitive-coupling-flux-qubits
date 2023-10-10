@@ -33,6 +33,25 @@ def animation(fig, plots, y_values, param_name, param_values):
     return FuncAnimation(fig, update, frames=len(param_values), blit=True)
 
 
+def animation_contour(fig, plots, x, y, z_values, param_name, param_values):
+    def update(i):
+        for plot, z_value in zip(plots, z_values):
+            ax = plot.axes  # Get the axes the contour belongs to
+
+            # Remove old contours
+            for collection in ax.collections:
+                collection.remove()
+
+            # Plot new contours using the same X, Y, and new Z values
+            ax.contourf(x, y, z_value[i], cmap=plot.cmap)
+
+        fig.suptitle(param_name + f'{param_values[i]}')
+        return plots
+
+    # Using FuncAnimation to create the animation
+    return FuncAnimation(fig, update, frames=len(param_values), blit=True)
+
+
 def multiline(c, ys, xs=None, fig= None, ax=None, cb=True, **kwargs):
     """Plot lines with different colorings
 

@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 plt.rcParams['backend'] = 'QtAgg'
 
-# %%
+# %% Premade circuits
 def KIT_qubit(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5):
 
     # Initialize loop(s)
@@ -75,7 +75,24 @@ def KIT_fluxonium(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0
     }
     return sq.Circuit(fluxonium_elements)
 
-# %%
+# %% Internal coupling in KIT's qubit
+
+def internal_coupling_operators(fluxonium, resonator, Lq = 25, Lr = 10, Δ = 0.1):
+    GHz = 1e6
+    l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
+    L_c = l / Δ * 1e-9
+
+    Φ_f = decomposition_in_pauli_2x2(fluxonium.flux_op(0, basis='eig').__array__())
+    Φ_r = decomposition_in_pauli_2x2(resonator.flux_op(0, basis='eig').__array__())
+
+    if np.any(np.abs(Φ_f [np.arange(len(Φ_f))!=1]/Φ_f[1])>=1e-3) or \
+       np.any(np.abs(Φ_r [np.arange(len(Φ_r)) != 1] / Φ_r[1]) >= 1e-3):
+        print('WARNING: One of the flux operators is not sigma_x')
+        return None
+
+    return Φ_r[1] * Φ_f[1] / L_c / GHz
+
+# %% Effective Hamiltonians
 def H_eff_p1(circ_0, circ):
     ψ = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in circ_0._evecs]).T)
     H_eff = ψ.conj().T @ circ.hamiltonian().__array__() @ ψ
@@ -85,8 +102,8 @@ def H_eff_p1(circ_0, circ):
 def H_eff_p2(circ_0, circ):
     ψ_0 = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in circ_0._evecs]).T)
     ψ = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in circ._evecs]).T)
-    E_0 = circ_0._efreqs
-    E = circ._efreqs
+    E_0 = circ_0.efreqs
+    E = circ.efreqs
     H_0 = circ_0.hamiltonian().__array__()
     H = circ.hamiltonian().__array__()
 
@@ -124,7 +141,7 @@ def H_eff_p2(circ_0, circ):
 def H_eff_SWT_circuit(circuit_0, circuit):
     ψb0 = real_eigenvectors(np.array([ψb0_i.__array__()[:,0] for ψb0_i in circuit_0._evecs]).T)
     ψb = real_eigenvectors(np.array([ψb0_i.__array__()[:,0] for ψb0_i in circuit._evecs]).T)
-    E = circuit._efreqs
+    E = circuit.efreqs
 
     Q = ψb0.T.conj() @ ψb
     U, s, Vh = np.linalg.svd(Q)
