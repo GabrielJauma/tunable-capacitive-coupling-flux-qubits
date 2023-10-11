@@ -154,12 +154,15 @@ def colorbar_for_lines(fig, values, label=None, location='top'):
         fig.colorbar(sm, ticks=values)
 
 
-def colorbar(mappable, ticks):
+def colorbar(mappable, ticks=False):
     last_axes = plt.gca()
     ax = mappable.axes
     fig = ax.figure
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.05)
-    cbar = fig.colorbar(mappable, cax=cax, ticks=ticks[0::int(len(ticks) / 10)])
+    if ticks:
+        cbar = fig.colorbar(mappable, cax=cax, ticks=ticks[0::int(len(ticks) / 10)])
+    else:
+        cbar = fig.colorbar(mappable, cax=cax)
     plt.sca(last_axes)
     return cbar
