@@ -77,7 +77,7 @@ def KIT_fluxonium(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0
 
 # %% Internal coupling in KIT's qubit
 
-def internal_coupling_operators(fluxonium, resonator, Lq = 25, Lr = 10, Δ = 0.1):
+def internal_coupling_with_operators(fluxonium, resonator, Δ = 0.1, Lq = 25, Lr = 10):
     GHz = 1e6
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
     L_c = l / Δ * 1e-9
@@ -85,12 +85,27 @@ def internal_coupling_operators(fluxonium, resonator, Lq = 25, Lr = 10, Δ = 0.1
     Φ_f = decomposition_in_pauli_2x2(fluxonium.flux_op(0, basis='eig').__array__())
     Φ_r = decomposition_in_pauli_2x2(resonator.flux_op(0, basis='eig').__array__())
 
-    if np.any(np.abs(Φ_f [np.arange(len(Φ_f))!=1]/Φ_f[1])>=1e-3) or \
-       np.any(np.abs(Φ_r [np.arange(len(Φ_r)) != 1] / Φ_r[1]) >= 1e-3):
-        print('WARNING: One of the flux operators is not sigma_x')
+    if np.any(np.abs(Φ_f[np.arange(len(Φ_f))!=1]/Φ_f[1])>=1e-3):
+        print('WARNING: The fluxonium flux operator is not sigma_x')
+        print(Φ_f)
+        return None
+
+    if np.any(np.abs(Φ_r [np.arange(len(Φ_r)) != 1] / Φ_r[1]) >= 1e-3):
+        print('WARNING: The resonator flux operator is not sigma_x')
+        print(Φ_r)
         return None
 
     return Φ_r[1] * Φ_f[1] / L_c / GHz
+
+# def internal_coupling_with_operators(fluxonium, resonator, Δ = 0.1, Lq = 25, Lr = 10):
+#     GHz = 1e6
+#     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
+#     L_c = l / Δ * 1e-9
+#
+#     Φ_f = decomposition_in_pauli_2x2(fluxonium.flux_op(0, basis='eig').__array__())
+#     Φ_r = decomposition_in_pauli_2x2(resonator.flux_op(0, basis='eig').__array__())
+#
+#     return Φ_r * Φ_f / L_c / GHz
 
 # %% Effective Hamiltonians
 def H_eff_p1(circ_0, circ):
@@ -138,7 +153,7 @@ def H_eff_p2(circ_0, circ):
 #                           )
 #     return H_eff
 
-def H_eff_SWT_circuit(circuit_0, circuit):
+def H_eff_SWT_circuit(circuit_0, circuit, return_transformation = False):
     ψb0 = real_eigenvectors(np.array([ψb0_i.__array__()[:,0] for ψb0_i in circuit_0._evecs]).T)
     ψb = real_eigenvectors(np.array([ψb0_i.__array__()[:,0] for ψb0_i in circuit._evecs]).T)
     E = circuit.efreqs
@@ -147,7 +162,11 @@ def H_eff_SWT_circuit(circuit_0, circuit):
     U, s, Vh = np.linalg.svd(Q)
     A = U @ Vh
     H_eff = A @ np.diag(E) @ A.T.conj()
-    return H_eff
+
+    if return_transformation:
+        return H_eff, A
+    else:
+        return H_eff
 
 def H_eff_SWT_eigs(ψb0, ψb, E):
     Q = ψb0.T.conj() @ ψb
