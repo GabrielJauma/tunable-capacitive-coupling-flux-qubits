@@ -366,3 +366,27 @@ def print_flux_transformation(circuit):
         formatted_vector = [f"{num:5.2f}" for num in normalized]
         vector_str = ' '.join(formatted_vector)
         print(f'Φ_{i + 1} = [{vector_str}]')
+
+
+#%%
+def get_node_variables(circuit):
+    n_modes = len(circuit.m)
+    Φ_normal = [circuit.flux_op(i, basis='eig') for i in range(n_modes)]
+    Q_normal = [circuit.charge_op(i, basis='eig') for i in range(n_modes)]
+
+    Φ_nodes = []
+    Q_nodes = []
+
+    for i in range(n_modes):
+        Φ_sum = 0
+        Q_sum = 0
+        for j in range(n_modes):
+            Φ_sum += Φ_normal[j] * circuit.S [i, j]
+            Q_sum += Q_normal[j] * circuit.R [i, j]
+            # Φ_sum += Φ_normal[j] * circuit.S [j, i]
+            # Q_sum += Q_normal[j] * circuit.R [j, i]
+
+        Φ_nodes.append(Φ_sum)
+        Q_nodes.append(Q_sum)
+
+    return Φ_nodes, Q_nodes
