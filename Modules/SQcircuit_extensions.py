@@ -390,3 +390,55 @@ def get_node_variables(circuit):
         Q_nodes.append(Q_sum)
 
     return Φ_nodes, Q_nodes
+
+def resonator_N_operator(circuit, Z_r, clean=True):
+    Φ_nodes, Q_nodes = get_node_variables(circuit)
+    Φ_r = Φ_nodes[0] + Φ_nodes[1]
+    Q_r = Q_nodes[0] + Q_nodes[1]
+    N_r = 1 / 2 / Z_r * (Φ_r ** 2 + Z_r ** 2 * Q_r ** 2)
+    if clean:
+        return rank_by_multiples(np.diag(N_r[:len(N_r.__array__())//2]))
+    else:
+        return N_r
+
+def fluxonium_N_operator(circuit, Z_f, clean=True):
+    Φ_nodes, Q_nodes = get_node_variables(circuit)
+    Φ_f = -Φ_nodes[0] + Φ_nodes[1]
+    Q_f = -Q_nodes[0] + Q_nodes[1]
+    N_f = 1 / 2 / Z_f * (Φ_f ** 2 + Z_f ** 2 * Q_f ** 2)
+    if clean:
+        return rank_by_multiples(np.diag(N_f[:len(N_f.__array__())//2]))
+    else:
+        return N_f
+
+
+def N_operator(circuit, mode, clean=True):
+    Φ = circuit.flux_op(mode, basis='eig')
+    Q = circuit.charge_op(mode, basis='eig')
+    Z = np.sqrt(circuit.lTrans[mode,mode] * circuit.cInvTrans[mode,mode])
+    N = 1 / 2 / Z * (Φ ** 2 + Z ** 2 * Q ** 2)
+    if clean:
+        return rank_by_multiples(np.diag(N[:len(N.__array__()) // 2]))
+    else:
+        return N
+
+
+def rank_by_multiples(arr):
+    arr = np.abs(arr)
+    # Identify the smallest value
+    min_value = np.min(arr)
+
+    # Subtract the smallest value from the entire array
+    diff_array = arr - min_value
+
+    # Identify the next smallest positive value in the subtracted array
+    unit = np.min([val for val in diff_array if val > 0.1])
+
+    return np.round(diff_array / unit)
+
+def get_state_label(N_r, N_f, i, j):
+    if i == j:
+        label = f'{N_f[i]}_f,{N_r[i]}_r'
+    else:
+        label = f'{N_f[i]}_f,{N_r[i]}_r --- {N_f[j]}_f,{N_r[j]}_r'
+    return label
