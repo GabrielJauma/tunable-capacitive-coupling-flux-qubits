@@ -20,6 +20,21 @@ from IPython.display import HTML
 #     # Using FuncAnimation to create the animation
 #     return FuncAnimation(fig, update, frames=len(param_values), blit=True)
 
+
+def generate_colors_from_colormap(num_colors, colormap_name="Set3"):
+    """
+    Generate a list of colors from a specified colormap.
+
+    Parameters:
+    - num_colors (int): Number of colors to generate.
+    - colormap_name (str): Name of the colormap.
+
+    Returns:
+    - list of colors
+    """
+    colormap = plt.cm.get_cmap(colormap_name, num_colors)
+    return [mpl.colors.rgb2hex(colormap(i)) for i in range(colormap.N)]
+
 def animation(fig, plots, y_values, param_name, param_values):
     def update(i):
         for plot, y_value in zip(plots, y_values):

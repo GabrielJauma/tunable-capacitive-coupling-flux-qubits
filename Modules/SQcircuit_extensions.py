@@ -381,10 +381,10 @@ def get_node_variables(circuit):
         Φ_sum = 0
         Q_sum = 0
         for j in range(n_modes):
-            Φ_sum += Φ_normal[j] * circuit.S [i, j]
-            Q_sum += Q_normal[j] * circuit.R [i, j]
-            # Φ_sum += Φ_normal[j] * circuit.S [j, i]
-            # Q_sum += Q_normal[j] * circuit.R [j, i]
+            Φ_sum += Φ_normal[j] * circuit.S[i, j]
+            Q_sum += Q_normal[j] * circuit.R[i, j]
+            # Φ_sum += Φ_normal[j] * circuit.S[j, i]
+            # Q_sum += Q_normal[j] * circuit.R[j, i]
 
         Φ_nodes.append(Φ_sum)
         Q_nodes.append(Q_sum)
@@ -397,7 +397,10 @@ def resonator_N_operator(circuit, Z_r, clean=True):
     Q_r = Q_nodes[0] + Q_nodes[1]
     N_r = 1 / 2 / Z_r * (Φ_r ** 2 + Z_r ** 2 * Q_r ** 2)
     if clean:
-        return rank_by_multiples(np.diag(N_r[:len(N_r.__array__())//2]))
+        try:
+            return rank_by_multiples(np.diag(N_r[:len(N_r.__array__()) // 2]))
+        except:
+            return np.diag(N_r[:len(N_r.__array__()) // 2])
     else:
         return N_r
 
@@ -407,7 +410,10 @@ def fluxonium_N_operator(circuit, Z_f, clean=True):
     Q_f = -Q_nodes[0] + Q_nodes[1]
     N_f = 1 / 2 / Z_f * (Φ_f ** 2 + Z_f ** 2 * Q_f ** 2)
     if clean:
-        return rank_by_multiples(np.diag(N_f[:len(N_f.__array__())//2]))
+        try:
+            return rank_by_multiples(np.diag(N_f[:len(N_f.__array__())//2]))
+        except:
+            return np.diag(N_f[:len(N_f.__array__())//2])
     else:
         return N_f
 
@@ -418,13 +424,12 @@ def N_operator(circuit, mode, clean=True):
     Z = np.sqrt(circuit.lTrans[mode,mode] * circuit.cInvTrans[mode,mode])
     N = 1 / 2 / Z * (Φ ** 2 + Z ** 2 * Q ** 2)
     if clean:
-        return rank_by_multiples(np.diag(N[:len(N.__array__()) // 2]))
+        return rank_by_multiples(np.abs(np.diag(N[:len(N.__array__()) // 2])))
     else:
         return N
 
 
 def rank_by_multiples(arr):
-    arr = np.abs(arr)
     # Identify the smallest value
     min_value = np.min(arr)
 
@@ -434,11 +439,65 @@ def rank_by_multiples(arr):
     # Identify the next smallest positive value in the subtracted array
     unit = np.min([val for val in diff_array if val > 0.1])
 
-    return np.round(diff_array / unit)
+    return np.array( np.round(diff_array / unit), dtype='int')
 
-def get_state_label(N_r, N_f, i, j):
+def get_state_label(N_f, N_r, i, j):
     if i == j:
-        label = f'{N_f[i]}_f,{N_r[i]}_r'
+        label = f'({N_f[i]}f,{N_r[i]}r)'
     else:
-        label = f'{N_f[i]}_f,{N_r[i]}_r --- {N_f[j]}_f,{N_r[j]}_r'
+        label = f'({N_f[i]}f,{N_r[i]}r) - ({N_f[j]}f,{N_r[j]}r)'
     return label
+
+
+def get_energy_indices(qubit, fluxonium, resonator):
+
+    E_qubit = qubit.efreqs - qubit.efreqs[0]
+    E_fluxonium = fluxonium.efreqs - fluxonium.efreqs[0]
+    E_resonator = resonator.efreqs - resonator.efreqs[0]
+
+    n_eig = len(E_qubit)
+
+    N_fluxonium = np.zeros(n_eig, dtype='int')
+    N_resonator = np.zeros(n_eig, dtype='int')
+
+    E_matrix = E_fluxonium[:, np.newaxis] + E_resonator
+    for k in range(n_eig):
+        ΔE_matrix = np.abs(E_matrix - E_qubit[k])
+        if ΔE_matrix.min() < 1e-1:
+            N_fluxonium[k], N_resonator[k] = np.unravel_index(ΔE_matrix.argmin(), ΔE_matrix.shape)
+        else:
+            N_fluxonium[k], N_resonator[k] = [-123, -123]
+    return N_fluxonium, N_resonator
+
+
+def find_indices(data):
+    result = []
+    current_string = data[0]
+    start_index = 0
+
+    for i, s in enumerate(data[1:], 1):  # start from index 1
+        if s != current_string:
+            result.append((current_string, [start_index, i - 1]))
+            current_string = s
+            start_index = i
+
+    result.append((current_string, [start_index, len(data) - 1]))  # for the last string
+
+    return result
+
+
+def get_or_assign_color(s, colors, color_dict):
+    # Check if string is already associated with a color
+    if s in color_dict:
+        newly_assigled=False
+        return color_dict[s], color_dict, newly_assigled
+
+    # If not, associate with the next available color
+    for color in colors:
+        if color not in color_dict.values():  # Check if this color is not already used
+            newly_assigled = True
+            color_dict[s] = color
+            return color, color_dict, newly_assigled
+    # If all colors are already used, you might want to handle this case.
+    # For now, it returns None and the unchanged dictionary.
+    print('I am out of colorssssssss bro')
