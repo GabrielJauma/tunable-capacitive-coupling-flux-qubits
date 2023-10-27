@@ -107,18 +107,66 @@ def internal_coupling_with_operators(fluxonium, resonator, Δ = 0.1, Lq = 25, Lr
 #
 #     return Φ_r * Φ_f / L_c / GHz
 
+# %% KIT's qubit internal coupling perturbation theory with fluxonium + resonator decomposition
+def H_eff_p1_fluxonium_resonator(fluxonium, resonator, i_f, j_f, i_r, j_r, Δ = 0.1, Lq = 25, Lr = 10):
+    GHz = 1e6
+    l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
+    L_c = l / Δ * 1e-9
+
+    ψ_f = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in fluxonium._evecs]).T)
+    ψ_r = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in resonator._evecs]).T)
+
+    Φ_f = ψ_f[:, i_f].conj().T @ fluxonium.flux_op(0, basis='FC').__array__() @ ψ_f[:, j_f]
+    Φ_r = ψ_r[:, i_r].conj().T @ resonator.flux_op(0, basis='FC').__array__() @ ψ_r[:, j_r]
+
+    return Φ_f * Φ_r / L_c / GHz
+
+# def H_eff_p2_fluxonium_resonator(circ_0, circ, fluxonium, resonator, i_f, j_f, i_r, j_r, Δ = 0.1, Lq = 25, Lr = 10):
+#     GHz = 1e6
+#     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
+#     L_c = l / Δ * 1e-9
+#
+#     ψ_f = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in fluxonium._evecs]).T)
+#     ψ_r = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in resonator._evecs]).T)
+#     E_0 = circ_0.efreqs
+#     E = circ.efreqs
+#
+#     Φ_f = fluxonium.flux_op(0, basis='FC').__array__()
+#
+#     H_eff_p2_f = 1 / 2 * \
+#     sum(
+#         (1 / (E_0[i] - E[k]) + 1 / (E_0[j] - E[k])) * (ψ_f[:, i_f].T.conj() @ Φ_f @ ψ_f[:, k]) * \
+#         (ψ_f[:, k].T.conj() @ Φ_f @ ψ_f[:, j_f])
+#         for k in range(n_eig)
+#     )
+#
+#
+#     Φ_f = ψ_f[:, i_f].conj().T @ fluxonium.flux_op(0, basis='FC').__array__() @ ψ_f[:, j_f]
+#     Φ_r = ψ_r[:, i_r].conj().T @ resonator.flux_op(0, basis='FC').__array__() @ ψ_r[:, j_r]
+#
+#     return Φ_f * Φ_r / L_c / GHz
+
 # %% Effective Hamiltonians
 def H_eff_p1(circ_0, circ):
-    ψ = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in circ_0._evecs]).T)
-    H_eff = ψ.conj().T @ circ.hamiltonian().__array__() @ ψ
+    ψ_0 = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in circ_0._evecs]).T)
+    H_0 = circ_0.hamiltonian().__array__()
+    H = circ.hamiltonian().__array__()
+    H_eff = ψ_0.conj().T @ (H-H_0) @ ψ_0
+
+    # n_eig = ψ.shape[1]
+    # H_eff = np.zeros((n_eig, n_eig), dtype=complex)  # matrix to store our results.
+    # for i in range(n_eig):
+    #     for j in range(n_eig):
+    #         H_eff[i, j] = ψ[:, i].T.conj() @ H @ ψ[:, j]
     return H_eff
 
 # Second order perturbation theory
 def H_eff_p2(circ_0, circ):
+    GHz = 1e6
     ψ_0 = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in circ_0._evecs]).T)
     ψ = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in circ._evecs]).T)
-    E_0 = circ_0.efreqs
-    E = circ.efreqs
+    E_0 = circ_0.efreqs / GHz /2 /np.pi
+    E = circ.efreqs / GHz /2 /np.pi
     H_0 = circ_0.hamiltonian().__array__()
     H = circ.hamiltonian().__array__()
 
@@ -404,18 +452,18 @@ def resonator_N_operator(circuit, Z_r, clean=True):
     else:
         return N_r
 
-def fluxonium_N_operator(circuit, Z_f, clean=True):
-    Φ_nodes, Q_nodes = get_node_variables(circuit)
-    Φ_f = -Φ_nodes[0] + Φ_nodes[1]
-    Q_f = -Q_nodes[0] + Q_nodes[1]
-    N_f = 1 / 2 / Z_f * (Φ_f ** 2 + Z_f ** 2 * Q_f ** 2)
-    if clean:
-        try:
-            return rank_by_multiples(np.diag(N_f[:len(N_f.__array__())//2]))
-        except:
-            return np.diag(N_f[:len(N_f.__array__())//2])
-    else:
-        return N_f
+# def fluxonium_N_operator(circuit, Z_f, clean=True):
+#     Φ_nodes, Q_nodes = get_node_variables(circuit)
+#     Φ_f = -Φ_nodes[0] + Φ_nodes[1]
+#     Q_f = -Q_nodes[0] + Q_nodes[1]
+#     N_f = 1 / 2 / Z_f * (Φ_f ** 2 + Z_f ** 2 * Q_f ** 2)
+#     if clean:
+#         try:
+#             return rank_by_multiples(np.diag(N_f[:len(N_f.__array__())//2]))
+#         except:
+#             return np.diag(N_f[:len(N_f.__array__())//2])
+#     else:
+#         return N_f
 
 
 def N_operator(circuit, mode, clean=True):
@@ -441,12 +489,16 @@ def rank_by_multiples(arr):
 
     return np.array( np.round(diff_array / unit), dtype='int')
 
-def get_state_label(N_f, N_r, i, j):
+def get_state_label(N_f, N_r, i, j, return_numeric_indices=False):
     if i == j:
         label = f'({N_f[i]}f,{N_r[i]}r)'
     else:
         label = f'({N_f[i]}f,{N_r[i]}r) - ({N_f[j]}f,{N_r[j]}r)'
-    return label
+
+    if return_numeric_indices:
+        return label, N_f[i], N_f[j], N_r[i], N_r[j]
+    else:
+        return label
 
 
 def get_energy_indices(qubit, fluxonium, resonator):
