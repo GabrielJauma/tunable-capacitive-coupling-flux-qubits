@@ -108,82 +108,79 @@ def internal_coupling_with_operators(fluxonium, resonator, Δ = 0.1, Lq = 25, Lr
 #     return Φ_r * Φ_f / L_c / GHz
 
 # %% KIT's qubit internal coupling perturbation theory with fluxonium + resonator decomposition
-def H_eff_p1_fluxonium_resonator(fluxonium, resonator, i_f, j_f, i_r, j_r, Δ = 0.1, Lq = 25, Lr = 10):
-    GHz = 1e6
+def H_eff_p1_fluxonium_resonator(fluxonium_0, fluxonium, resonator_0, resonator, i_f, j_f, i_r, j_r, Δ = 0.1, Lq = 25, Lr = 10):
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
-    L_c = l / Δ * 1e-9
+    L_c = l / Δ
 
+    ψ_0_f = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in fluxonium_0._evecs]).T)
+    ψ_0_r = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in resonator_0._evecs]).T)
+
+    Φ_f = ψ_0_f[:, i_f].conj().T @ fluxonium.flux_op(0, basis='FC').__array__() @ ψ_0_f[:, j_f]
+    Φ_r = ψ_0_r[:, i_r].conj().T @ resonator.flux_op(0, basis='FC').__array__() @ ψ_0_r[:, j_r]
+
+    return Φ_f * Φ_r / L_c
+
+def H_eff_p2_fluxonium_resonator(fluxonium_0, fluxonium, resonator_0, resonator, i_f, j_f, i_r, j_r, Δ = 0.1, Lq = 25, Lr = 10):
+    l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
+    L_c = l / Δ
+    ψ_0_f = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in fluxonium_0._evecs]).T)
+    ψ_0_r = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in resonator_0._evecs]).T)
     ψ_f = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in fluxonium._evecs]).T)
     ψ_r = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in resonator._evecs]).T)
+
+    E_0_i = fluxonium_0.efreqs[i_f] + resonator_0.efreqs[i_r]
+    E_0_j = fluxonium_0.efreqs[j_f] + resonator_0.efreqs[j_r]
+    E = circ.efreqs
+
+    Φ_f = fluxonium.flux_op(0, basis='FC').__array__()
+
+    H_eff_p2_f = 1 / 2 * \
+    sum(
+        (1 / (E_0_i - E[k]) + 1 / (E_0_j - E[k])) * (ψ_f[:, i_f].T.conj() @ Φ_f @ ψ_f[:, k]) * \
+        (ψ_f[:, k].T.conj() @ Φ_f @ ψ_f[:, j_f])
+        for k in range(n_eig)
+    )
+
 
     Φ_f = ψ_f[:, i_f].conj().T @ fluxonium.flux_op(0, basis='FC').__array__() @ ψ_f[:, j_f]
     Φ_r = ψ_r[:, i_r].conj().T @ resonator.flux_op(0, basis='FC').__array__() @ ψ_r[:, j_r]
 
     return Φ_f * Φ_r / L_c / GHz
 
-# def H_eff_p2_fluxonium_resonator(circ_0, circ, fluxonium, resonator, i_f, j_f, i_r, j_r, Δ = 0.1, Lq = 25, Lr = 10):
-#     GHz = 1e6
-#     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
-#     L_c = l / Δ * 1e-9
-#
-#     ψ_f = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in fluxonium._evecs]).T)
-#     ψ_r = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in resonator._evecs]).T)
-#     E_0 = circ_0.efreqs
-#     E = circ.efreqs
-#
-#     Φ_f = fluxonium.flux_op(0, basis='FC').__array__()
-#
-#     H_eff_p2_f = 1 / 2 * \
-#     sum(
-#         (1 / (E_0[i] - E[k]) + 1 / (E_0[j] - E[k])) * (ψ_f[:, i_f].T.conj() @ Φ_f @ ψ_f[:, k]) * \
-#         (ψ_f[:, k].T.conj() @ Φ_f @ ψ_f[:, j_f])
-#         for k in range(n_eig)
-#     )
-#
-#
-#     Φ_f = ψ_f[:, i_f].conj().T @ fluxonium.flux_op(0, basis='FC').__array__() @ ψ_f[:, j_f]
-#     Φ_r = ψ_r[:, i_r].conj().T @ resonator.flux_op(0, basis='FC').__array__() @ ψ_r[:, j_r]
-#
-#     return Φ_f * Φ_r / L_c / GHz
-
 # %% Effective Hamiltonians
 def H_eff_p1(circ_0, circ):
     ψ_0 = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in circ_0._evecs]).T)
     H_0 = circ_0.hamiltonian().__array__()
     H = circ.hamiltonian().__array__()
-    H_eff = ψ_0.conj().T @ (H-H_0) @ ψ_0
+    V = H - H_0
+    H_eff = ψ_0.conj().T @ V @ ψ_0
 
-    # n_eig = ψ.shape[1]
-    # H_eff = np.zeros((n_eig, n_eig), dtype=complex)  # matrix to store our results.
-    # for i in range(n_eig):
-    #     for j in range(n_eig):
-    #         H_eff[i, j] = ψ[:, i].T.conj() @ H @ ψ[:, j]
     return H_eff
 
 # Second order perturbation theory
-def H_eff_p2(circ_0, circ):
+def     H_eff_p2(circ_0, circ):
     GHz = 1e6
     ψ_0 = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in circ_0._evecs]).T)
-    ψ = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in circ._evecs]).T)
-    E_0 = circ_0.efreqs / GHz /2 /np.pi
-    E = circ.efreqs / GHz /2 /np.pi
+    ψ   = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in circ.  _evecs]).T)
+    E_0 = circ_0.efreqs# / GHz /2 /np.pi
+    E   = circ  .efreqs#
     H_0 = circ_0.hamiltonian().__array__()
-    H = circ.hamiltonian().__array__()
+    H   = circ  .hamiltonian().__array__()
+    V   = (H-H_0) / GHz /2 /np.pi
+
+    H_eff_1 = ψ_0.conj().T @ V @ ψ_0
 
     n_eig = ψ_0.shape[1]
-    H_eff = np.zeros((n_eig, n_eig), dtype=complex)  # matrix to store our results.
+    H_eff_2 = np.zeros((n_eig, n_eig), dtype=complex)  # matrix to store our results.
 
-    # This si wrong, I cant do the H-H_0 shit here since they are in diferent basis...
-    # Loop to obtain each element of the matrix: <O>.
     for i in range(n_eig):
         for j in range(n_eig):
-            H_eff[i, j] = ψ_0[:, i].T.conj() @ H @ ψ_0[:, j] + 1 / 2 * \
-                          sum(
-                              (1 / (E_0[i] - E[k]) + 1 / (E_0[j] - E[k])) * (ψ_0[:, i].T.conj() @ (H - H_0) @ ψ[:, k]) * \
-                              (ψ[:, k].T.conj() @ (H - H_0) @ ψ_0[:, j])
-                              for k in range(n_eig)
-                          )
-    return H_eff
+            H_eff_2[i, j] = 1 / 2 * sum(
+                          (1 / (E_0[i] - E[k]) + 1 / (E_0[j] - E[k])) *
+                           (ψ_0[:, i].T.conj() @ V @ ψ[:, k]) * \
+                           (ψ[:, k].T.conj() @ V @ ψ_0[:, j])
+                           for k in range(n_eig))
+    return H_eff_1 +# H_eff_2
 
 
 # def H_eff_p2(ψb, Eb, ψs, Es, H0, H):
@@ -469,7 +466,7 @@ def resonator_N_operator(circuit, Z_r, clean=True):
 def N_operator(circuit, mode, clean=True):
     Φ = circuit.flux_op(mode, basis='eig')
     Q = circuit.charge_op(mode, basis='eig')
-    Z = np.sqrt(circuit.lTrans[mode,mode] * circuit.cInvTrans[mode,mode])
+    Z = np.sqrt( circuit.cInvTrans[mode,mode] / circuit.lTrans[mode,mode])
     N = 1 / 2 / Z * (Φ ** 2 + Z ** 2 * Q ** 2)
     if clean:
         return rank_by_multiples(np.abs(np.diag(N[:len(N.__array__()) // 2])))
