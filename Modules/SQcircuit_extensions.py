@@ -125,7 +125,7 @@ def H_eff_p1_fluxonium_resonator_ij(fluxonium_0, fluxonium, resonator_0, resonat
 
 def H_eff_p1_fluxonium_resonator(fluxonium_0, fluxonium, resonator_0, resonator, N_f, N_r, Δ, Lq = 25, Lr = 10):
     l   = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
-    L_c = l * 1e-9
+    L_c = l / Δ * 1e-9
 
     ψ_0_f = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in fluxonium_0._evecs]).T)
     ψ_0_r = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in resonator_0._evecs]).T)
@@ -140,16 +140,17 @@ def H_eff_p1_fluxonium_resonator(fluxonium_0, fluxonium, resonator_0, resonator,
             H_eff_1_r_i_j = ψ_0_r[:, N_r[i]].conj().T @ resonator.flux_op(0, basis='FC').__array__() @ ψ_0_r[:, N_r[j]]
             H_eff_p1[i,j] = H_eff_1_f_i_j*H_eff_1_r_i_j
 
-    return  Δ / L_c * H_eff_p1 / GHz # / 2 / np.pi  Why not this 2pi!!!
+    return Δ  * (H_eff_p1 / (Δ * L_c) ) / GHz # / 2 / np.pi  Why not this 2pi!!!
 
 
 def H_eff_p2_fluxonium_resonator(fluxonium_0, fluxonium, resonator_0, resonator, N_f, N_r, Δ, Lq = 25, Lr = 10):
     l   = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
-    L_c = l * 1e-9
+    L_c = l / Δ  * 1e-9
 
     ψ_0_f = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in fluxonium_0._evecs]).T)
-    ψ_0_r = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in resonator_0._evecs]).T)
     ψ_f   = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in fluxonium  ._evecs]).T)
+
+    ψ_0_r = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in resonator_0._evecs]).T)
     ψ_r   = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in resonator  ._evecs]).T)
 
     n_eig = ψ_0_f.shape[1]
@@ -157,24 +158,24 @@ def H_eff_p2_fluxonium_resonator(fluxonium_0, fluxonium, resonator_0, resonator,
     H_eff_p2 = np.zeros((n_eig, n_eig), dtype=complex)  # matrix to store our results.
 
     for i in range(n_eig):
-        E_0_i = fluxonium_0.efreqs[N_f[i]] + resonator_0.efreqs[N_r[i]]
+        E_0_i = fluxonium_0._efreqs[N_f[i]] + resonator_0._efreqs[N_r[i]]
         for j in range(n_eig):
-            E_0_j = fluxonium_0.efreqs[N_f[j]] + resonator_0.efreqs[N_r[j]]
+            E_0_j = fluxonium_0._efreqs[N_f[j]] + resonator_0._efreqs[N_r[j]]
             H_eff_p2_ij = 0
             for k in range(n_eig):
-                E_k = fluxonium.efreqs[N_f[k]] + resonator.efreqs[N_r[k]]
+                E_k = fluxonium._efreqs[N_f[k]] + resonator._efreqs[N_r[k]]
                 H_eff_2_f_ijk = ψ_0_f[:, N_f[i]].conj().T @ fluxonium.flux_op(0, basis='FC').__array__() @ ψ_f  [:, N_f[k]] *  \
-                                  ψ_f[:, N_f[k]].conj().T @ fluxonium.flux_op(0, basis='FC').__array__() @ ψ_0_f[:, N_f[j]] #/ 2 / np.pi / GHz
+                                  ψ_f[:, N_f[k]].conj().T @ fluxonium.flux_op(0, basis='FC').__array__() @ ψ_0_f[:, N_f[j]]  #/ (2 * np.pi * GHz)
 
                 H_eff_2_r_ijk = ψ_0_r[:, N_r[i]].conj().T @ resonator.flux_op(0, basis='FC').__array__() @ ψ_r  [:, N_r[k]] *  \
-                                  ψ_r[:, N_r[k]].conj().T @ resonator.flux_op(0, basis='FC').__array__() @ ψ_0_r[:, N_r[j]] #/ 2 / np.pi / GHz
+                                  ψ_r[:, N_r[k]].conj().T @ resonator.flux_op(0, basis='FC').__array__() @ ψ_0_r[:, N_r[j]]  #/ (2 * np.pi * GHz)
 
                 coef = 1 / (E_0_i-E_k) + 1 / (E_0_j-E_k)
-                H_eff_p2_ij += coef * H_eff_2_f_ijk * H_eff_2_r_ijk
+                H_eff_p2_ij += coef * H_eff_2_f_ijk * H_eff_2_r_ijk #/  GHz #/ 2 / np.pi
 
             H_eff_p2[i,j] = H_eff_p2_ij
 
-    return Δ**2 / 2 / L_c * H_eff_p2 / GHz #/ 2 / np.pi
+    return Δ**2/2  * (H_eff_p2 / (Δ * L_c) ) / GHz #/ 2 / np.pi
 
 # %% Effective Hamiltonians
 def H_eff_p1(circ_0, circ):
@@ -194,7 +195,7 @@ def H_eff_p2(circ_0, circ):
     H   = circ  .hamiltonian().__array__()
     V   = H-H_0
 
-    H_eff_1 = ψ_0.conj().T @ H @ ψ_0
+    # H_eff_1 = ψ_0.conj().T @ H @ ψ_0
 
     n_eig = ψ_0.shape[1]
     H_eff_2 = np.zeros((n_eig, n_eig), dtype=complex)  # matrix to store our results.
