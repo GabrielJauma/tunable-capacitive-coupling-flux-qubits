@@ -136,8 +136,8 @@ def H_eff_p1_fluxonium_resonator(fluxonium_0, fluxonium, resonator_0, resonator,
 
     for i in range(n_eig):
         for j in range(n_eig):
-            H_eff_1_f_i_j = ψ_0_f[:, N_f[i]].conj().T @ fluxonium.flux_op(0, basis='FC').__array__() @ ψ_0_f[:, N_f[j]]
-            H_eff_1_r_i_j = ψ_0_r[:, N_r[i]].conj().T @ resonator.flux_op(0, basis='FC').__array__() @ ψ_0_r[:, N_r[j]]
+            H_eff_1_f_i_j = np.abs(ψ_0_f[:, N_f[i]].conj().T @ fluxonium.flux_op(0, basis='FC').__array__() @ ψ_0_f[:, N_f[j]])
+            H_eff_1_r_i_j = np.abs(ψ_0_r[:, N_r[i]].conj().T @ resonator.flux_op(0, basis='FC').__array__() @ ψ_0_r[:, N_r[j]])
             H_eff_p1[i,j] = H_eff_1_f_i_j*H_eff_1_r_i_j
 
     return Δ  * (H_eff_p1 / (Δ * L_c) ) / GHz # / 2 / np.pi  Why not this 2pi!!!
@@ -171,7 +171,7 @@ def H_eff_p2_fluxonium_resonator(fluxonium_0, fluxonium, resonator_0, resonator,
                                   ψ_r[:, N_r[k]].conj().T @ resonator.flux_op(0, basis='FC').__array__() @ ψ_0_r[:, N_r[j]]  #/ (2 * np.pi * GHz)
 
                 coef = 1 / (E_0_i-E_k) + 1 / (E_0_j-E_k)
-                H_eff_p2_ij += coef * H_eff_2_f_ijk * H_eff_2_r_ijk #/  GHz #/ 2 / np.pi
+                H_eff_p2_ij += coef * np.abs(H_eff_2_f_ijk * H_eff_2_r_ijk) #/  GHz #/ 2 / np.pi
 
             H_eff_p2[i,j] = H_eff_p2_ij
 
@@ -212,7 +212,7 @@ def H_eff_p2(circ_0, circ):
 
 def H_eff_SWT_circuit(circuit_0, circuit, return_transformation = False):
     ψb0 = real_eigenvectors(np.array([ψb0_i.__array__()[:,0] for ψb0_i in circuit_0._evecs]).T)
-    ψb = real_eigenvectors(np.array([ψb0_i.__array__()[:,0] for ψb0_i in circuit._evecs]).T)
+    ψb  = real_eigenvectors(np.array([ψb0_i.__array__()[:,0] for ψb0_i in circuit  ._evecs]).T)
     E = circuit.efreqs
 
     Q = ψb0.T.conj() @ ψb
