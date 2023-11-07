@@ -1,6 +1,8 @@
 import SQcircuit as sq
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy as sp
+import qutip as qt
 
 plt.rcParams['backend'] = 'QtAgg'
 
@@ -98,15 +100,15 @@ def internal_coupling_with_operators(fluxonium, resonator, Δ = 0.1, Lq = 25, Lr
 
     return Φ_r[1] * Φ_f[1] / L_c / GHz
 
-# def internal_coupling_with_operators(fluxonium, resonator, Δ = 0.1, Lq = 25, Lr = 10):
-#     GHz = 1e6
-#     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
-#     L_c = l / Δ * 1e-9
-#
-#     Φ_f = decomposition_in_pauli_2x2(fluxonium.flux_op(0, basis='eig').__array__())
-#     Φ_r = decomposition_in_pauli_2x2(resonator.flux_op(0, basis='eig').__array__())
-#
-#     return Φ_r * Φ_f / L_c / GHz
+def internal_coupling_fluxonium_resonator(fluxonium, resonator, Δ, Lq = 25, Lr = 10):
+    l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
+    L_c = l / Δ * 1e-9
+
+    Φ_r = resonator.flux_op(0)
+    Φ_f = fluxonium.flux_op(0)
+
+    return qt.tensor(Φ_r, Φ_f) / L_c / GHz
+    # return qt.tensor(Φ_f, Φ_r) / L_c / GHz
 
 # %% KIT's qubit internal coupling perturbation theory with fluxonium + resonator decomposition
 def H_eff_p1_fluxonium_resonator_ij(fluxonium_0, fluxonium, resonator_0, resonator, i_f, j_f, i_r, j_r, Δ, Lq = 25, Lr = 10):
@@ -121,6 +123,24 @@ def H_eff_p1_fluxonium_resonator_ij(fluxonium_0, fluxonium, resonator_0, resonat
 
 
     return Φ_f * Φ_r / L_c / GHz #/ 2 /np.pi
+
+
+def hamiltonian_fr(fluxonium, resonator, Δ, Lq = 25, Lr = 10):
+    l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
+    L_c = l / Δ * 1e-9
+
+    H_f = fluxonium.hamiltonian()
+    H_r = resonator.hamiltonian()
+
+    I_f = qt.identity(H_f.shape[0])
+    I_r = qt.identity(H_r.shape[0])
+
+    Φ_f = fluxonium.flux_op(0)
+    Φ_r = resonator.flux_op(0)
+
+    H = qt.tensor(I_r, H_f) + qt.tensor(H_r, I_f) + qt.tensor(Φ_r, Φ_f) / L_c
+
+    return H
 
 
 def H_eff_p1_fluxonium_resonator(fluxonium_0, fluxonium, resonator_0, resonator, N_f, N_r, Δ, Lq = 25, Lr = 10):
@@ -233,197 +253,6 @@ def H_eff_SWT_eigs(ψb0, ψb, E):
     return H_eff
 
 
-def decomposition_in_pauli_2x2(A):
-    '''Performs Pauli decomposition of a 2x2 matrix.
-
-    Input:
-    A= matrix to decompose.
-
-    Output:
-    P= 4 coefficients such that A = P[0]*I + P[1]*σx + P[2]*σy + P[3]*σz'''
-
-    # Pauli matrices.
-    I = np.eye(2)
-    σx = np.array([[0, 1], [1, 0]])
-    σy = np.array([[0, -1j], [1j, 0]])
-    σz = np.array([[1, 0], [0, -1]])
-    s = [I, σx, σy, σz]  # array containing the matrices.
-
-    P = np.zeros(4)  # array to store our results.
-    # Loop to obtain each coefficient.
-    for i in range(4):
-        P[i] = 0.5 * np.trace(s[i].T.conjugate() @ A)
-
-    return P
-
-
-def decomposition_in_pauli_4x4(A, rd, Print=True):
-    '''Performs Pauli decomposition of a 2x2 matrix.
-
-    Input:
-    A= matrix to decompose.
-    rd= number of decimals to use when rounding a number.
-
-    Output:
-    P= coefficients such that A = ΣP[i,j]σ_iσ_j where i,j=0, 1, 2, 3. '''
-
-    i = np.eye(2)  # σ_0
-    σx = np.array([[0, 1], [1, 0]])
-    σy = np.array([[0, -1j], [1j, 0]])
-    σz = np.array([[1, 0], [0, -1]])
-    s = [i, σx, σy, σz]  # array containing the matrices.
-    labels = ['I', 'σx', 'σy', 'σz']  # useful to print the result.
-
-    P = np.zeros((4, 4), dtype=complex)  # array to store our results.
-    # Loop to obtain each coefficient.
-    for i in range(4):
-        for j in range(4):
-            label = labels[i] + ' \U00002A02' + labels[j]
-            S = np.kron(s[i], s[j])  # S_ij=σ_i /otimes σ_j.
-            P[i, j] = np.round(0.25 * (np.dot(S.T.conjugate(), A)).trace(), rd)  # P[i,j]=(1/4)tr(S_ij^t*A)
-            if P[i, j] != 0.0 and Print == True:
-                print(" %s\t*\t %s " % (P[i, j], label))
-
-    return P
-
-
-
-#%%
-
-# def flux_op(self, mode: int, basis: str = 'FC') -> Qobj:
-#     """Return flux operator for specific mode in the Fock/Charge basis or
-#     the eigenbasis.
-#
-#     Parameters
-#     ----------
-#         mode:
-#             Integer that specifies the mode number.
-#         basis:
-#             String that specifies the basis. It can be either ``"FC"``
-#             for original Fock/Charge basis or ``"eig"`` for eigenbasis.
-#     """
-#
-#     error1 = "Please specify the truncation number for each mode."
-#     assert len(self.m) != 0, error1
-#
-#     # charge operator in Fock/Charge basis
-#     Φ_FC = self._memory_ops["phi"][mode]
-#
-#     if basis == "FC":
-#
-#         return Φ_FC
-#
-#     elif basis == "eig":
-#         ψ = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in self._evecs]).T)
-#
-#         Φ_eig = ψ.conj().T @ Φ_FC.__array__() @ ψ
-#
-#         return qt.Qobj(Φ_eig)
-
-#%%
-def real_eigenvectors(U):
-    '''Fixes the phase of a vector.
-
-    Input:
-    U=vector
-
-    Output:
-    U= vector without phase.'''
-
-    l = U.shape[0]
-    avgz = np.sum(U[:l // 2, :] * np.abs(U[:l // 2, :]) ** 2, 0)
-    avgz = avgz / np.abs(avgz)
-    # U(i,j) = U(i,j) / z(j) for all i,j
-    U = U * avgz.conj()
-    return U
-
-
-def truncation_convergence(circuit, n_eig, trunc_nums=False, threshold=1e-2, refine=True, plot=True):
-    '''
-    This function tests the convergence of set_trunc_nums.
-    It increases the truncation numbers until the convergence condition is met.
-    The convergence condition is that the max difference between the spectrum calculated using some truncation numbers,
-    versus those truncation numbers + 1, must be below a certain "threshold" (given by user or set as 0.1%).
-
-    If refine is True then it reduces the truncation number of each mode iteratively to see if the convergence condition
-    is still met.
-
-    TO DO: This function is not very optimal to obtain the spectrum vs phi, it diagonalizes too many times for already converged results.
-    '''
-
-    if not trunc_nums:
-        trunc_nums = [2] * circuit.n
-
-    ΔE = 1
-    E = []
-    trunc_nums_list = []
-    while ΔE > threshold:
-        trunc_nums = [n + 1 for n in trunc_nums]
-        circuit.set_trunc_nums(trunc_nums)
-        E.append(circuit.diag(n_eig)[0])
-        trunc_nums_list.append(trunc_nums.copy())
-        if len(E) == 1:
-            continue
-
-        ΔE = np.abs((E[-1] - E[-2]) / E[-2]).max()
-
-    E_conv = E[-1].copy()
-
-    if refine:
-        modes_to_refine = np.array([True] * circuit.n)
-        while np.any(modes_to_refine) == True:
-            for mode in range(circuit.n):
-                if modes_to_refine[mode] == False:
-                    continue
-                trunc_nums[mode] -= 1
-                circuit.set_trunc_nums(trunc_nums)
-                E.append(circuit.diag(n_eig)[0])
-                trunc_nums_list.append(trunc_nums.copy())
-                ΔE = np.abs((E[-1] - E_conv) / E_conv).max()
-                if ΔE < threshold:
-                    if trunc_nums[mode] == 1:
-                        modes_to_refine[mode] = False
-                    continue
-                else:
-                    modes_to_refine[mode] = False
-                    trunc_nums[mode] += 1
-                    del E[-1], trunc_nums_list[-1]
-                    ΔE = np.abs((E[-1] - E_conv) / E_conv).max()
-
-    if plot:
-        print(trunc_nums, E[-1], ΔE)
-        fig, ax = plt.subplots()
-        ax.plot(np.abs(E_conv - np.array(E[1:])) / E_conv)
-        ax.set_yscale('log')
-        ax.set_ylabel(r'$(E-E_{conv}) / E_{conv}$')
-        labels_trunc_nums = [str(l) for l in trunc_nums_list]
-        ax.set_xlabel('trunc_nums')
-        ax.set_xticks(np.arange(len(E))[::2], labels_trunc_nums[::2], rotation=-30)
-        fig.show()
-
-    circuit.set_trunc_nums(trunc_nums)
-    return circuit
-
-
-# def print_transformation(circuit):
-#     for i in range(circuit.S.shape[1]):
-#         print(f'Mode {i+1} = {(circuit.S[:,i] / np.abs(circuit.S[:,i]).max()).round(1) }')
-#
-
-def print_charge_transformation(circuit):
-    for i in range(circuit.R.shape[1]):
-        normalized = circuit.R[:, i] / np.abs(circuit.R[:, i]).max()
-        formatted_vector = [f"{num:5.2f}" for num in normalized]
-        vector_str = ' '.join(formatted_vector)
-        print(f'q_{i + 1} = [{vector_str}]')
-
-def print_flux_transformation(circuit):
-    for i in range(circuit.S.shape[1]):
-        normalized = circuit.S[:, i] / np.abs(circuit.S[:, i]).max()
-        formatted_vector = [f"{num:5.2f}" for num in normalized]
-        vector_str = ' '.join(formatted_vector)
-        print(f'Φ_{i + 1} = [{vector_str}]')
-
 
 #%%
 def get_node_variables(circuit):
@@ -460,19 +289,6 @@ def resonator_N_operator(circuit, Z_r, clean=True):
             return np.diag(N_r[:len(N_r.__array__()) // 2])
     else:
         return N_r
-
-# def fluxonium_N_operator(circuit, Z_f, clean=True):
-#     Φ_nodes, Q_nodes = get_node_variables(circuit)
-#     Φ_f = -Φ_nodes[0] + Φ_nodes[1]
-#     Q_f = -Q_nodes[0] + Q_nodes[1]
-#     N_f = 1 / 2 / Z_f * (Φ_f ** 2 + Z_f ** 2 * Q_f ** 2)
-#     if clean:
-#         try:
-#             return rank_by_multiples(np.diag(N_f[:len(N_f.__array__())//2]))
-#         except:
-#             return np.diag(N_f[:len(N_f.__array__())//2])
-#     else:
-#         return N_f
 
 
 def N_operator(circuit, mode, clean=True):
@@ -562,3 +378,233 @@ def get_or_assign_color(s, colors, color_dict):
     # If all colors are already used, you might want to handle this case.
     # For now, it returns None and the unchanged dictionary.
     print('I am out of colorssssssss bro')
+
+
+
+
+#%%
+
+# def flux_op(self, mode: int, basis: str = 'FC') -> Qobj:
+#     """Return flux operator for specific mode in the Fock/Charge basis or
+#     the eigenbasis.
+#
+#     Parameters
+#     ----------
+#         mode:
+#             Integer that specifies the mode number.
+#         basis:
+#             String that specifies the basis. It can be either ``"FC"``
+#             for original Fock/Charge basis or ``"eig"`` for eigenbasis.
+#     """
+#
+#     error1 = "Please specify the truncation number for each mode."
+#     assert len(self.m) != 0, error1
+#
+#     # charge operator in Fock/Charge basis
+#     Φ_FC = self._memory_ops["phi"][mode]
+#
+#     if basis == "FC":
+#
+#         return Φ_FC
+#
+#     elif basis == "eig":
+#         ψ = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in self._evecs]).T)
+#
+#         Φ_eig = ψ.conj().T @ Φ_FC.__array__() @ ψ
+#
+#         return qt.Qobj(Φ_eig)
+
+
+#%%
+def truncation_convergence(circuit, n_eig, trunc_nums=False, threshold=1e-2, refine=True, plot=True):
+    '''
+    This function tests the convergence of set_trunc_nums.
+    It increases the truncation numbers until the convergence condition is met.
+    The convergence condition is that the max difference between the spectrum calculated using some truncation numbers,
+    versus those truncation numbers + 1, must be below a certain "threshold" (given by user or set as 0.1%).
+
+    If refine is True then it reduces the truncation number of each mode iteratively to see if the convergence condition
+    is still met.
+
+    TO DO: This function is not very optimal to obtain the spectrum vs phi, it diagonalizes too many times for already converged results.
+    '''
+
+    if not trunc_nums:
+        trunc_nums = [2] * circuit.n
+
+    ΔE = 1
+    E = []
+    trunc_nums_list = []
+    while ΔE > threshold:
+        trunc_nums = [n + 1 for n in trunc_nums]
+        circuit.set_trunc_nums(trunc_nums)
+        E.append(circuit.diag(n_eig)[0])
+        trunc_nums_list.append(trunc_nums.copy())
+        if len(E) == 1:
+            continue
+
+        ΔE = np.abs((E[-1] - E[-2]) / E[-2]).max()
+
+    E_conv = E[-1].copy()
+
+    if refine:
+        modes_to_refine = np.array([True] * circuit.n)
+        while np.any(modes_to_refine) == True:
+            for mode in range(circuit.n):
+                if modes_to_refine[mode] == False:
+                    continue
+                trunc_nums[mode] -= 1
+                circuit.set_trunc_nums(trunc_nums)
+                E.append(circuit.diag(n_eig)[0])
+                trunc_nums_list.append(trunc_nums.copy())
+                ΔE = np.abs((E[-1] - E_conv) / E_conv).max()
+                if ΔE < threshold:
+                    if trunc_nums[mode] == 1:
+                        modes_to_refine[mode] = False
+                    continue
+                else:
+                    modes_to_refine[mode] = False
+                    trunc_nums[mode] += 1
+                    del E[-1], trunc_nums_list[-1]
+                    ΔE = np.abs((E[-1] - E_conv) / E_conv).max()
+
+    if plot:
+        print(trunc_nums, E[-1], ΔE)
+        fig, ax = plt.subplots()
+        ax.plot(np.abs(E_conv - np.array(E[1:])) / E_conv)
+        ax.set_yscale('log')
+        ax.set_ylabel(r'$(E-E_{conv}) / E_{conv}$')
+        labels_trunc_nums = [str(l) for l in trunc_nums_list]
+        ax.set_xlabel('trunc_nums')
+        ax.set_xticks(np.arange(len(E))[::2], labels_trunc_nums[::2], rotation=-30)
+        fig.show()
+
+    circuit.set_trunc_nums(trunc_nums)
+    return circuit
+
+
+# def print_transformation(circuit):
+#     for i in range(circuit.S.shape[1]):
+#         print(f'Mode {i+1} = {(circuit.S[:,i] / np.abs(circuit.S[:,i]).max()).round(1) }')
+#
+
+def print_charge_transformation(circuit):
+    for i in range(circuit.R.shape[1]):
+        normalized = circuit.R[:, i] / np.abs(circuit.R[:, i]).max()
+        formatted_vector = [f"{num:5.2f}" for num in normalized]
+        vector_str = ' '.join(formatted_vector)
+        print(f'q_{i + 1} = [{vector_str}]')
+
+def print_flux_transformation(circuit):
+    for i in range(circuit.S.shape[1]):
+        normalized = circuit.S[:, i] / np.abs(circuit.S[:, i]).max()
+        formatted_vector = [f"{num:5.2f}" for num in normalized]
+        vector_str = ' '.join(formatted_vector)
+        print(f'Φ_{i + 1} = [{vector_str}]')
+
+
+def real_eigenvectors(U):
+    '''Fixes the phase of a vector.
+
+    Input:
+    U=vector
+
+    Output:
+    U= vector without phase.'''
+
+    l = U.shape[0]
+    avgz = np.sum(U[:l // 2, :] * np.abs(U[:l // 2, :]) ** 2, 0)
+    avgz = avgz / np.abs(avgz)
+    # U(i,j) = U(i,j) / z(j) for all i,j
+    U = U * avgz.conj()
+    return U
+
+
+
+
+def decomposition_in_pauli_2x2(A):
+    '''Performs Pauli decomposition of a 2x2 matrix.
+
+    Input:
+    A= matrix to decompose.
+
+    Output:
+    P= 4 coefficients such that A = P[0]*I + P[1]*σx + P[2]*σy + P[3]*σz'''
+
+    # Pauli matrices.
+    I = np.eye(2)
+    σx = np.array([[0, 1], [1, 0]])
+    σy = np.array([[0, -1j], [1j, 0]])
+    σz = np.array([[1, 0], [0, -1]])
+    s = [I, σx, σy, σz]  # array containing the matrices.
+
+    P = np.zeros(4)  # array to store our results.
+    # Loop to obtain each coefficient.
+    for i in range(4):
+        P[i] = 0.5 * np.trace(s[i].T.conjugate() @ A)
+
+    return P
+
+
+
+
+
+def decomposition_in_pauli_4x4(A, rd, Print=True):
+    '''Performs Pauli decomposition of a 2x2 matrix.
+
+    Input:
+    A= matrix to decompose.
+    rd= number of decimals to use when rounding a number.
+
+    Output:
+    P= coefficients such that A = ΣP[i,j]σ_iσ_j where i,j=0, 1, 2, 3. '''
+
+    i = np.eye(2)  # σ_0
+    σx = np.array([[0, 1], [1, 0]])
+    σy = np.array([[0, -1j], [1j, 0]])
+    σz = np.array([[1, 0], [0, -1]])
+    s = [i, σx, σy, σz]  # array containing the matrices.
+    labels = ['I', 'σx', 'σy', 'σz']  # useful to print the result.
+
+    P = np.zeros((4, 4), dtype=complex)  # array to store our results.
+    # Loop to obtain each coefficient.
+    for i in range(4):
+        for j in range(4):
+            label = labels[i] + ' \U00002A02' + labels[j]
+            S = np.kron(s[i], s[j])  # S_ij=σ_i /otimes σ_j.
+            P[i, j] = np.round(0.25 * (np.dot(S.T.conjugate(), A)).trace(), rd)  # P[i,j]=(1/4)tr(S_ij^t*A)
+            if P[i, j] != 0.0 and Print == True:
+                print(" %s\t*\t %s " % (P[i, j], label))
+
+    return P
+
+
+def diag(H, n_eig=4):
+    H = qt.Qobj(H)
+    efreqs, evecs = sp.sparse.linalg.eigs(H.data, n_eig, which='SR')
+    # the output of eigen solver is not sorted
+    efreqs_sorted = np.sort(efreqs.real)
+
+    sort_arg = np.argsort(efreqs)
+    if isinstance(sort_arg, int):
+        sort_arg = [sort_arg]
+
+    evecs_sorted = evecs[:, sort_arg]
+
+
+    return efreqs_sorted / (2 * np.pi * GHz), evecs_sorted.T
+
+
+def eigs_sorted(w, v):
+    """Sorts the eigenvalues in ascending order and the corresponding eigenvectors.
+
+    Input:
+    w=array containing the eigenvalues in random order.
+    v=array representing the eigenvectors. The column v[:, i] is the eigenvector corresponding to the eigenvalue w[i].
+
+    Output:
+    w=array containing the eigenvalues in ascending order.
+    v=array representing the eigenvectors."""
+
+    ndx = np.argsort(w)  # gives the correct order for the numbers in v, from smallest to biggest.
+    return w[ndx], v[:, ndx]
