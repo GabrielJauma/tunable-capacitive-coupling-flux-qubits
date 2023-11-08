@@ -7,6 +7,8 @@ import qutip as qt
 plt.rcParams['backend'] = 'QtAgg'
 
 GHz  = 1e9
+Phi0 = 2.067833831e-15  # Flux quantum (in Wb)
+hbar = 1.0545718e-34
 
 # %% Premade circuits
 def KIT_qubit(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5):
@@ -107,7 +109,7 @@ def internal_coupling_fluxonium_resonator(fluxonium, resonator, Δ, Lq = 25, Lr 
     Φ_r = resonator.flux_op(0)
     Φ_f = fluxonium.flux_op(0)
 
-    return qt.tensor(Φ_r, Φ_f) / L_c / GHz
+    return qt.tensor(Φ_r, Φ_f) / L_c #/ GHz
     # return qt.tensor(Φ_f, Φ_r) / L_c / GHz
 
 # %% KIT's qubit internal coupling perturbation theory with fluxonium + resonator decomposition
