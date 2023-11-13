@@ -6,11 +6,14 @@ import qutip as qt
 
 plt.rcParams['backend'] = 'QtAgg'
 
+
+#%% Constants
 GHz  = 1e9
+nH = 1e-9
 Phi0 = 2.067833831e-15  # Flux quantum (in Wb)
 hbar = 1.0545718e-34
 
-# %% Premade circuits
+#%% Premade circuits
 def KIT_qubit(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5):
 
     # Initialize loop(s)
@@ -36,6 +39,7 @@ def KIT_qubit(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, �
 
     # Create and return the circuit
     return sq.Circuit(elements)
+
 
 def KITqubit_asym( Cc, α, C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5):
 
@@ -71,6 +75,7 @@ def KIT_resonator(C = 15, Lq = 25, Lr = 10, Δ = 0.1):
     }
     return sq.Circuit(resonator_elements)
 
+
 def KIT_fluxonium(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5):
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
     loop_fluxonium = sq.Loop(φ_ext)
@@ -81,55 +86,13 @@ def KIT_fluxonium(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0
     }
     return sq.Circuit(fluxonium_elements)
 
-# %% Internal coupling in KIT's qubit
 
-def internal_coupling_with_operators(fluxonium, resonator, Δ = 0.1, Lq = 25, Lr = 10):
-    l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
-    L_c = l / Δ * 1e-9
+#%% Specific functions for the KIT's qubit and its decomposition in resonator + fluxonium model
 
-    Φ_f = decomposition_in_pauli_2x2(fluxonium.flux_op(0, basis='eig').__array__())
-    Φ_r = decomposition_in_pauli_2x2(resonator.flux_op(0, basis='eig').__array__())
-
-    if np.any(np.abs(Φ_f[np.arange(len(Φ_f))!=1]/Φ_f[1])>=1e-3):
-        print('WARNING: The fluxonium flux operator is not sigma_x')
-        print(Φ_f)
-        return None
-
-    if np.any(np.abs(Φ_r [np.arange(len(Φ_r)) != 1] / Φ_r[1]) >= 1e-3):
-        print('WARNING: The resonator flux operator is not sigma_x')
-        print(Φ_r)
-        return None
-
-    return Φ_r[1] * Φ_f[1] / L_c / GHz
-
-def internal_coupling_fluxonium_resonator(fluxonium, resonator, Δ, Lq = 25, Lr = 10):
-    l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
-    L_c = l / Δ * 1e-9
-
-    Φ_r = resonator.flux_op(0)
-    Φ_f = fluxonium.flux_op(0)
-
-    return qt.tensor(Φ_r, Φ_f) / L_c #/ GHz
-    # return qt.tensor(Φ_f, Φ_r) / L_c / GHz
-
-# %% KIT's qubit internal coupling perturbation theory with fluxonium + resonator decomposition
-def H_eff_p1_fluxonium_resonator_ij(fluxonium_0, fluxonium, resonator_0, resonator, i_f, j_f, i_r, j_r, Δ, Lq = 25, Lr = 10):
-    l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
-    L_c = l / Δ * 1e-9
-
-    ψ_0_f = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in fluxonium_0._evecs]).T)
-    ψ_0_r = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in resonator_0._evecs]).T)
-
-    Φ_f = ψ_0_f[:, i_f].conj().T @ fluxonium.flux_op(0, basis='FC').__array__() @ ψ_0_f[:, j_f]
-    Φ_r = ψ_0_r[:, i_r].conj().T @ resonator.flux_op(0, basis='FC').__array__() @ ψ_0_r[:, j_r]
-
-
-    return Φ_f * Φ_r / L_c / GHz #/ 2 /np.pi
-
-
+#%% Premade hamiltonians of circuits
 def hamiltonian_fr(fluxonium, resonator, Δ, Lq = 25, Lr = 10):
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
-    L_c = l / Δ * 1e-9
+    L_c = l / Δ * nH
 
     H_f = fluxonium.hamiltonian()
     H_r = resonator.hamiltonian()
@@ -145,9 +108,23 @@ def hamiltonian_fr(fluxonium, resonator, Δ, Lq = 25, Lr = 10):
     return H
 
 
+# %% KIT's qubit internal coupling perturbation theory with fluxonium + resonator decomposition
+def H_eff_p1_fluxonium_resonator_ij(fluxonium_0, fluxonium, resonator_0, resonator, i_f, j_f, i_r, j_r, Δ, Lq = 25, Lr = 10):
+    l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
+    L_c = l / Δ * nH
+
+    ψ_0_f = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in fluxonium_0._evecs]).T)
+    ψ_0_r = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in resonator_0._evecs]).T)
+
+    Φ_f = ψ_0_f[:, i_f].conj().T @ fluxonium.flux_op(0, basis='FC').__array__() @ ψ_0_f[:, j_f]
+    Φ_r = ψ_0_r[:, i_r].conj().T @ resonator.flux_op(0, basis='FC').__array__() @ ψ_0_r[:, j_r]
+
+    return Φ_f * Φ_r / L_c / GHz #/ 2 /np.pi
+
+
 def H_eff_p1_fluxonium_resonator(fluxonium_0, fluxonium, resonator_0, resonator, N_f, N_r, Δ, Lq = 25, Lr = 10):
     l   = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
-    L_c = l / Δ * 1e-9
+    L_c = l / Δ * nH
 
     ψ_0_f = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in fluxonium_0._evecs]).T)
     ψ_0_r = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in resonator_0._evecs]).T)
@@ -167,7 +144,7 @@ def H_eff_p1_fluxonium_resonator(fluxonium_0, fluxonium, resonator_0, resonator,
 
 def H_eff_p2_fluxonium_resonator(fluxonium_0, fluxonium, resonator_0, resonator, N_f, N_r, Δ, Lq = 25, Lr = 10):
     l   = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
-    L_c = l / Δ  * 1e-9
+    L_c = l / Δ  * nH
 
     ψ_0_f = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in fluxonium_0._evecs]).T)
     ψ_f   = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in fluxonium  ._evecs]).T)
@@ -199,13 +176,68 @@ def H_eff_p2_fluxonium_resonator(fluxonium_0, fluxonium, resonator_0, resonator,
 
     return Δ**2/2  * (H_eff_p2 / (Δ * L_c) ) / GHz #/ 2 / np.pi
 
-# %% Effective Hamiltonians
+
+# %% Operators
+def internal_coupling_with_operators(fluxonium, resonator, Δ = 0.1, Lq = 25, Lr = 10):
+    l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
+    L_c = l / Δ * nH
+
+    Φ_f = decomposition_in_pauli_2x2(fluxonium.flux_op(0, basis='eig').__array__())
+    Φ_r = decomposition_in_pauli_2x2(resonator.flux_op(0, basis='eig').__array__())
+
+    if np.any(np.abs(Φ_f[np.arange(len(Φ_f))!=1]/Φ_f[1])>=1e-3):
+        print('WARNING: The fluxonium flux operator is not sigma_x')
+        print(Φ_f)
+        return None
+
+    if np.any(np.abs(Φ_r [np.arange(len(Φ_r)) != 1] / Φ_r[1]) >= 1e-3):
+        print('WARNING: The resonator flux operator is not sigma_x')
+        print(Φ_r)
+        return None
+
+    return Φ_r[1] * Φ_f[1] / L_c / GHz
+
+
+def internal_coupling_fluxonium_resonator(fluxonium, resonator, Δ, Lq = 25, Lr = 10):
+    l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
+    L_c = l / Δ * nH
+
+    Φ_r = resonator.flux_op(0)
+    Φ_f = fluxonium.flux_op(0)
+
+    return qt.tensor(Φ_r, Φ_f) / L_c #/ GHz
+
+
+#%% Sorting and labeling functions for the fluxonum + resonator model
+def get_energy_indices(qubit, fluxonium, resonator):
+
+    E_qubit = qubit.efreqs - qubit.efreqs[0]
+    E_fluxonium = fluxonium.efreqs - fluxonium.efreqs[0]
+    E_resonator = resonator.efreqs - resonator.efreqs[0]
+
+    n_eig = len(E_qubit)
+
+    N_fluxonium = np.zeros(n_eig, dtype='int')
+    N_resonator = np.zeros(n_eig, dtype='int')
+
+    E_matrix = E_fluxonium[:, np.newaxis] + E_resonator
+    for k in range(n_eig):
+        ΔE_matrix = np.abs(E_matrix - E_qubit[k])
+        if ΔE_matrix.min() < 1e-1:
+            N_fluxonium[k], N_resonator[k] = np.unravel_index(ΔE_matrix.argmin(), ΔE_matrix.shape)
+        else:
+            N_fluxonium[k], N_resonator[k] = [-123, -123]
+    return N_fluxonium, N_resonator
+
+
+# %%  Generic effective Hamiltonians
 def H_eff_p1(circ_0, circ):
     ψ_0 = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in circ_0._evecs]).T)
     H = circ.hamiltonian().__array__()
     H_eff = ψ_0.conj().T @ H @ ψ_0
 
     return H_eff / GHz / 2 / np.pi
+
 
 # Second order perturbation theory
 def H_eff_p2(circ_0, circ):
@@ -232,6 +264,7 @@ def H_eff_p2(circ_0, circ):
     # return H_eff_1
     return H_eff_2 / GHz / 2 / np.pi
 
+
 def H_eff_SWT_circuit(circuit_0, circuit, return_transformation = False):
     ψb0 = real_eigenvectors(np.array([ψb0_i.__array__()[:,0] for ψb0_i in circuit_0._evecs]).T)
     ψb  = real_eigenvectors(np.array([ψb0_i.__array__()[:,0] for ψb0_i in circuit  ._evecs]).T)
@@ -247,6 +280,7 @@ def H_eff_SWT_circuit(circuit_0, circuit, return_transformation = False):
     else:
         return H_eff
 
+
 def H_eff_SWT_eigs(ψb0, ψb, E):
     Q = ψb0.T.conj() @ ψb
     U, s, Vh = np.linalg.svd(Q)
@@ -255,8 +289,68 @@ def H_eff_SWT_eigs(ψb0, ψb, E):
     return H_eff
 
 
+#%% Generic operators
+def resonator_N_operator(resonator, Z_r, clean=True):
+    Φ_nodes, Q_nodes = get_node_variables(resonator)
+    Φ_r = Φ_nodes[0] + Φ_nodes[1]
+    Q_r = Q_nodes[0] + Q_nodes[1]
+    N_r = 1 / 2 / Z_r * (Φ_r ** 2 + Z_r ** 2 * Q_r ** 2)
+    if clean:
+        try:
+            return rank_by_multiples(np.diag(N_r[:len(N_r.__array__()) // 2]))
+        except:
+            return np.diag(N_r[:len(N_r.__array__()) // 2])
+    else:
+        return N_r
 
-#%%
+
+#%% Generic mathematical functions
+def diag(H, n_eig=4):
+    H = qt.Qobj(H)
+    efreqs, evecs = sp.sparse.linalg.eigs(H.data, n_eig, which='SR')
+    # the output of eigen solver is not sorted
+    efreqs_sorted = np.sort(efreqs.real)
+
+    sort_arg = np.argsort(efreqs)
+    if isinstance(sort_arg, int):
+        sort_arg = [sort_arg]
+
+    evecs_sorted = evecs[:, sort_arg]
+    return efreqs_sorted / (2 * np.pi * GHz), evecs_sorted.T
+
+
+def eigs_sorted(w, v):
+    """Sorts the eigenvalues in ascending order and the corresponding eigenvectors.
+
+    Input:
+    w=array containing the eigenvalues in random order.
+    v=array representing the eigenvectors. The column v[:, i] is the eigenvector corresponding to the eigenvalue w[i].
+
+    Output:
+    w=array containing the eigenvalues in ascending order.
+    v=array representing the eigenvectors."""
+
+    ndx = np.argsort(w)  # gives the correct order for the numbers in v, from smallest to biggest.
+    return w[ndx], v[:, ndx]
+
+
+def real_eigenvectors(U):
+    '''Fixes the phase of a vector.
+
+    Input:
+    U=vector
+
+    Output:
+    U= vector without phase.'''
+
+    l = U.shape[0]
+    avgz = np.sum(U[:l // 2, :] * np.abs(U[:l // 2, :]) ** 2, 0)
+    avgz = avgz / np.abs(avgz)
+    # U(i,j) = U(i,j) / z(j) for all i,j
+    U = U * avgz.conj()
+    return U
+
+
 def get_node_variables(circuit):
     n_modes = len(circuit.m)
     Φ_normal = [circuit.flux_op(i, basis='eig') for i in range(n_modes)]
@@ -271,50 +365,29 @@ def get_node_variables(circuit):
         for j in range(n_modes):
             Φ_sum += Φ_normal[j] * circuit.S[i, j]
             Q_sum += Q_normal[j] * circuit.R[i, j]
-            # Φ_sum += Φ_normal[j] * circuit.S[j, i]
-            # Q_sum += Q_normal[j] * circuit.R[j, i]
 
         Φ_nodes.append(Φ_sum)
         Q_nodes.append(Q_sum)
 
     return Φ_nodes, Q_nodes
 
-def resonator_N_operator(circuit, Z_r, clean=True):
-    Φ_nodes, Q_nodes = get_node_variables(circuit)
-    Φ_r = Φ_nodes[0] + Φ_nodes[1]
-    Q_r = Q_nodes[0] + Q_nodes[1]
-    N_r = 1 / 2 / Z_r * (Φ_r ** 2 + Z_r ** 2 * Q_r ** 2)
-    if clean:
-        try:
-            return rank_by_multiples(np.diag(N_r[:len(N_r.__array__()) // 2]))
-        except:
-            return np.diag(N_r[:len(N_r.__array__()) // 2])
-    else:
-        return N_r
+
+#%% Generic labeling and sorting functions
+def print_charge_transformation(circuit):
+    for i in range(circuit.R.shape[1]):
+        normalized = circuit.R[:, i] / np.abs(circuit.R[:, i]).max()
+        formatted_vector = [f"{num:5.2f}" for num in normalized]
+        vector_str = ' '.join(formatted_vector)
+        print(f'q_{i + 1} = [{vector_str}]')
 
 
-def N_operator(circuit, mode, clean=True):
-    Φ = circuit.flux_op(mode, basis='eig')
-    Q = circuit.charge_op(mode, basis='eig')
-    Z = np.sqrt( circuit.cInvTrans[mode,mode] / circuit.lTrans[mode,mode])
-    N = 1 / 2 / Z * (Φ ** 2 + Z ** 2 * Q ** 2)
-    if clean:
-        return rank_by_multiples(np.abs(np.diag(N[:len(N.__array__()) // 2])))
-    else:
-        return N
+def print_flux_transformation(circuit):
+    for i in range(circuit.S.shape[1]):
+        normalized = circuit.S[:, i] / np.abs(circuit.S[:, i]).max()
+        formatted_vector = [f"{num:5.2f}" for num in normalized]
+        vector_str = ' '.join(formatted_vector)
+        print(f'Φ_{i + 1} = [{vector_str}]')
 
-
-def rank_by_multiples(arr):
-    # Identify the smallest value
-    min_value = np.min(arr)
-
-    # Subtract the smallest value from the entire array
-    diff_array = arr - min_value
-
-    # Identify the next smallest positive value in the subtracted array
-    unit = np.min([val for val in diff_array if val > 0.1])
-
-    return np.array( np.round(diff_array / unit), dtype='int')
 
 def get_state_label(N_f, N_r, i, j, return_numeric_indices=False):
     if i == j:
@@ -326,27 +399,6 @@ def get_state_label(N_f, N_r, i, j, return_numeric_indices=False):
         return label, N_f[i], N_f[j], N_r[i], N_r[j]
     else:
         return label
-
-
-def get_energy_indices(qubit, fluxonium, resonator):
-
-    E_qubit = qubit.efreqs - qubit.efreqs[0]
-    E_fluxonium = fluxonium.efreqs - fluxonium.efreqs[0]
-    E_resonator = resonator.efreqs - resonator.efreqs[0]
-
-    n_eig = len(E_qubit)
-
-    N_fluxonium = np.zeros(n_eig, dtype='int')
-    N_resonator = np.zeros(n_eig, dtype='int')
-
-    E_matrix = E_fluxonium[:, np.newaxis] + E_resonator
-    for k in range(n_eig):
-        ΔE_matrix = np.abs(E_matrix - E_qubit[k])
-        if ΔE_matrix.min() < 1e-1:
-            N_fluxonium[k], N_resonator[k] = np.unravel_index(ΔE_matrix.argmin(), ΔE_matrix.shape)
-        else:
-            N_fluxonium[k], N_resonator[k] = [-123, -123]
-    return N_fluxonium, N_resonator
 
 
 def find_indices(data):
@@ -382,42 +434,79 @@ def get_or_assign_color(s, colors, color_dict):
     print('I am out of colorssssssss bro')
 
 
+def rank_by_multiples(arr, tol = 0.1):
+    # Receives an array of repeting real values and outputs an array of integers that identify the smallest element and
+    # The rest of the elements as multiples of the delta between the smallest and next smallest element.
+    # e.g. in=[2.41, 1.23, 2.42, 3.63] out=[1, 0, 1, 2]
+    # aka puting labels to usorted energy levels.
+
+    # Identify the smallest value
+    min_value = np.min(arr)
+
+    # Subtract the smallest value from the entire array
+    diff_array = arr - min_value
+
+    # Identify the next smallest positive value in the subtracted array
+    unit = np.min([val for val in diff_array if val > tol])
+
+    return np.array( np.round(diff_array / unit), dtype='int')
 
 
-#%%
+def decomposition_in_pauli_2x2(A):
+    '''Performs Pauli decomposition of a 2x2 matrix.
 
-# def flux_op(self, mode: int, basis: str = 'FC') -> Qobj:
-#     """Return flux operator for specific mode in the Fock/Charge basis or
-#     the eigenbasis.
-#
-#     Parameters
-#     ----------
-#         mode:
-#             Integer that specifies the mode number.
-#         basis:
-#             String that specifies the basis. It can be either ``"FC"``
-#             for original Fock/Charge basis or ``"eig"`` for eigenbasis.
-#     """
-#
-#     error1 = "Please specify the truncation number for each mode."
-#     assert len(self.m) != 0, error1
-#
-#     # charge operator in Fock/Charge basis
-#     Φ_FC = self._memory_ops["phi"][mode]
-#
-#     if basis == "FC":
-#
-#         return Φ_FC
-#
-#     elif basis == "eig":
-#         ψ = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in self._evecs]).T)
-#
-#         Φ_eig = ψ.conj().T @ Φ_FC.__array__() @ ψ
-#
-#         return qt.Qobj(Φ_eig)
+    Input:
+    A= matrix to decompose.
+
+    Output:
+    P= 4 coefficients such that A = P[0]*I + P[1]*σx + P[2]*σy + P[3]*σz'''
+
+    # Pauli matrices.
+    I = np.eye(2)
+    σx = np.array([[0, 1], [1, 0]])
+    σy = np.array([[0, -1j], [1j, 0]])
+    σz = np.array([[1, 0], [0, -1]])
+    s = [I, σx, σy, σz]  # array containing the matrices.
+
+    P = np.zeros(4)  # array to store our results.
+    # Loop to obtain each coefficient.
+    for i in range(4):
+        P[i] = 0.5 * np.trace(s[i].T.conjugate() @ A)
+
+    return P
 
 
-#%%
+def decomposition_in_pauli_4x4(A, rd, Print=True):
+    '''Performs Pauli decomposition of a 2x2 matrix.
+
+    Input:
+    A= matrix to decompose.
+    rd= number of decimals to use when rounding a number.
+
+    Output:
+    P= coefficients such that A = ΣP[i,j]σ_iσ_j where i,j=0, 1, 2, 3. '''
+
+    i = np.eye(2)  # σ_0
+    σx = np.array([[0, 1], [1, 0]])
+    σy = np.array([[0, -1j], [1j, 0]])
+    σz = np.array([[1, 0], [0, -1]])
+    s = [i, σx, σy, σz]  # array containing the matrices.
+    labels = ['I', 'σx', 'σy', 'σz']  # useful to print the result.
+
+    P = np.zeros((4, 4), dtype=complex)  # array to store our results.
+    # Loop to obtain each coefficient.
+    for i in range(4):
+        for j in range(4):
+            label = labels[i] + ' \U00002A02' + labels[j]
+            S = np.kron(s[i], s[j])  # S_ij=σ_i /otimes σ_j.
+            P[i, j] = np.round(0.25 * (np.dot(S.T.conjugate(), A)).trace(), rd)  # P[i,j]=(1/4)tr(S_ij^t*A)
+            if P[i, j] != 0.0 and Print == True:
+                print(" %s\t*\t %s " % (P[i, j], label))
+
+    return P
+
+
+#%% Truncation convergence
 def truncation_convergence(circuit, n_eig, trunc_nums=False, threshold=1e-2, refine=True, plot=True):
     '''
     This function tests the convergence of set_trunc_nums.
@@ -485,128 +574,34 @@ def truncation_convergence(circuit, n_eig, trunc_nums=False, threshold=1e-2, ref
     return circuit
 
 
-# def print_transformation(circuit):
-#     for i in range(circuit.S.shape[1]):
-#         print(f'Mode {i+1} = {(circuit.S[:,i] / np.abs(circuit.S[:,i]).max()).round(1) }')
+#%% Functions that are actually in sqcircuits file circuit.py
+
+# def flux_op(self, mode: int, basis: str = 'FC') -> Qobj:
+#     """Return flux operator for specific mode in the Fock/Charge basis or
+#     the eigenbasis.
 #
-
-def print_charge_transformation(circuit):
-    for i in range(circuit.R.shape[1]):
-        normalized = circuit.R[:, i] / np.abs(circuit.R[:, i]).max()
-        formatted_vector = [f"{num:5.2f}" for num in normalized]
-        vector_str = ' '.join(formatted_vector)
-        print(f'q_{i + 1} = [{vector_str}]')
-
-def print_flux_transformation(circuit):
-    for i in range(circuit.S.shape[1]):
-        normalized = circuit.S[:, i] / np.abs(circuit.S[:, i]).max()
-        formatted_vector = [f"{num:5.2f}" for num in normalized]
-        vector_str = ' '.join(formatted_vector)
-        print(f'Φ_{i + 1} = [{vector_str}]')
-
-
-def real_eigenvectors(U):
-    '''Fixes the phase of a vector.
-
-    Input:
-    U=vector
-
-    Output:
-    U= vector without phase.'''
-
-    l = U.shape[0]
-    avgz = np.sum(U[:l // 2, :] * np.abs(U[:l // 2, :]) ** 2, 0)
-    avgz = avgz / np.abs(avgz)
-    # U(i,j) = U(i,j) / z(j) for all i,j
-    U = U * avgz.conj()
-    return U
-
-
-
-
-def decomposition_in_pauli_2x2(A):
-    '''Performs Pauli decomposition of a 2x2 matrix.
-
-    Input:
-    A= matrix to decompose.
-
-    Output:
-    P= 4 coefficients such that A = P[0]*I + P[1]*σx + P[2]*σy + P[3]*σz'''
-
-    # Pauli matrices.
-    I = np.eye(2)
-    σx = np.array([[0, 1], [1, 0]])
-    σy = np.array([[0, -1j], [1j, 0]])
-    σz = np.array([[1, 0], [0, -1]])
-    s = [I, σx, σy, σz]  # array containing the matrices.
-
-    P = np.zeros(4)  # array to store our results.
-    # Loop to obtain each coefficient.
-    for i in range(4):
-        P[i] = 0.5 * np.trace(s[i].T.conjugate() @ A)
-
-    return P
-
-
-
-
-
-def decomposition_in_pauli_4x4(A, rd, Print=True):
-    '''Performs Pauli decomposition of a 2x2 matrix.
-
-    Input:
-    A= matrix to decompose.
-    rd= number of decimals to use when rounding a number.
-
-    Output:
-    P= coefficients such that A = ΣP[i,j]σ_iσ_j where i,j=0, 1, 2, 3. '''
-
-    i = np.eye(2)  # σ_0
-    σx = np.array([[0, 1], [1, 0]])
-    σy = np.array([[0, -1j], [1j, 0]])
-    σz = np.array([[1, 0], [0, -1]])
-    s = [i, σx, σy, σz]  # array containing the matrices.
-    labels = ['I', 'σx', 'σy', 'σz']  # useful to print the result.
-
-    P = np.zeros((4, 4), dtype=complex)  # array to store our results.
-    # Loop to obtain each coefficient.
-    for i in range(4):
-        for j in range(4):
-            label = labels[i] + ' \U00002A02' + labels[j]
-            S = np.kron(s[i], s[j])  # S_ij=σ_i /otimes σ_j.
-            P[i, j] = np.round(0.25 * (np.dot(S.T.conjugate(), A)).trace(), rd)  # P[i,j]=(1/4)tr(S_ij^t*A)
-            if P[i, j] != 0.0 and Print == True:
-                print(" %s\t*\t %s " % (P[i, j], label))
-
-    return P
-
-
-def diag(H, n_eig=4):
-    H = qt.Qobj(H)
-    efreqs, evecs = sp.sparse.linalg.eigs(H.data, n_eig, which='SR')
-    # the output of eigen solver is not sorted
-    efreqs_sorted = np.sort(efreqs.real)
-
-    sort_arg = np.argsort(efreqs)
-    if isinstance(sort_arg, int):
-        sort_arg = [sort_arg]
-
-    evecs_sorted = evecs[:, sort_arg]
-
-
-    return efreqs_sorted / (2 * np.pi * GHz), evecs_sorted.T
-
-
-def eigs_sorted(w, v):
-    """Sorts the eigenvalues in ascending order and the corresponding eigenvectors.
-
-    Input:
-    w=array containing the eigenvalues in random order.
-    v=array representing the eigenvectors. The column v[:, i] is the eigenvector corresponding to the eigenvalue w[i].
-
-    Output:
-    w=array containing the eigenvalues in ascending order.
-    v=array representing the eigenvectors."""
-
-    ndx = np.argsort(w)  # gives the correct order for the numbers in v, from smallest to biggest.
-    return w[ndx], v[:, ndx]
+#     Parameters
+#     ----------
+#         mode:
+#             Integer that specifies the mode number.
+#         basis:
+#             String that specifies the basis. It can be either ``"FC"``
+#             for original Fock/Charge basis or ``"eig"`` for eigenbasis.
+#     """
+#
+#     error1 = "Please specify the truncation number for each mode."
+#     assert len(self.m) != 0, error1
+#
+#     # charge operator in Fock/Charge basis
+#     Φ_FC = self._memory_ops["phi"][mode]
+#
+#     if basis == "FC":
+#
+#         return Φ_FC
+#
+#     elif basis == "eig":
+#         ψ = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in self._evecs]).T)
+#
+#         Φ_eig = ψ.conj().T @ Φ_FC.__array__() @ ψ
+#
+#         return qt.Qobj(Φ_eig)
