@@ -40,6 +40,31 @@ def KIT_qubit(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, �
     # Create and return the circuit
     return sq.Circuit(elements)
 
+def KIT_qubit_no_JJ(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, φ_ext=0.5):
+
+    # Initialize loop(s)
+    # loop = sq.Loop(φ_ext)
+
+    # Circuit components
+    C_01 = sq.Capacitor(C,       'fF')
+    C_02 = sq.Capacitor(C,       'fF')
+    C_12 = sq.Capacitor(CJ+Csh,  'fF')
+    L_03 = sq.Inductor(Lr,       'nH')
+    L_31 = sq.Inductor(Lq/2 - Δ, 'nH')#,  loops=[loop])
+    L_23 = sq.Inductor(Lq/2 + Δ, 'nH')#,  loops=[loop])
+
+    elements = {
+        (0, 3): [L_03],
+        (0, 1): [C_01],
+        (0, 2): [C_02],
+        (3, 1): [L_31],
+        (1, 2): [C_12],
+        (2, 3): [L_23],
+    }
+
+    # Create and return the circuit
+    return sq.Circuit(elements)
+
 def KIT_qubit_triangle(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5):
 
     R1 = Lq/2-Δ
@@ -115,6 +140,14 @@ def KIT_fluxonium(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0
         (0, 1): [sq.Capacitor(C / 2 + Csh + CJ, 'fF'),
                  sq.Inductor(l / (Lq + 4 * Lr), 'nH', loops=[loop_fluxonium]),
                  sq.Junction(EJ, 'GHz', loops=[loop_fluxonium])],
+    }
+    return sq.Circuit(fluxonium_elements)
+
+def KIT_fluxonium_no_JJ(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1 ):
+    l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
+    fluxonium_elements = {
+        (0, 1): [sq.Capacitor(C / 2 + Csh + CJ, 'fF'),
+                 sq.Inductor(l / (Lq + 4 * Lr), 'nH')],
     }
     return sq.Circuit(fluxonium_elements)
 
@@ -386,7 +419,7 @@ def real_eigenvectors(U):
 
 
 def get_node_variables(circuit, basis):
-    n_modes = len(circuit.m)
+    n_modes = circuit.n
     Φ_normal = [circuit.flux_op(i, basis=basis) for i in range(n_modes)]
     Q_normal = [circuit.charge_op(i, basis=basis) for i in range(n_modes)]
 
