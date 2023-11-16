@@ -78,14 +78,15 @@ def KIT_qubit_triangle(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ 
 
     # Initialize loop(s)
     loop = sq.Loop(φ_ext)
+    loop_fictitious = sq.Loop(φ_ext)
 
     # Circuit components
     C_01 = sq.Capacitor(C,       'fF')
     C_02 = sq.Capacitor(C,       'fF')
     C_12 = sq.Capacitor(CJ+Csh,  'fF')
-    L_01 = sq.Inductor(Rb, 'nH')
-    L_02 = sq.Inductor(Ra, 'nH')
-    L_12 = sq.Inductor(Rc, 'nH',  loops=[loop])
+    L_01 = sq.Inductor(Rb, 'nH',  loops=[loop_fictitious])
+    L_02 = sq.Inductor(Ra, 'nH',  loops=[loop_fictitious])
+    L_12 = sq.Inductor(Rc, 'nH',  loops=[loop_fictitious, loop])
     JJ_12= sq.Junction(EJ,'GHz',  loops=[loop])
 
     elements = {
@@ -158,7 +159,6 @@ def KIT_fluxonium_no_JJ(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1 ):
 def hamiltonian_frc(fluxonium, resonator, Δ, Lq = 25, Lr = 10):
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
     L_c = l / Δ * nH
-    # L_c = l * nH / Δ**2
 
     H_f = fluxonium.hamiltonian()
     H_r = resonator.hamiltonian()
@@ -169,7 +169,27 @@ def hamiltonian_frc(fluxonium, resonator, Δ, Lq = 25, Lr = 10):
     Φ_f = fluxonium.flux_op(0)
     Φ_r = resonator.flux_op(0)
 
-    # H = qt.tensor(I_r, H_f) + qt.tensor(H_r, I_f) + 1.759*qt.tensor(Φ_r, Φ_f) / L_c
+    H = qt.tensor(I_r, H_f) + qt.tensor(H_r, I_f) + qt.tensor(Φ_r, Φ_f) / L_c
+    # H = qt.tensor(I_f, H_r) + qt.tensor(H_f, I_r) + qt.tensor(Φ_f, Φ_r) / L_c
+
+    return H
+
+def hamiltonian_frc_qubit(qubit, fluxonium, resonator, Δ, Lq = 25, Lr = 10):
+    l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
+    L_c = l / Δ * nH
+    # L_c = l * nH / Δ**2
+
+    H_f = fluxonium.hamiltonian()
+    H_r = resonator.hamiltonian()
+
+    I_f = qt.identity(H_f.shape[0])
+    I_r = qt.identity(H_r.shape[0])
+
+    Φ, Q = get_node_variables(qubit,'FC', isolated=True)
+
+    Φ_f = Φ[2]-Φ[1]
+    Φ_r = Φ[2]+Φ[1]
+
     H = qt.tensor(I_r, H_f) + qt.tensor(H_r, I_f) + qt.tensor(Φ_r, Φ_f) / L_c
 
     return H
@@ -418,10 +438,14 @@ def real_eigenvectors(U):
     return U
 
 
-def get_node_variables(circuit, basis):
+def get_node_variables(circuit, basis, isolated=False):
     n_modes = circuit.n
-    Φ_normal = [circuit.flux_op(i, basis=basis) for i in range(n_modes)]
-    Q_normal = [circuit.charge_op(i, basis=basis) for i in range(n_modes)]
+    if isolated:
+        Φ_normal = [circuit._flux_op_isolated  (i) for i in range(n_modes)]
+        Q_normal = [circuit._charge_op_isolated(i) for i in range(n_modes)]
+    else:
+        Φ_normal = [circuit.flux_op(i, basis=basis) for i in range(n_modes)]
+        Q_normal = [circuit.charge_op(i, basis=basis) for i in range(n_modes)]
 
     Φ_nodes = []
     Q_nodes = []
