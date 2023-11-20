@@ -169,8 +169,9 @@ def hamiltonian_frc(fluxonium, resonator, Δ, Lq = 25, Lr = 10):
     Φ_f = fluxonium.flux_op(0)
     Φ_r = resonator.flux_op(0)
 
-    H = qt.tensor(I_r, H_f) + qt.tensor(H_r, I_f) + qt.tensor(Φ_r, Φ_f) / L_c
+    # H = qt.tensor(I_r, H_f) + qt.tensor(H_r, I_f) + qt.tensor(Φ_r, Φ_f) / L_c
     H = qt.tensor(I_r, H_f) + qt.tensor(H_r, I_f) + qt.tensor(Φ_r, Φ_f) * 2 * Δ / l / 1e-9
+    # H = qt.tensor(I_r, H_f) + qt.tensor(H_r, I_f) + qt.tensor(Φ_r, Φ_f) * Δ / l / 1e-9
     # H = qt.tensor(I_f, H_r) + qt.tensor(H_f, I_r) + qt.tensor(Φ_f, Φ_r) / L_c
 
     return H
@@ -398,6 +399,7 @@ def diag(H, n_eig=4, out='GHz'):
     efreqs, evecs = sp.sparse.linalg.eigs(H.data, n_eig, which='SR')
     # the output of eigen solver is not sorted
     efreqs_sorted = np.sort(efreqs.real)
+    efreqs_sorted = efreqs_sorted - efreqs_sorted[0]
 
     sort_arg = np.argsort(efreqs)
     if isinstance(sort_arg, int):

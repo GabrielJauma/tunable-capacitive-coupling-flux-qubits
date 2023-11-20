@@ -174,6 +174,42 @@ def KIT_qubit_no_JJ(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, φ_ext
     # Create and return the circuit
     return sq.Circuit(elements)
 
+def KIT_fluxonium(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5):
+    l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
+    loop_fluxonium = sq.Loop(φ_ext)
+    fluxonium_elements = {
+        (0, 1): [sq.Capacitor(C / 2 + Csh + CJ, 'fF'),
+                 sq.Inductor(l / (Lq + 4 * Lr), 'nH', loops=[loop_fluxonium]),
+                 sq.Junction(EJ, 'GHz', loops=[loop_fluxonium])],
+    }
+    return sq.Circuit(fluxonium_elements)
+
+def KIT_qubit(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5):
+
+    # Initialize loop(s)
+    loop = sq.Loop(φ_ext)
+
+    # Circuit components
+    C_01 = sq.Capacitor(C,       'fF')
+    C_02 = sq.Capacitor(C,       'fF')
+    C_12 = sq.Capacitor(CJ+Csh,  'fF')
+    L_03 = sq.Inductor(Lr,       'nH')
+    L_31 = sq.Inductor(Lq/2 - Δ, 'nH',  loops=[loop])
+    L_23 = sq.Inductor(Lq/2 + Δ, 'nH',  loops=[loop])
+    JJ_12= sq.Junction(EJ,       'GHz', loops=[loop])
+
+    elements = {
+        (0, 3): [L_03],
+        (0, 1): [C_01],
+        (0, 2): [C_02],
+        (3, 1): [L_31],
+        (1, 2): [C_12, JJ_12],
+        (2, 3): [L_23],
+    }
+
+    # Create and return the circuit
+    return sq.Circuit(elements)
+
 #%% Set trunc nums and diag
 n_eig = 4
 trunc_num = 20
@@ -181,17 +217,23 @@ trunc_num = 20
 #
 res     = KIT_resonator          (Δ=Δ)
 flu     = KIT_fluxonium_no_JJ    (Δ=Δ)
+# flu     = KIT_fluxonium   (Δ=Δ)
 qubit   = KIT_qubit_no_JJ        (Δ=Δ)
+# qubit   = KIT_qubit      (Δ=Δ)
 res_0   = KIT_resonator          (Δ=0)
 flu_0   = KIT_fluxonium_no_JJ    (Δ=0)
+# flu_0   = KIT_fluxonium    (Δ=0)
 qubit_0 = KIT_qubit_no_JJ        (Δ=0)
+# qubit_0 = KIT_qubit       (Δ=0)
 #
 res     .set_trunc_nums([trunc_num])
 flu     .set_trunc_nums([trunc_num])
 qubit   .set_trunc_nums([1, trunc_num,trunc_num])
+# qubit   .set_trunc_nums( [trunc_num,trunc_num])
 res_0   .set_trunc_nums([trunc_num])
 flu_0   .set_trunc_nums([trunc_num])
 qubit_0 .set_trunc_nums([1, trunc_num,trunc_num])
+# qubit_0 .set_trunc_nums([trunc_num,trunc_num])
 #
 _ = res     .diag(n_eig)
 _ = flu     .diag(n_eig)
@@ -242,7 +284,7 @@ H_qubit = qt.tensor(H_res,I_flu) + qt.tensor(I_res,H_flu) + qt.tensor(Φ_res,Φ_
 #%%
 E = sq_ext.diag(H_qubit , n_eig, out='GHz')[0]
 
-print( E-E [0])
+print( E-E[0])
 print( qubit.efreqs )
 
 print( (E-E[0])[1])
