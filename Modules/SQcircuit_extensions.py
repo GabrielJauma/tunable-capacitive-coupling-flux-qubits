@@ -158,7 +158,7 @@ def KIT_fluxonium_no_JJ(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1 ):
 #%% Premade hamiltonians of circuits
 def hamiltonian_frc(fluxonium, resonator, Δ, Lq = 25, Lr = 10):
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
-    L_c = l / Δ * nH
+    L_c = l / (2*Δ) * nH
 
     H_f = fluxonium.hamiltonian()
     H_r = resonator.hamiltonian()
@@ -392,7 +392,7 @@ def resonator_N_operator(resonator, Z_r, clean=True):
 
 
 #%% Generic mathematical functions
-def diag(H, n_eig=4):
+def diag(H, n_eig=4, out='GHz'):
     H = qt.Qobj(H)
     efreqs, evecs = sp.sparse.linalg.eigs(H.data, n_eig, which='SR')
     # the output of eigen solver is not sorted
@@ -403,7 +403,10 @@ def diag(H, n_eig=4):
         sort_arg = [sort_arg]
 
     evecs_sorted = evecs[:, sort_arg]
-    return efreqs_sorted / (2 * np.pi * GHz), evecs_sorted.T
+    if out=='GHz':
+        return efreqs_sorted / (2 * np.pi * GHz), evecs_sorted.T
+    else:
+        return efreqs_sorted, evecs_sorted.T
 
 
 def eigs_sorted(w, v):
