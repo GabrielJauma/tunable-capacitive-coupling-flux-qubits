@@ -95,7 +95,7 @@ Q_0 = res_0.charge_op(0)
 H_res_0 = 1/2 * Q_0**2 + 1/2 * Φ_0**2
 H_res   = 1/2 * Q**2 + 1/2 * (1+1/Δ) * Φ**2
 
-# H_res_0 = res_0.hamiltonian()
+H_res_0 = res_0.hamiltonian()
 # H_res   = res.hamiltonian()
 
 I = qt.identity(H_res.shape[0])
@@ -214,17 +214,18 @@ def KIT_qubit(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, �
 n_eig = 4
 trunc_num = 20
 Δ=1
-#
+
 res     = KIT_resonator          (Δ=Δ)
-flu     = KIT_fluxonium_no_JJ    (Δ=Δ)
 # flu     = KIT_fluxonium   (Δ=Δ)
-qubit   = KIT_qubit_no_JJ        (Δ=Δ)
 # qubit   = KIT_qubit      (Δ=Δ)
+flu     = KIT_fluxonium_no_JJ    (Δ=Δ)
+qubit   = KIT_qubit_no_JJ        (Δ=Δ)
+
 res_0   = KIT_resonator          (Δ=0)
-flu_0   = KIT_fluxonium_no_JJ    (Δ=0)
 # flu_0   = KIT_fluxonium    (Δ=0)
-qubit_0 = KIT_qubit_no_JJ        (Δ=0)
 # qubit_0 = KIT_qubit       (Δ=0)
+flu_0   = KIT_fluxonium_no_JJ    (Δ=0)
+qubit_0 = KIT_qubit_no_JJ        (Δ=0)
 #
 res     .set_trunc_nums([trunc_num])
 flu     .set_trunc_nums([trunc_num])
@@ -234,7 +235,7 @@ res_0   .set_trunc_nums([trunc_num])
 flu_0   .set_trunc_nums([trunc_num])
 qubit_0 .set_trunc_nums([1, trunc_num,trunc_num])
 # qubit_0 .set_trunc_nums([trunc_num,trunc_num])
-#
+
 _ = res     .diag(n_eig)
 _ = flu     .diag(n_eig)
 _ = qubit   .diag(n_eig)
@@ -243,7 +244,6 @@ _ = flu_0   .diag(n_eig)
 _ = qubit_0 .diag(n_eig)
 
 #%%
-
 l = Lq*(Lq+4*Lr) - 4*Δ**2
 L_r = l/Lq * 1e-9
 L_f = l/(Lq+4*Lr) * 1e-9
@@ -267,11 +267,11 @@ Q_flu_0 = flu_0.charge_op(0)
 
 #%%
 H_res_0 = 1/2 * Q_res_0**2 / C_r  + 1/2 * Φ_res_0**2 / L_r_0
-H_res = 1/2 * Q_res**2 / C_r  + 1/2 * Φ_res**2 / L_r
+# H_res = 1/2 * Q_res**2 / C_r  + 1/2 * Φ_res**2 / L_r
 H_res = res.hamiltonian()
 
 H_flu_0 = 1/2 * Q_flu_0**2 / C_f + 1/2 * Φ_flu_0**2 / L_f_0
-H_flu = 1/2 * Q_flu**2 / C_f + 1/2 * Φ_flu**2 / L_f
+# H_flu = 1/2 * Q_flu**2 / C_f + 1/2 * Φ_flu**2 / L_f
 H_flu = flu.hamiltonian()
 
 I_res = qt.identity(H_res.shape[0])
@@ -282,13 +282,15 @@ H_qubit = qt.tensor(H_res,I_flu) + qt.tensor(I_res,H_flu) + qt.tensor(Φ_res,Φ_
 
 
 #%%
-E = sq_ext.diag(H_qubit , n_eig, out='GHz')[0]
+E, ψ = sq_ext.diag(H_qubit , n_eig, out='GHz')
+ψ_sq = np.array([ψ_i.__array__()[:, 0] for ψ_i in qubit._evecs])
 
 print( E-E[0])
 print( qubit.efreqs )
+for i in range(n_eig):
+    print(f'Energy error in state{i} = {np.abs((E-E[0])[i]- (qubit.efreqs[i]-qubit.efreqs[0]))}')
+    print(f'Wavefunction error in state{i} = {1 - np.abs(ψ[i,:].conj().T @ qubit._evecs[i].__array__())[0]}')
 
-print( (E-E[0])[1])
-print( qubit.efreqs[1] )
 
 #%%
 E = sq_ext.diag(H_qubit_0 , n_eig, out='GHz')[0]
