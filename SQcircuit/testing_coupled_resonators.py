@@ -24,15 +24,6 @@ C_f = Cf * 1e-15
 C_r = C/2 * 1e-15
 #%% Premade circuits
 def premade_coupled_resonators(Δ):
-    C   = sq.Capacitor(1, 'F')
-    L   = sq.Inductor(1, 'H')
-    L_Δ = sq.Inductor(Δ, 'H')
-    elements = {(0, 1): [L, C],
-                (0, 2): [L, C],
-                (1, 2): [L_Δ ], }
-    return sq.Circuit(elements)
-
-def premade_coupled_resonators(Δ):
     if Δ == 0:
         C   = sq.Capacitor(1, 'F')
         L   = sq.Inductor(1, 'H')
@@ -64,12 +55,12 @@ def premade_single_resonator(Δ):
 
 
 #%% Set trunc nums and diag
-n_eig = 4
+n_eig = 18
 trunc_num = 20
 Δ=1
 
 coupled_res     = premade_coupled_resonators    (Δ=Δ)
-res             = premade_single_resonator      (Δ)
+res             = premade_single_resonator      (Δ=Δ)
 
 uncoupled_res   = premade_coupled_resonators    (Δ=0)
 res_0           = premade_single_resonator      (Δ=0)
@@ -95,14 +86,78 @@ Q_0 = res_0.charge_op(0)
 H_res_0 = 1/2 * Q_0**2 + 1/2 * Φ_0**2
 H_res   = 1/2 * Q**2 + 1/2 * (1+1/Δ) * Φ**2
 
-H_res_0 = res_0.hamiltonian()
+# H_res_0 = res_0.hamiltonian()
 # H_res   = res.hamiltonian()
 
 I = qt.identity(H_res.shape[0])
 
 H_unc_res = qt.tensor(H_res_0,I) + qt.tensor(I,H_res_0)
 
-H_coup_res = qt.tensor(H_res,I) + qt.tensor(I,H_res) + (1/Δ) *qt.tensor(Φ,Φ)
+H_coup_res = qt.tensor(H_res,I) + qt.tensor(I,H_res) + (1/Δ) * qt.tensor(Φ,Φ)
+
+
+#%%
+ψ_full = np.array([ψ_i.__array__()[:, 0] for ψ_i in res_0._evecs]).T
+H_full = res_0.hamiltonian().__array__()
+
+print(np.abs(ψ_full.conj().T @ H_full @ ψ_full))
+
+#%%
+ψ_full = np.array([ψ_i.__array__()[:, 0] for ψ_i in uncoupled_res._evecs]).T
+H_full = uncoupled_res.hamiltonian().__array__()
+
+print(np.abs(ψ_full.conj().T @ H_full @ ψ_full))
+
+#%%
+# ψ_frc = sq_ext.diag(H_unc_res,n_eig)[1]
+ψ_frc = np.linalg.eigh(H_unc_res)[1]
+print(np.abs(ψ_frc.conj().T @ H_unc_res.__array__() @ ψ_frc))
+
+#%%
+H_eff_full = sq_ext.H_eff_p1(uncoupled_res,uncoupled_res, out=None)
+# H_eff_full -= H_eff_full[0,0]*np.eye(n_eig)
+
+H_eff_frc = sq_ext.H_eff_p1_hamil(H_unc_res, H_unc_res, n_eig, out=None)
+# H_eff_frc -= H_eff_frc[0,0]*np.eye(n_eig)
+
+print(np.abs(H_eff_full))
+print(np.abs(H_eff_frc))
+print(np.round(np.abs(H_eff_full-H_eff_frc),4))
+
+#%%
+H_eff_full = sq_ext.H_eff_p1(coupled_res,coupled_res, out=None)
+# H_eff_full -= H_eff_full[0,0]*np.eye(n_eig)
+
+H_eff_frc = sq_ext.H_eff_p1_hamil(H_coup_res, H_coup_res, n_eig, out=None)
+# H_eff_frc -= H_eff_frc[0,0]*np.eye(n_eig)
+
+print(np.abs(H_eff_full))
+print(np.abs(H_eff_frc))
+print(np.round(np.abs(H_eff_full-H_eff_frc),4))
+#%%
+np.abs(uncoupled_res.hamiltonian_op('eig').__array__())
+
+
+#%%
+H_eff_full = sq_ext.H_eff_p1(res,res, out=None)
+# H_eff_full -= H_eff_full[0,0]*np.eye(n_eig)
+
+H_eff_frc = sq_ext.H_eff_p1_hamil(H_res, H_res, n_eig, out=None)
+# H_eff_frc -= H_eff_frc[0,0]*np.eye(n_eig)
+
+# print(np.abs(H_eff_full))
+# print(np.abs(H_eff_frc))
+print(np.round(np.abs(H_eff_full-H_eff_frc),4))
+
+#%%
+E, ψ = sq_ext.diag(H_unc_res , n_eig, out='GHz')
+ψ_sq = np.array([ψ_i.__array__()[:, 0] for ψ_i in uncoupled_res._evecs])
+
+print( E-E[0])
+print( uncoupled_res.efreqs )
+for i in range(n_eig):
+    print(f'Energy error in state{i} = {np.abs((E-E[0])[i]- (uncoupled_res.efreqs[i]-uncoupled_res.efreqs[0]))}')
+    print(f'Wavefunction error in state{i} = {1 - np.abs(ψ[i,:].conj().T @ uncoupled_res._evecs[i].__array__())[0]}')
 
 #%%
 E = sq_ext.diag(H_coup_res , n_eig, out=None)[0]
