@@ -55,9 +55,9 @@ def premade_single_resonator(Δ):
 
 
 #%% Set trunc nums and diag
-n_eig = 18
-trunc_num = 20
-Δ=1
+n_eig = 3
+trunc_num = 5
+Δ=10
 
 coupled_res     = premade_coupled_resonators    (Δ=Δ)
 res             = premade_single_resonator      (Δ=Δ)
@@ -95,6 +95,8 @@ H_unc_res = qt.tensor(H_res_0,I) + qt.tensor(I,H_res_0)
 
 H_coup_res = qt.tensor(H_res,I) + qt.tensor(I,H_res) + (1/Δ) * qt.tensor(Φ,Φ)
 
+#%%
+Φ_unc, Q = sq_ext.get_node_variables(uncoupled_res, 'FC', True)
 
 #%%
 ψ_full = np.array([ψ_i.__array__()[:, 0] for ψ_i in res_0._evecs]).T
@@ -332,8 +334,21 @@ H_flu = flu.hamiltonian()
 I_res = qt.identity(H_res.shape[0])
 I_flu = qt.identity(H_flu.shape[0])
 
-H_qubit_0 = qt.tensor(H_res_0,I) + qt.tensor(I,H_flu_0)
+H_qubit_0 = qt.tensor(H_res_0,I_res) + qt.tensor(I_res,H_flu_0)
 H_qubit = qt.tensor(H_res,I_flu) + qt.tensor(I_res,H_flu) + qt.tensor(Φ_res,Φ_flu) * 2 * Δ / l / 1e-9
+
+#%%
+Φ, Q = sq_ext.get_node_variables(qubit , 'FC', isolated='True')
+
+#%%
+E, ψ = sq_ext.diag(H_qubit , n_eig, out='GHz')
+ψ_sq = np.array([ψ_i.__array__()[:, 0] for ψ_i in qubit._evecs])
+
+print( E-E[0])
+print( qubit.efreqs )
+for i in range(n_eig):
+    print(f'Energy error in state{i} = {np.abs((E-E[0])[i]- (qubit.efreqs[i]-qubit.efreqs[0]))}')
+    print(f'Wavefunction error in state{i} = {1 - np.abs(ψ[:,i].conj().T @ qubit._evecs[i].__array__())[0]}')
 
 
 #%%
@@ -344,7 +359,7 @@ print( E-E[0])
 print( qubit.efreqs )
 for i in range(n_eig):
     print(f'Energy error in state{i} = {np.abs((E-E[0])[i]- (qubit.efreqs[i]-qubit.efreqs[0]))}')
-    print(f'Wavefunction error in state{i} = {1 - np.abs(ψ[i,:].conj().T @ qubit._evecs[i].__array__())[0]}')
+    print(f'Wavefunction error in state{i} = {1 - np.abs(ψ[:,i].conj().T @ qubit._evecs[i].__array__())[0]}')
 
 
 #%%
