@@ -186,7 +186,7 @@ print( res._efreqs[1] )
 
 #%%
 E = sq_ext.diag(H_res_0 , n_eig, out=None)[0]
-print( E-E[0])
+print( E )
 print( res_0._efreqs )
 
 #%%

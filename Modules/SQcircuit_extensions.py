@@ -333,8 +333,11 @@ def get_energy_indices(qubit, fluxonium, resonator):
 
 
 # %%  Generic effective Hamiltonians
-def H_eff_p1(circ_0, circ, out='GHz'):
+def H_eff_p1(circ_0, circ, out='GHz', real=True):
     ψ_0 = np.array([ψ_i.__array__()[:, 0] for ψ_i in circ_0._evecs]).T
+    if real:
+        ψ_0 = real_eigenvectors(ψ_0)
+
     H = circ.hamiltonian().__array__()
     H_eff = ψ_0.conj().T @ H @ ψ_0
 
@@ -343,8 +346,8 @@ def H_eff_p1(circ_0, circ, out='GHz'):
 
     return H_eff
 
-def H_eff_p1_hamil(H_0, H, n_eig, out='GHz'):
-    ψ_0 = diag(H_0, n_eig, real=False)[1]
+def H_eff_p1_hamil(H_0, H, n_eig, out='GHz', real=True):
+    ψ_0 = diag(H_0, n_eig, real=real)[1]
     H_eff = ψ_0.conj().T @ H.__array__() @ ψ_0
 
     if out == 'GHz':
@@ -421,8 +424,8 @@ def resonator_N_operator(resonator, Z_r, clean=True):
 #%% Generic mathematical functions
 def diag(H, n_eig=4, out=None, real='False'):
     H = qt.Qobj(H)
-    # efreqs, evecs = sp.sparse.linalg.eigs(H.data, n_eig, which='SR')
-    efreqs, evecs = sp.sparse.linalg.eigsh(H.data, n_eig, which='SR')
+    efreqs, evecs = sp.sparse.linalg.eigs(H.data, n_eig, which='SR')
+    # efreqs, evecs = sp.sparse.linalg.eigsh(H.data, n_eig, which='SR')
 
     efreqs_sorted = np.sort(efreqs.real)
     # efreqs_sorted = efreqs_sorted - efreqs_sorted[0]
