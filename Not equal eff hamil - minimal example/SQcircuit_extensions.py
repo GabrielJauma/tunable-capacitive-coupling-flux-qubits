@@ -3,17 +3,15 @@ import numpy as np
 import scipy as sp
 import qutip as qt
 
-#%% Constants
+# %% Constants
 GHz  = 1e9
 nH = 1e-9
 
-#%% Premade circuits
+# %% Premade circuits
 def KIT_qubit(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5):
 
-    # Initialize loop(s)
     loop = sq.Loop(φ_ext)
 
-    # Circuit components
     C_01 = sq.Capacitor(C,       'fF')
     C_02 = sq.Capacitor(C,       'fF')
     C_12 = sq.Capacitor(CJ+Csh,  'fF')
@@ -31,7 +29,6 @@ def KIT_qubit(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, �
         (2, 3): [L_23],
     }
 
-    # Create and return the circuit
     return sq.Circuit(elements)
 
 
@@ -56,7 +53,6 @@ def KIT_fluxonium(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0
 
 def KIT_qubit_no_JJ(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1):
 
-    # Circuit components
     C_01 = sq.Capacitor(C,       'fF')
     C_02 = sq.Capacitor(C,       'fF')
     C_12 = sq.Capacitor(CJ+Csh,  'fF')
@@ -73,7 +69,6 @@ def KIT_qubit_no_JJ(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1):
         (2, 3): [L_23],
     }
 
-    # Create and return the circuit
     return sq.Circuit(elements)
 
 
@@ -86,7 +81,7 @@ def KIT_fluxonium_no_JJ(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1 ):
     return sq.Circuit(fluxonium_elements)
 
 
-#%% Premade hamiltonians of circuits
+# %% Premade hamiltonians of circuits
 def hamiltonian_frc(fluxonium, resonator, Δ, Lq = 25, Lr = 10):
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
 
@@ -96,8 +91,8 @@ def hamiltonian_frc(fluxonium, resonator, Δ, Lq = 25, Lr = 10):
     I_f = qt.identity(H_f.shape[0])
     I_r = qt.identity(H_r.shape[0])
 
-    Φ_f = fluxonium.flux_op(0)
-    Φ_r = resonator.flux_op(0)
+    Φ_f = fluxonium._memory_ops["phi"][0]
+    Φ_r = resonator._memory_ops["phi"][0]
 
     H = qt.tensor(I_r, H_f) + qt.tensor(H_r, I_f) + qt.tensor(Φ_r, Φ_f) * 2 * Δ / l / 1e-9
 
@@ -136,7 +131,7 @@ def H_eff_p1_hamil(H_0, H, n_eig, out='GHz', real=True):
     return H_eff
 
 
-#%% Generic mathematical functions
+# %% Generic mathematical functions
 def diag(H, n_eig=4, out=None, real='False'):
     H = qt.Qobj(H)
     efreqs, evecs = sp.sparse.linalg.eigs(H.data, n_eig, which='SR')
@@ -190,7 +185,7 @@ def real_eigenvectors(U):
     U = U * avgz.conj()
     return U
 
-
+# %% Generic transforming, labeling and sorting functions
 def get_node_variables(circuit, basis, isolated=False):
     n_modes = circuit.n
     if isolated:
@@ -216,7 +211,6 @@ def get_node_variables(circuit, basis, isolated=False):
     return Φ_nodes, Q_nodes
 
 
-#%% Generic labeling and sorting functions
 def print_charge_transformation(circuit):
     '''
     Prints the transformed charge variables as a function of node variables.
