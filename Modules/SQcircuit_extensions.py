@@ -156,7 +156,7 @@ def KIT_fluxonium_no_JJ(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1 ):
 #%% Specific functions for the KIT's qubit and its decomposition in resonator + fluxonium model
 
 #%% Premade hamiltonians of circuits
-def hamiltonian_frc(fluxonium, resonator, Δ, Lq = 25, Lr = 10):
+def hamiltonian_frc(fluxonium, resonator, Δ, Lq = 25, Lr = 10, factor=1):
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
 
     H_f = fluxonium.hamiltonian()
@@ -168,14 +168,12 @@ def hamiltonian_frc(fluxonium, resonator, Δ, Lq = 25, Lr = 10):
     Φ_f = fluxonium.flux_op(0)
     Φ_r = resonator.flux_op(0)
 
-    H = qt.tensor(I_r, H_f) + qt.tensor(H_r, I_f) + qt.tensor(Φ_r, Φ_f) * 2 * Δ / l / 1e-9
+    H = qt.tensor(I_r, H_f) + qt.tensor(H_r, I_f) + factor * qt.tensor(Φ_r, Φ_f) * 2 * Δ / l / 1e-9
 
     return H
 
 def hamiltonian_frc_qubit(qubit, fluxonium, resonator, Δ, Lq = 25, Lr = 10):
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
-    L_c = l / Δ * nH
-    # L_c = l * nH / Δ**2
 
     H_f = fluxonium.hamiltonian()
     H_r = resonator.hamiltonian()
@@ -185,11 +183,10 @@ def hamiltonian_frc_qubit(qubit, fluxonium, resonator, Δ, Lq = 25, Lr = 10):
 
     Φ, Q = get_node_variables(qubit,'FC', isolated=True)
 
-    Φ_f = Φ[2]-Φ[1]
-    Φ_r = Φ[2]+Φ[1]
+    Φ_f = Φ[1]-Φ[0]
+    Φ_r = Φ[0]+Φ[1]
 
-    H = qt.tensor(I_r, H_f) + qt.tensor(H_r, I_f) + qt.tensor(Φ_r, Φ_f) / L_c
-
+    H = qt.tensor(I_r, H_f) + qt.tensor(H_r, I_f) + qt.tensor(Φ_r, Φ_f) * 2 * Δ / l / 1e-9
     return H
 
 
