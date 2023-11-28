@@ -351,9 +351,9 @@ def H_eff_p1(circ_0, circ, out='GHz', real=True, remove_ground = False):
 
     return H_eff
 
-def H_eff_p1_hamil(H_0, H, n_eig, out='GHz', real=True, remove_ground = False):
+def H_eff_p1_hamil(H_0, H, n_eig, out='GHz', real=True, remove_ground = False, solver='scipy'):
 
-    ψ_0 = diag(H_0, n_eig, real=real)[1]
+    ψ_0 = diag(H_0, n_eig, real=real, solver=solver)[1]
 
     H_eff = ψ_0.conj().T @ H.__array__() @ ψ_0
 
@@ -436,10 +436,19 @@ def resonator_N_operator(resonator, Z_r, clean=True):
 
 
 #%% Generic mathematical functions
-def diag(H, n_eig=4, out=None, real=False):
+def diag(H, n_eig=4, out=None, real=False, solver='scipy'):
     H = qt.Qobj(H)
-    efreqs, evecs = sp.sparse.linalg.eigs(H.data, n_eig, which='SR')
-    # efreqs, evecs = sp.sparse.linalg.eigsh(H.data, n_eig, which='SR')
+
+    if solver == 'scipy':
+        efreqs, evecs = sp.sparse.linalg.eigs(H.data, n_eig, which='SR')
+        # efreqs, evecs = sp.sparse.linalg.eigsh(H.data, n_eig, which='SR')
+    elif solver == 'numpy':
+        efreqs, evecs = np.linalg.eigh(H.__array__())
+        efreqs = efreqs[:n_eig]
+        evecs  = evecs [:,:n_eig]
+    elif solver == 'Qutip':
+        efreqs, evecs = H.eigenstates(eigvals=n_eig, sparse=True)
+
 
     efreqs_sorted = np.sort(efreqs.real)
     # efreqs_sorted = efreqs_sorted - efreqs_sorted[0]
