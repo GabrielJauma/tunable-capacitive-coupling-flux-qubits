@@ -10,7 +10,7 @@ importlib.reload(sq)
 
 #%% Fundamental constants
 h    = 6.626e-34
-GHz = 1e9
+GHz  = 1e9
 e0   = 1.602e-19
 Φ_0 = h/(2*e0)
 

@@ -172,7 +172,7 @@ def hamiltonian_frc(fluxonium, resonator, Δ, Lq = 25, Lr = 10, factor=1):
 
     return H
 
-def hamiltonian_frc_qubit(qubit, fluxonium, resonator, Δ, Lq = 25, Lr = 10):
+def hamiltonian_frc_qubit(qubit, fluxonium, resonator, Δ, Lq = 25, Lr = 10, factor=1):
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
 
     H_f = fluxonium.hamiltonian()
@@ -186,7 +186,7 @@ def hamiltonian_frc_qubit(qubit, fluxonium, resonator, Δ, Lq = 25, Lr = 10):
     Φ_f = Φ[1]-Φ[0]
     Φ_r = Φ[0]+Φ[1]
 
-    H = qt.tensor(I_r, H_f) + qt.tensor(H_r, I_f) + qt.tensor(Φ_r, Φ_f) * 2 * Δ / l / 1e-9
+    H = qt.tensor(I_r, H_f) + qt.tensor(H_r, I_f) + factor * qt.tensor(Φ_r, Φ_f) * 2 * Δ / l / 1e-9
     return H
 
 
@@ -330,8 +330,9 @@ def get_energy_indices(qubit, fluxonium, resonator):
 
 
 # %%  Generic effective Hamiltonians
-def H_eff_p1(circ_0, circ, out='GHz', real=True):
+def H_eff_p1(circ_0, circ, out='GHz', real=True, remove_ground = False):
     ψ_0 = np.array([ψ_i.__array__()[:, 0] for ψ_i in circ_0._evecs]).T
+
     if real:
         ψ_0 = real_eigenvectors(ψ_0)
 
@@ -341,14 +342,30 @@ def H_eff_p1(circ_0, circ, out='GHz', real=True):
     if out == 'GHz':
         H_eff /= GHz * 2 * np.pi
 
+    if remove_ground:
+        H_eff -=  H_eff[0,0]*np.eye(len(H_eff))
+
+    if real:
+        if np.allclose(np.imag(H_eff),0):
+            H_eff = np.real(H_eff)
+
     return H_eff
 
-def H_eff_p1_hamil(H_0, H, n_eig, out='GHz', real=True):
+def H_eff_p1_hamil(H_0, H, n_eig, out='GHz', real=True, remove_ground = False):
+
     ψ_0 = diag(H_0, n_eig, real=real)[1]
+
     H_eff = ψ_0.conj().T @ H.__array__() @ ψ_0
 
     if out == 'GHz':
         H_eff /= GHz * 2 * np.pi
+
+    if remove_ground:
+        H_eff -=  H_eff[0,0]*np.eye(len(H_eff))
+
+    if real:
+        if np.allclose(np.imag(H_eff),0):
+            H_eff = np.real(H_eff)
 
     return H_eff
 
@@ -419,7 +436,7 @@ def resonator_N_operator(resonator, Z_r, clean=True):
 
 
 #%% Generic mathematical functions
-def diag(H, n_eig=4, out=None, real='False'):
+def diag(H, n_eig=4, out=None, real=False):
     H = qt.Qobj(H)
     efreqs, evecs = sp.sparse.linalg.eigs(H.data, n_eig, which='SR')
     # efreqs, evecs = sp.sparse.linalg.eigsh(H.data, n_eig, which='SR')
