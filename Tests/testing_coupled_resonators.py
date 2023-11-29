@@ -56,7 +56,7 @@ def premade_single_resonator(Δ):
 
 #%% Set trunc nums and diag
 n_eig = 3
-trunc_num = 5
+trunc_num = 40
 Δ=10
 
 coupled_res     = premade_coupled_resonators    (Δ=Δ)

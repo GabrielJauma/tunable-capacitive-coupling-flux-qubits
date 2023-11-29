@@ -448,6 +448,7 @@ def diag(H, n_eig=4, out=None, real=False, solver='scipy'):
         evecs  = evecs [:,:n_eig]
     elif solver == 'Qutip':
         efreqs, evecs = H.eigenstates(eigvals=n_eig, sparse=True)
+        evecs = np.array([ψ.__array__() for ψ in evecs])[:, :, 0].T
 
 
     efreqs_sorted = np.sort(efreqs.real)
