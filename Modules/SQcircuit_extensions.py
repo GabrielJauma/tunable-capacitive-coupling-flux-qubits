@@ -237,7 +237,6 @@ def H_eff_p1_fluxonium_resonator(fluxonium_0, fluxonium, resonator_0, resonator,
             H_eff_1_r_i_j = np.abs(ψ_0_r[:, N_r[i]].conj().T @ resonator.flux_op(0).__array__() @ ψ_0_r[:, N_r[j]])
             H_eff_p1[i,j] = H_eff_1_f_i_j*H_eff_1_r_i_j
 
-    # return H_eff_p1 / L_c / GHz # / 2 / np.pi  Why not this 2pi!!!
     return H_eff_p1 * 2 * Δ / l / 1e-9  / (2 * np.pi * GHz)
 
 
