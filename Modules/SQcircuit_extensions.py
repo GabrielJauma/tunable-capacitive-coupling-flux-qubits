@@ -329,28 +329,28 @@ def get_energy_indices(qubit, fluxonium, resonator):
 
 
 # %%  Generic effective Hamiltonians
-def H_eff_p1(circ_0, circ, out='GHz', real=True, remove_ground = False):
-    ψ_0 = np.array([ψ_i.__array__()[:, 0] for ψ_i in circ_0._evecs]).T
+# def H_eff_p1_circ(circ_0, circ, out='GHz', real=True, remove_ground = False):
+#     ψ_0 = np.array([ψ_i.__array__()[:, 0] for ψ_i in circ_0._evecs]).T
+#
+#     if real:
+#         ψ_0 = real_eigenvectors(ψ_0)
+#
+#     H = circ.hamiltonian().__array__()
+#     H_eff = ψ_0.conj().T @ H @ ψ_0
+#
+#     if out == 'GHz':
+#         H_eff /= GHz * 2 * np.pi
+#
+#     if remove_ground:
+#         H_eff -=  H_eff[0,0]*np.eye(len(H_eff))
+#
+#     if real:
+#         if np.allclose(np.imag(H_eff),0):
+#             H_eff = np.real(H_eff)
+#
+#     return H_eff
 
-    if real:
-        ψ_0 = real_eigenvectors(ψ_0)
-
-    H = circ.hamiltonian().__array__()
-    H_eff = ψ_0.conj().T @ H @ ψ_0
-
-    if out == 'GHz':
-        H_eff /= GHz * 2 * np.pi
-
-    if remove_ground:
-        H_eff -=  H_eff[0,0]*np.eye(len(H_eff))
-
-    if real:
-        if np.allclose(np.imag(H_eff),0):
-            H_eff = np.real(H_eff)
-
-    return H_eff
-
-def H_eff_p1_hamil(H_0, H, n_eig, out='GHz', real=True, remove_ground = False, solver='scipy'):
+def H_eff_p1(H_0, H, n_eig, out='GHz', real=True, remove_ground = False, solver='scipy'):
 
     ψ_0 = diag(H_0, n_eig, real=real, solver=solver)[1]
 
@@ -370,7 +370,7 @@ def H_eff_p1_hamil(H_0, H, n_eig, out='GHz', real=True, remove_ground = False, s
 
 
 # Second order perturbation theory
-def H_eff_p2(circ_0, circ):
+def H_eff_p2_circ(circ_0, circ):
     ψ_0 = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in circ_0._evecs]).T)
     ψ   = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in circ.  _evecs]).T)
     E_0 = circ_0._efreqs
@@ -395,7 +395,72 @@ def H_eff_p2(circ_0, circ):
     return H_eff_2 / GHz / 2 / np.pi
 
 
-def H_eff_SWT_circuit(circuit_0, circuit, return_transformation = False):
+def H_eff_p2(H_0, H, n_eig, out='GHz', real=True, remove_ground=False, solver='scipy'):
+    E_0, ψ_0 = diag(H_0, n_eig, real=real, solver=solver, out=out)
+    E,   ψ   = diag(H  , n_eig, real=real, solver=solver, out=out)
+    H_0 = H_0.__array__()
+    H   = H  .__array__()
+    V = H - H_0
+
+    if out == 'GHz':
+        H_0 /= GHz * 2 * np.pi
+        H   /= GHz * 2 * np.pi
+        V   /= GHz * 2 * np.pi
+
+    H_eff_1 = ψ_0.conj().T @ H @ ψ_0
+
+    H_eff_2 = np.zeros((n_eig, n_eig), dtype=complex)  # matrix to store our results.
+
+    for i in range(n_eig):
+        for j in range(n_eig):
+            H_eff_2[i, j] = 1 / 2 * sum(
+                          (1 / (E_0[i] - E[k]) + 1 / (E_0[j] - E[k])) *
+                           (ψ_0[:, i].T.conj() @ V @ ψ  [:, k]) *
+                           (ψ  [:, k].T.conj() @ V @ ψ_0[:, j])
+                           for k in range(n_eig))
+
+    # H_eff = H_eff_1 + H_eff_2
+    H_eff = H_eff_2
+
+
+    # if out == 'GHz':
+    #     H_eff /= GHz * 2 * np.pi
+
+    if remove_ground:
+        H_eff -= H_eff[0, 0] * np.eye(len(H_eff))
+
+    if real:
+        if np.allclose(np.imag(H_eff), 0):
+            H_eff = np.real(H_eff)
+
+    return H_eff
+
+def H_eff_p2_circ(circ_0, circ):
+    ψ_0 = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in circ_0._evecs]).T)
+    ψ   = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in circ.  _evecs]).T)
+    E_0 = circ_0._efreqs
+    E   = circ  ._efreqs
+    H_0 = circ_0.hamiltonian().__array__()
+    H   = circ  .hamiltonian().__array__()
+    V   = H-H_0
+
+    # H_eff_1 = ψ_0.conj().T @ H @ ψ_0
+
+    n_eig = ψ_0.shape[1]
+    H_eff_2 = np.zeros((n_eig, n_eig), dtype=complex)  # matrix to store our results.
+
+    for i in range(n_eig):
+        for j in range(n_eig):
+            H_eff_2[i, j] = 1 / 2 * sum(
+                          (1 / (E_0[i] - E[k]) + 1 / (E_0[j] - E[k])) *
+                           (ψ_0[:, i].T.conj() @ V @ ψ[:, k]) * \
+                           (ψ[:, k].T.conj() @ V @ ψ_0[:, j])
+                           for k in range(n_eig))
+    # return H_eff_1
+    return H_eff_2 / GHz / 2 / np.pi
+
+
+def H_eff_SWT_circ(circuit_0, circuit, return_transformation = False):
     ψb0 = real_eigenvectors(np.array([ψb0_i.__array__()[:,0] for ψb0_i in circuit_0._evecs]).T)
     ψb  = real_eigenvectors(np.array([ψb0_i.__array__()[:,0] for ψb0_i in circuit  ._evecs]).T)
     E = circuit.efreqs
@@ -409,6 +474,33 @@ def H_eff_SWT_circuit(circuit_0, circuit, return_transformation = False):
         return H_eff, A
     else:
         return H_eff
+
+def H_eff_SWT(H_0, H, n_eig, out='GHz', real=True, remove_ground=False, solver='scipy',return_transformation=False):
+
+    ψ_0  = diag(H_0, n_eig, real=real, solver=solver) [1]
+    E, ψ = diag(H  , n_eig, real=real, solver=solver)
+
+    Q = ψ_0.T.conj() @ ψ
+    U, s, Vh = np.linalg.svd(Q)
+    A = U @ Vh
+
+    H_eff = A @ np.diag(E) @ A.T.conj()
+
+    if out == 'GHz':
+        H_eff /= GHz * 2 * np.pi
+
+    if remove_ground:
+        H_eff -= H_eff[0, 0] * np.eye(len(H_eff))
+
+    if real:
+        if np.allclose(np.imag(H_eff), 0):
+            H_eff = np.real(H_eff)
+
+    if return_transformation:
+        return H_eff, A
+    else:
+        return H_eff
+
 
 
 def H_eff_SWT_eigs(ψb0, ψb, E):
