@@ -172,22 +172,7 @@ def hamiltonian_frc(fluxonium, resonator, Δ, Lq = 25, Lr = 10, factor=1):
 
     return H
 
-def hamiltonian_frc_qubit(qubit, fluxonium, resonator, Δ, Lq = 25, Lr = 10, factor=1):
-    l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
 
-    H_f = fluxonium.hamiltonian()
-    H_r = resonator.hamiltonian()
-
-    I_f = qt.identity(H_f.shape[0])
-    I_r = qt.identity(H_r.shape[0])
-
-    Φ, Q = get_node_variables(qubit,'FC', isolated=True)
-
-    Φ_f = Φ[1]-Φ[0]
-    Φ_r = Φ[0]+Φ[1]
-
-    H = qt.tensor(I_r, H_f) + qt.tensor(H_r, I_f) + factor * qt.tensor(Φ_r, Φ_f) * 2 * Δ / l / 1e-9
-    return H
 
 
 # %% KIT's qubit internal coupling perturbation theory with fluxonium + resonator decomposition
@@ -221,6 +206,10 @@ def H_eff_p1_fluxonium_resonator_ij(fluxonium_0, fluxonium, resonator_0, resonat
 #     return H_eff_p1 * 2 * Δ / l / 1e-9  / (2 * np.pi * GHz)
 
 def H_eff_p1_fluxonium_resonator(fluxonium_0, fluxonium, resonator_0, resonator, N_f, N_r, Δ, Lq = 25, Lr = 10):
+    '''
+    DANGER, N_f and N_r shold be the enery levels of the non interacting resonator and fluxonium.
+    Now its fine because they are the same as the interacting ones, but careful.
+    '''
     l   = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
 
     ψ_0_f = np.array([ψ_i.__array__()[:, 0] for ψ_i in fluxonium_0._evecs]).T
@@ -242,6 +231,10 @@ def H_eff_p1_fluxonium_resonator(fluxonium_0, fluxonium, resonator_0, resonator,
 
 
 def H_eff_p2_fluxonium_resonator(fluxonium_0, fluxonium, resonator_0, resonator, N_f, N_r, Δ, Lq = 25, Lr = 10):
+    '''
+    DANGER, N_f and N_r shold be the enery levels of the non interacting resonator and fluxonium.
+    Now its fine because they are the same as the interacting ones, but careful.
+    '''
     l   = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
 
     ψ_0_f = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in fluxonium_0._evecs]).T)
@@ -796,6 +789,26 @@ def truncation_convergence(circuit, n_eig, trunc_nums=False, threshold=1e-2, ref
 
     circuit.set_trunc_nums(trunc_nums)
     return circuit
+
+
+#%% Elephants' graveyard
+
+# def hamiltonian_frc_qubit(qubit, fluxonium, resonator, Δ, Lq = 25, Lr = 10, factor=1):
+#     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
+#
+#     H_f = fluxonium.hamiltonian()
+#     H_r = resonator.hamiltonian()
+#
+#     I_f = qt.identity(H_f.shape[0])
+#     I_r = qt.identity(H_r.shape[0])
+#
+#     Φ, Q = get_node_variables(qubit,'FC', isolated=True)
+#
+#     Φ_f = Φ[1]-Φ[0]
+#     Φ_r = Φ[0]+Φ[1]
+#
+#     H = qt.tensor(I_r, H_f) + qt.tensor(H_r, I_f) + factor * qt.tensor(Φ_r, Φ_f) * 2 * Δ / l / 1e-9
+#     return H
 
 
 #%% Functions that are actually in sqcircuits file circuit.py
