@@ -369,9 +369,11 @@ def get_energy_indices(qubit, fluxonium, resonator):
     N_resonator = np.zeros(n_eig, dtype='int')
 
     E_matrix = E_fluxonium[:, np.newaxis] + E_resonator
+
+    tol = E_qubit[1]-E_qubit[0]
     for k in range(n_eig):
         ΔE_matrix = np.abs(E_matrix - E_qubit[k])
-        if ΔE_matrix.min() < 1e-1:
+        if ΔE_matrix.min() < tol:
             N_fluxonium[k], N_resonator[k] = np.unravel_index(ΔE_matrix.argmin(), ΔE_matrix.shape)
         else:
             N_fluxonium[k], N_resonator[k] = [-123, -123]
