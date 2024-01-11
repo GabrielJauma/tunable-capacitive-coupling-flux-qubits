@@ -13,7 +13,7 @@ Phi0 = 2.067833831e-15  # Flux quantum (in Wb)
 hbar = 1.0545718e-34
 
 #%% Premade circuits
-def KIT_qubit(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5):
+def KIT_qubit(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5, trunc_res=15, trunc_flux=25):
 
     # Initialize loop(s)
     loop = sq.Loop(φ_ext)
@@ -36,8 +36,14 @@ def KIT_qubit(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, �
         (2, 3): [L_23],
     }
 
+    qubit = sq.Circuit(elements)
+    try:
+        qubit.set_trunc_nums([trunc_res,trunc_flux])
+    except:
+        qubit.set_trunc_nums([1, trunc_res, trunc_flux])
+
     # Create and return the circuit
-    return sq.Circuit(elements)
+    return qubit
 
 def KIT_qubit_no_JJ(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, φ_ext=0.5):
 
@@ -92,15 +98,17 @@ def KITqubit_asym( Cc, α, C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, 
     return sq.Circuit(elements)
 
 
-def KIT_resonator(C = 15, Lq = 25, Lr = 10, Δ = 0.1):
+def KIT_resonator(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5, trunc_res=15, trunc_flux=25):
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
     resonator_elements = {
         (0, 1): [sq.Capacitor(C / 2, 'fF'), sq.Inductor(l / Lq, 'nH')],
     }
-    return sq.Circuit(resonator_elements)
+    resonator = sq.Circuit(resonator_elements)
+    resonator.set_trunc_nums([trunc_res])
+    return resonator
 
 
-def KIT_fluxonium(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5):
+def KIT_fluxonium(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5, trunc_res=15, trunc_flux=25):
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
     loop_fluxonium = sq.Loop(φ_ext)
     fluxonium_elements = {
@@ -108,7 +116,9 @@ def KIT_fluxonium(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0
                  sq.Inductor(l / (Lq + 4 * Lr), 'nH', loops=[loop_fluxonium]),
                  sq.Junction(EJ, 'GHz', loops=[loop_fluxonium])],
     }
-    return sq.Circuit(fluxonium_elements)
+    fluxonium = sq.Circuit(fluxonium_elements)
+    fluxonium.set_trunc_nums([trunc_flux])
+    return fluxonium
 
 def KIT_fluxonium_no_JJ(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1 ):
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
@@ -117,6 +127,21 @@ def KIT_fluxonium_no_JJ(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1 ):
                  sq.Inductor(l / (Lq + 4 * Lr), 'nH')],
     }
     return sq.Circuit(fluxonium_elements)
+
+def KIT_qubit_vs_param(model='composition', C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5, trunc_res=15, trunc_flux=25):
+
+    parameters_list = expand_list_with_array([C, CJ, Csh, Lq, Lr, Δ, EJ, φ_ext, trunc_res, trunc_flux])
+    H_qubit_list = []
+
+    for parameters in parameters_list:
+        if model == 'full_circuit':
+            H_qubit_list.append(KIT_qubit(*parameters).hamiltonian())
+        if model == 'composition':
+            fluxonium = KIT_fluxonium(*parameters)
+            resonator = KIT_resonator(*parameters)
+            H_qubit_list.append(hamiltonian_frc(fluxonium, resonator, Δ = parameters[5], Lq = parameters[3], Lr = parameters[4]))
+
+    return H_qubit_list
 
 #%% Premade hamiltonians of circuits
 def hamiltonian_frc(fluxonium, resonator, Δ, Lq = 25, Lr = 10, factor=1):
@@ -166,19 +191,6 @@ def hamiltonian_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=
 
 
 # %% KIT's qubit internal coupling perturbation theory with fluxonium + resonator decomposition
-def H_eff_p1_fluxonium_resonator_ij(fluxonium_0, fluxonium, resonator_0, resonator, i_f, j_f, i_r, j_r, Δ, Lq = 25, Lr = 10):
-    l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
-    L_c = l / Δ * nH
-
-    ψ_0_f = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in fluxonium_0._evecs]).T)
-    ψ_0_r = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in resonator_0._evecs]).T)
-
-    Φ_f = ψ_0_f[:, i_f].conj().T @ fluxonium.flux_op(0).__array__() @ ψ_0_f[:, j_f]
-    Φ_r = ψ_0_r[:, i_r].conj().T @ resonator.flux_op(0).__array__() @ ψ_0_r[:, j_r]
-
-    return Φ_f * Φ_r / L_c / GHz #/ 2 /np.pi
-
-
 def H_eff_p1_fluxonium_resonator(fluxonium_0, fluxonium, resonator_0, resonator, N_f, N_r, Δ, Lq = 25, Lr = 10):
     '''
     DANGER, N_f and N_r shold be the enery levels of the non interacting resonator and fluxonium.
@@ -628,6 +640,31 @@ def decomposition_in_pauli_4x4(A, rd, Print=True):
 
     return P
 
+#%% Generic functions
+
+def expand_list_with_array(input_list):
+    # Find the array and its position in the list
+    array_element = None
+    array_index = None
+    for i, element in enumerate(input_list):
+        if isinstance(element, np.ndarray):
+            array_element = element
+            array_index = i
+            break
+
+    # If no array is found, return the original list wrapped in another list
+    if array_element is None:
+        return [input_list]
+
+    # Create the list of lists
+    expanded_list = []
+    for value in array_element:
+        new_list = input_list.copy()
+        new_list[array_index] = value
+        expanded_list.append(new_list)
+
+    return expanded_list
+
 
 #%% Truncation convergence
 def truncation_convergence(circuit, n_eig, trunc_nums=False, threshold=1e-2, refine=True, plot=True):
@@ -832,6 +869,18 @@ def truncation_convergence(circuit, n_eig, trunc_nums=False, threshold=1e-2, ref
 #
 #     # return Δ  * (H_eff_p1 / (Δ * L_c) ) / GHz # / 2 / np.pi  Why not this 2pi!!!
 #     return H_eff_p1 * 2 * Δ / l / 1e-9  / (2 * np.pi * GHz)
+
+# def H_eff_p1_fluxonium_resonator_ij(fluxonium_0, fluxonium, resonator_0, resonator, i_f, j_f, i_r, j_r, Δ, Lq = 25, Lr = 10):
+#     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
+#     L_c = l / Δ * nH
+#
+#     ψ_0_f = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in fluxonium_0._evecs]).T)
+#     ψ_0_r = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in resonator_0._evecs]).T)
+#
+#     Φ_f = ψ_0_f[:, i_f].conj().T @ fluxonium.flux_op(0).__array__() @ ψ_0_f[:, j_f]
+#     Φ_r = ψ_0_r[:, i_r].conj().T @ resonator.flux_op(0).__array__() @ ψ_0_r[:, j_r]
+#
+#     return Φ_f * Φ_r / L_c / GHz #/ 2 /np.pi
 
 #%% Functions that are actually in sqcircuits file circuit.py
 
