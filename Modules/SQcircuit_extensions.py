@@ -533,15 +533,15 @@ def plot_H_eff_vs_param(H_eff_vs_params, H_eff_0, param_values, param_name, N_f,
                 if i != j and np.any(np.abs(H_eff[:, i, j]) > threshold):
                     label = get_state_label(N_f, N_r, i, j)
                     color, label_color_dict, _ = get_or_assign_color(label, colors, label_color_dict)
-                    ax1.plot(param_values , np.abs(H_eff[:, i, j]), markersize=4, linewidth=1, label=label, color=color, marker=marker[k], markerfacecolor='w')
+                    ax1.plot(param_values, H_eff[:, i, j], markersize=4, linewidth=1, label=label, color=color, marker=marker[k], markerfacecolor='w')
 
                 elif i == j and np.any(np.abs(H_eff[:, i, j] - H_eff_0[i, j]) > threshold):
                     label =  get_state_label(N_f, N_r, i, j)
                     color, label_color_dict, _ = get_or_assign_color(label, colors, label_color_dict)
-                    ax2.plot(param_values , np.abs(H_eff[:, i, j] - H_eff_0[i, j]), markersize=4, label=label, color=color, marker=marker[k], markerfacecolor='w')
+                    ax2.plot(param_values, H_eff[:, i, j] - H_eff_0[i, j], markersize=4, label=label, color=color, marker=marker[k], markerfacecolor='w')
 
     for i, ax in enumerate([ax1, ax2]):
-        ax.set_xlabel('$\\'+param_name+'$')
+        ax.set_xlabel('$'+param_name+'$')
         ax.set_xscale(x_scale)
         ax.set_yscale(y_scale)
         ax.set_title(titles[i])
