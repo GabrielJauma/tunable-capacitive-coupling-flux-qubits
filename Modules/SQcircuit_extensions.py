@@ -1,4 +1,5 @@
 import SQcircuit as sq
+import Modules.figures as figs
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy as sp
@@ -128,7 +129,7 @@ def KIT_fluxonium_no_JJ(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1 ):
     }
     return sq.Circuit(fluxonium_elements)
 
-def KIT_qubit_vs_param(model='composition', C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5, trunc_res=15, trunc_flux=25):
+def KIT_qubit_vs_param(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5, trunc_res=15, trunc_flux=25, model='composition'):
 
     parameters_list = expand_list_with_array([C, CJ, Csh, Lq, Lr, Δ, EJ, φ_ext, trunc_res, trunc_flux])
     H_qubit_list = []
@@ -369,11 +370,19 @@ def H_eff_SWT(H_0, H, n_eig, out='GHz', real=True, remove_ground=False, solver='
 
 
 #%% Sorting and labeling functions for the fluxonum + resonator model
-def get_energy_indices(qubit, fluxonium, resonator):
+def get_energy_indices(qubit, fluxonium, resonator, n_eig=3):
 
-    E_qubit = qubit.efreqs - qubit.efreqs[0]
-    E_fluxonium = fluxonium.efreqs - fluxonium.efreqs[0]
-    E_resonator = resonator.efreqs - resonator.efreqs[0]
+    try:
+        E_qubit = qubit.efreqs - qubit.efreqs[0]
+        E_fluxonium = fluxonium.efreqs - fluxonium.efreqs[0]
+        E_resonator = resonator.efreqs - resonator.efreqs[0]
+    except:
+        qubit    .diag(n_eig+2)
+        fluxonium.diag(n_eig)
+        resonator.diag(n_eig)
+        E_qubit      = qubit.efreqs    - qubit.efreqs[0]
+        E_fluxonium = fluxonium.efreqs - fluxonium.efreqs[0]
+        E_resonator = resonator.efreqs - resonator.efreqs[0]
 
     n_eig = len(E_qubit)
 
@@ -506,6 +515,41 @@ def get_node_variables(circuit, basis, isolated=False):
 
     return Φ_nodes, Q_nodes
 
+#%% Plotting functions
+def plot_H_eff_vs_param(H_eff_vs_params, H_eff_0, param_values, param_name, N_f, N_r, threshold=1e-3, n_eig_plot = False, x_scale='linear', y_scale='linear'):
+
+    if n_eig_plot == False:
+        n_eig_plot = len(H_eff_0)
+
+    colors = figs.generate_colors_from_colormap(20, 'tab20')
+    label_color_dict = {}
+    marker = ['o', '+', '.', '*']
+    titles = ['Couplings', 'Renormalizations']
+    fig, [ax1, ax2] = plt.subplots(ncols=2, dpi=150, figsize=[8, 4.5])
+
+    for i in range(n_eig_plot):
+        for j in range(i, n_eig_plot):
+            for k, H_eff in enumerate([H_eff_vs_params]):
+                if i != j and np.any(np.abs(H_eff[:, i, j]) > threshold):
+                    label = get_state_label(N_f, N_r, i, j)
+                    color, label_color_dict, _ = get_or_assign_color(label, colors, label_color_dict)
+                    ax1.plot(param_values , np.abs(H_eff[:, i, j]), markersize=4, linewidth=1, label=label, color=color, marker=marker[k], markerfacecolor='w')
+
+                elif i == j and np.any(np.abs(H_eff[:, i, j] - H_eff_0[i, j]) > threshold):
+                    label =  get_state_label(N_f, N_r, i, j)
+                    color, label_color_dict, _ = get_or_assign_color(label, colors, label_color_dict)
+                    ax2.plot(param_values , np.abs(H_eff[:, i, j] - H_eff_0[i, j]), markersize=4, label=label, color=color, marker=marker[k], markerfacecolor='w')
+
+    for i, ax in enumerate([ax1, ax2]):
+        ax.set_xlabel('$\\'+param_name+'$')
+        ax.set_xscale(x_scale)
+        ax.set_yscale(y_scale)
+        ax.set_title(titles[i])
+        ax.legend()
+
+    fig.tight_layout()
+    fig.show()
+    return fig, ax1, ax2
 
 #%% Generic labeling and sorting functions
 def print_charge_transformation(circuit):
