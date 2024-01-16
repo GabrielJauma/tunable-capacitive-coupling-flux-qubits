@@ -516,35 +516,51 @@ def get_node_variables(circuit, basis, isolated=False):
     return Φ_nodes, Q_nodes
 
 #%% Plotting functions
-def plot_H_eff_vs_param(H_eff_vs_params, H_eff_0, param_values, param_name, N_f, N_r, threshold=1e-3, n_eig_plot = False, x_scale='linear', y_scale='linear'):
+def plot_H_eff_vs_param(H_eff_vs_params, H_eff_0, param_values, param_name, N_f, N_r, threshold=1e-3, n_eig_plot = False, scale='linear'):
+
+    Δ_01 = H_eff_0[1,1]- H_eff_0[0,0]
+    H_eff_vs_params /= Δ_01
+    H_eff_0 /= Δ_01
 
     if n_eig_plot == False:
         n_eig_plot = len(H_eff_0)
 
     colors = figs.generate_colors_from_colormap(20, 'tab20')
     label_color_dict = {}
-    marker = ['o', '+', '.', '*']
     titles = ['Couplings', 'Renormalizations']
+    y_labels = [r'$g/\Delta_{01}$', r'$E/\Delta_{01}$']
     fig, [ax1, ax2] = plt.subplots(ncols=2, dpi=150, figsize=[8, 4.5])
-
+    k_ij = 0; k_ii = 0
     for i in range(n_eig_plot):
         for j in range(i, n_eig_plot):
-            for k, H_eff in enumerate([H_eff_vs_params]):
-                if i != j and np.any(np.abs(H_eff[:, i, j]) > threshold):
-                    label = get_state_label(N_f, N_r, i, j)
-                    color, label_color_dict, _ = get_or_assign_color(label, colors, label_color_dict)
-                    ax1.plot(param_values, H_eff[:, i, j], markersize=4, linewidth=1, label=label, color=color, marker=marker[k], markerfacecolor='w')
+            if i != j and np.any(np.abs(H_eff_vs_params[:, i, j]) > threshold):
+                label = get_state_label(N_f, N_r, i, j)
+                color, label_color_dict, _ = get_or_assign_color(label, colors, label_color_dict)
+                if scale == 'log':
+                    ax1.plot(param_values[k_ij:], np.abs(H_eff_vs_params[k_ij:, i, j]), markersize=4, label=label, color=color, marker='o', markerfacecolor='w')
+                else:
+                    ax1.plot(param_values[k_ij:], H_eff_vs_params[k_ij:, i, j], markersize=4, label=label, color=color, marker='o', markerfacecolor='w')
+                k_ij += 1
 
-                elif i == j and np.any(np.abs(H_eff[:, i, j] - H_eff_0[i, j]) > threshold):
-                    label =  get_state_label(N_f, N_r, i, j)
-                    color, label_color_dict, _ = get_or_assign_color(label, colors, label_color_dict)
-                    ax2.plot(param_values, H_eff[:, i, j] - H_eff_0[i, j], markersize=4, label=label, color=color, marker=marker[k], markerfacecolor='w')
+            elif i == j and np.any(np.abs(H_eff_vs_params[:, i, j] - H_eff_0[i, j]) > threshold):
+                label =  get_state_label(N_f, N_r, i, j)
+                color, label_color_dict, _ = get_or_assign_color(label, colors, label_color_dict)
+                if scale == 'log':
+                    ax2.plot(param_values[k_ii:], np.abs(H_eff_vs_params[k_ii:, i, j] - H_eff_0[i, j]), markersize=4, label=label, color=color, marker='o', markerfacecolor='w')
+                else:
+                    ax2.plot(param_values[k_ii:], H_eff_vs_params[k_ii:, i, j] - H_eff_0[i, j], markersize=4, label=label, color=color, marker='o', markerfacecolor='w')
+                k_ii += 1
+    if scale == 'log':
+        ax2.plot(param_values, np.abs(1-np.abs(H_eff_vs_params[:, 1, 1] - H_eff_vs_params[:, 0, 0])), ':k',label=r'$1-\Delta_{01}('+param_name+')/\Delta_{01}$')
+    else:
+        ax2.plot(param_values, 1-np.abs(H_eff_vs_params[:, 1, 1] - H_eff_vs_params[:, 0, 0]), ':k',label=r'$1-\Delta_{01}('+param_name+')/\Delta_{01}$')
 
     for i, ax in enumerate([ax1, ax2]):
         ax.set_xlabel('$'+param_name+'$')
-        ax.set_xscale(x_scale)
-        ax.set_yscale(y_scale)
+        ax.set_xscale(scale)
+        ax.set_yscale(scale)
         ax.set_title(titles[i])
+        ax.set_ylabel(y_labels[i])
         ax.legend()
 
     fig.tight_layout()
