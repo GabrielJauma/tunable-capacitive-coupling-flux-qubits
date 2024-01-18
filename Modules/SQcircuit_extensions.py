@@ -162,12 +162,9 @@ def hamiltonian_frc(fluxonium, resonator, Δ, Lq = 25, Lr = 10, factor=1):
     return H
 
 
-def hamiltonian_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1):
-    resonator = KIT_resonator(C=C + Cc, Lq=Lq, Lr=Lr, Δ=Δ)
-    fluxonium = KIT_fluxonium(C=C + Cc, CJ=CJ, Csh=Csh, Lq=Lq, Lr=Lr, Δ=Δ)
-
-    resonator.set_trunc_nums([nmax_r])
-    fluxonium.set_trunc_nums([nmax_f])
+def hamiltonian_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, trunc_res=15, trunc_flux=25):
+    resonator = KIT_resonator(C = C+Cc,                     Lq = Lq, Lr = Lr, Δ = Δ, trunc_res =trunc_res)
+    fluxonium = KIT_fluxonium(C = C+Cc, CJ = CJ, Csh = Csh, Lq = Lq, Lr = Lr, Δ = Δ, trunc_flux=trunc_flux)
 
     H_left  = hamiltonian_frc(fluxonium, resonator, Δ)
     H_right = hamiltonian_frc(fluxonium, resonator, Δ)
@@ -315,30 +312,6 @@ def H_eff_p2(H_0, H, n_eig, out='GHz', real=True, remove_ground=False, solver='s
             H_eff = np.real(H_eff)
 
     return H_eff
-
-def H_eff_p2_circ(circ_0, circ):
-    ψ_0 = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in circ_0._evecs]).T)
-    ψ   = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in circ.  _evecs]).T)
-    E_0 = circ_0._efreqs
-    E   = circ  ._efreqs
-    H_0 = circ_0.hamiltonian().__array__()
-    H   = circ  .hamiltonian().__array__()
-    V   = H-H_0
-
-    # H_eff_1 = ψ_0.conj().T @ H @ ψ_0
-
-    n_eig = ψ_0.shape[1]
-    H_eff_2 = np.zeros((n_eig, n_eig), dtype=complex)  # matrix to store our results.
-
-    for i in range(n_eig):
-        for j in range(n_eig):
-            H_eff_2[i, j] = 1 / 2 * sum(
-                          (1 / (E_0[i] - E[k]) + 1 / (E_0[j] - E[k])) *
-                           (ψ_0[:, i].T.conj() @ V @ ψ[:, k]) * \
-                           (ψ[:, k].T.conj() @ V @ ψ_0[:, j])
-                           for k in range(n_eig))
-    # return H_eff_1
-    return H_eff_2 / GHz / 2 / np.pi
 
 
 def H_eff_SWT(H_0, H, n_eig, out='GHz', real=True, remove_ground=False, solver='scipy',return_transformation=False):
@@ -906,6 +879,7 @@ def truncation_convergence(circuit, n_eig, trunc_nums=False, threshold=1e-2, ref
 #                            for k in range(n_eig))
 #     # return H_eff_1
 #     return H_eff_2 / GHz / 2 / np.pi
+
 
 # def H_eff_SWT_eigs(ψb0, ψb, E):
 #     Q = ψb0.T.conj() @ ψb
