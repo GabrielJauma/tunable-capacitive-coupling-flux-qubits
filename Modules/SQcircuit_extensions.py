@@ -121,13 +121,15 @@ def KIT_fluxonium(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.
     fluxonium.set_trunc_nums([trunc_flux])
     return fluxonium
 
-def KIT_fluxonium_no_JJ(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1 ):
+def KIT_fluxonium_no_JJ(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, trunc_res=15, trunc_flux=25 ):
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
     fluxonium_elements = {
         (0, 1): [sq.Capacitor(C / 2 + Csh + CJ, 'fF'),
                  sq.Inductor(l / (Lq + 4 * Lr), 'nH')],
     }
-    return sq.Circuit(fluxonium_elements)
+    fluxonium = sq.Circuit(fluxonium_elements)
+    fluxonium.set_trunc_nums([trunc_flux])
+    return fluxonium
 
 def KIT_qubit_vs_param(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5, trunc_res=15, trunc_flux=25, model='composition'):
 
