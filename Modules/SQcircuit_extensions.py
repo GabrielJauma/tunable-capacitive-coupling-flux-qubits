@@ -949,3 +949,61 @@ def truncation_convergence(circuit, n_eig, trunc_nums=False, threshold=1e-2, ref
 #         Φ_eig = ψ.conj().T @ Φ_FC.__array__() @ ψ
 #
 #         return qt.Qobj(Φ_eig)
+
+
+    # def diag(self, n_eig: int, solver='scipy', real=False) -> Tuple[ndarray, List[Qobj]]:
+    #     """
+    #     Diagonalize the Hamiltonian of the circuit and return the
+    #     eigenfrequencies and eigenvectors of the circuit up to specified
+    #     number of eigenvalues.
+    #
+    #     Parameters
+    #     ----------
+    #         n_eig:
+    #             Number of eigenvalues to output. The lower ``n_eig``, the
+    #             faster ``SQcircuit`` finds the eigenvalues.
+    #     Returns
+    #     ----------
+    #         efreq:
+    #             ndarray of eigenfrequencies in frequency unit of SQcircuit
+    #             (gigahertz by default)
+    #         evecs:
+    #             List of eigenvectors in qutip.Qobj format.
+    #     """
+    #     error1 = "Please specify the truncation number for each mode."
+    #     assert len(self.m) != 0, error1
+    #     error2 = "n_eig (number of eigenvalues) should be an integer."
+    #     assert isinstance(n_eig, int), error2
+    #
+    #     H = self.hamiltonian()
+    #
+    #     # get the data out of qutip variable and use sparse scipy eigen
+    #     # solver which is faster.
+    #     if solver == 'scipy':
+    #         efreqs, evecs = scipy.sparse.linalg.eigs(H.data, n_eig, which='SR')
+    #     elif solver == 'numpy':
+    #         efreqs, evecs = np.linalg.eigh(H.__array__())
+    #         efreqs = efreqs[:n_eig]
+    #         evecs = evecs[:, :n_eig]
+    #
+    #     if real==True:
+    #         evecs = real_eigenvectors(evecs)
+    #
+    #     # the output of eigen solver is not sorted
+    #     efreqs_sorted = np.sort(efreqs.real)
+    #
+    #     sort_arg = np.argsort(efreqs)
+    #     if isinstance(sort_arg, int):
+    #         sort_arg = [sort_arg]
+    #
+    #     evecs_sorted = [
+    #         qt.Qobj(evecs[:, ind], dims=[self.ms, len(self.ms) * [1]])
+    #         for ind in sort_arg
+    #     ]
+    #
+    #
+    #     # store the eigenvalues and eigenvectors of the circuit Hamiltonian
+    #     self._efreqs = efreqs_sorted
+    #     self._evecs = evecs_sorted
+    #
+    #     return efreqs_sorted / (2*np.pi*unt.get_unit_freq()), evecs_sorted
