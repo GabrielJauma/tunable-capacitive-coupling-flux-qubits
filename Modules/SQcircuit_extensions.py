@@ -99,24 +99,48 @@ def KITqubit_asym( Cc, α, C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, 
     return sq.Circuit(elements)
 
 
-def KIT_resonator(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5, trunc_res=15, trunc_flux=25):
+def KIT_resonator(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5, trunc_res=15, trunc_flux=25, C_R_eff=False):
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
+    L_R_eff = l / Lq
+
+    if C_R_eff == False:
+        C_R_eff = C/2
+
     resonator_elements = {
-        (0, 1): [sq.Capacitor(C / 2, 'fF'), sq.Inductor(l / Lq, 'nH')],
+        (0, 1): [sq.Capacitor(C_R_eff, 'fF'), sq.Inductor(L_R_eff, 'nH')],
     }
+
     resonator = sq.Circuit(resonator_elements)
     resonator.set_trunc_nums([trunc_res])
     return resonator
 
+# def KIT_resonator(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5, trunc_res=15, trunc_flux=25):
+#     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
+#
+#     resonator_elements = {
+#         (0, 1): [sq.Capacitor(C/2, 'fF'), sq.Inductor( l / Lq, 'nH')],
+#     }
+#
+#     resonator = sq.Circuit(resonator_elements)
+#     resonator.set_trunc_nums([trunc_res])
+#     return resonator
 
-def KIT_fluxonium(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5, trunc_res=15, trunc_flux=25):
+
+
+
+def KIT_fluxonium(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5, trunc_res=15, trunc_flux=25, C_F_eff=False):
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
+    L_F_eff = l / (Lq + 4 * Lr)
+    if C_F_eff == False:
+        C_F_eff = C / 2 + Csh + CJ
+
     loop_fluxonium = sq.Loop(φ_ext)
     fluxonium_elements = {
-        (0, 1): [sq.Capacitor(C / 2 + Csh + CJ, 'fF'),
-                 sq.Inductor(l / (Lq + 4 * Lr), 'nH', loops=[loop_fluxonium]),
-                 sq.Junction(EJ, 'GHz', loops=[loop_fluxonium])],
+        (0, 1): [sq.Capacitor(C_F_eff, 'fF'),
+                 sq.Inductor(L_F_eff , 'nH', loops=[loop_fluxonium]),
+                 sq.Junction(EJ,      'GHz', loops=[loop_fluxonium])],
     }
+
     fluxonium = sq.Circuit(fluxonium_elements)
     fluxonium.set_trunc_nums([trunc_flux])
     return fluxonium
@@ -147,7 +171,9 @@ def KIT_qubit_vs_param(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ 
     return H_qubit_list
 
 #%% Premade hamiltonians of circuits
-def hamiltonian_frc(fluxonium, resonator, Δ, Lq = 25, Lr = 10, factor=1):
+def hamiltonian_frc(fluxonium, resonator, Δ, Lq = 25, Lr = 10, C_int=None):
+    fF = 1e-15
+    nH = 1e-9
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
 
     H_f = fluxonium.hamiltonian()
@@ -158,8 +184,15 @@ def hamiltonian_frc(fluxonium, resonator, Δ, Lq = 25, Lr = 10, factor=1):
 
     Φ_f = fluxonium.flux_op(0)
     Φ_r = resonator.flux_op(0)
+    g_Φ = 2 * Δ / (l * nH)
 
-    H = qt.tensor(I_r, H_f) + qt.tensor(H_r, I_f) + factor * qt.tensor(Φ_r, Φ_f) * 2 * Δ / l / 1e-9
+    if C_int is None:
+        H = qt.tensor(I_r, H_f) + qt.tensor(H_r, I_f) + g_Φ * qt.tensor(Φ_r, Φ_f)
+    else:
+        Q_f = fluxonium.charge_op(0)
+        Q_r = resonator.charge_op(0)
+        g_Q = 1/(C_int*fF)
+        H = qt.tensor(I_r, H_f) + qt.tensor(H_r, I_f) + g_Φ * qt.tensor(Φ_r, Φ_f) + g_Q * qt.tensor(Q_r,Q_f)
 
     return H
 
