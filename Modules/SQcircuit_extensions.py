@@ -463,8 +463,72 @@ def hamiltonian_qubit_C_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq
         H_coupling = (qt.tensor(q_r, q_r, I_qubit) / C_RR + qt.tensor(q_f, q_f, I_qubit) / C_FF +
                       qt.tensor(q_r, q_f, I_qubit) / C_RF + qt.tensor(q_f, q_r, I_qubit) / C_RF +
                       qt.tensor(I_qubit, q_r, q_r) / C_RR + qt.tensor(I_qubit, q_f, q_f) / C_FF +
-                      qt.tensor(I_qubit, q_r, q_f) / C_RF + qt.tensor(I_qubit, q_f, q_r) / C_RF +
-                      qt.tensor(q_r, I_qubit, q_r) / C_RR + qt.tensor(q_f, I_qubit, q_f) / C_FF)
+                      qt.tensor(I_qubit, q_r, q_f) / C_RF + qt.tensor(I_qubit, q_f, q_r) / C_RF)
+    return H_0 + H_coupling
+
+
+
+def hamiltonian_qubit_C_qubit_C_qubit_full_variables(Cc,φ_ext_1,φ_ext_2,φ_ext_3, nmax_r=3, nmax_f=9, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, periodic=True ):
+    C_R_1 = C / 2
+    C_F_1 = C / 2 + Csh + CJ
+
+    C_R_2 = C / 2
+    C_F_2 = C / 2 + Csh + CJ
+
+    C_R_3 = C / 2
+    C_F_3 = C / 2 + Csh + CJ
+
+    C_C = Cc
+
+    C_mat = np.array([[C_R_1 + C_C / 2, 0             , -C_C / 2      , -C_C / 2      , 0             ,        0      ],
+                      [0            , C_F_1 + C_C / 2 , -C_C / 2      , -C_C / 2      , 0             , 0             ],
+                      [-C_C / 2     , -C_C / 2      , C_R_2 + C_C / 2 , 0             , -C_C / 2      , -C_C / 2      ],
+                      [-C_C / 2     , -C_C / 2      , 0             , C_F_2 + C_C / 2 , -C_C / 2      , -C_C / 2      ],
+                      [0            , 0             , -C_C / 2      , -C_C / 2      , C_R_3 + C_C / 2 , 0             ],
+                      [0            , 0             , -C_C / 2      , -C_C / 2      , 0             , C_F_3 + C_C / 2 ]])
+
+    C_inv = np.linalg.inv(C_mat)
+    fF = 1e-15
+
+    resonator_1 = KIT_resonator(C_R_eff=C_inv[0, 0] ** -1, Lq=Lq, Lr=Lr, Δ=Δ, trunc_res=nmax_r)
+    fluxonium_1 = KIT_fluxonium(C_F_eff=C_inv[1, 1] ** -1, Lq=Lq, Lr=Lr, Δ=Δ, trunc_flux=nmax_f, φ_ext=φ_ext_1)
+    resonator_2 = KIT_resonator(C_R_eff=C_inv[2, 2] ** -1, Lq=Lq, Lr=Lr, Δ=Δ, trunc_res=nmax_r)
+    fluxonium_2 = KIT_fluxonium(C_F_eff=C_inv[3, 3] ** -1, Lq=Lq, Lr=Lr, Δ=Δ, trunc_flux=nmax_f, φ_ext=φ_ext_2)
+    resonator_3 = KIT_resonator(C_R_eff=C_inv[4, 4] ** -1, Lq=Lq, Lr=Lr, Δ=Δ, trunc_res=nmax_r)
+    fluxonium_3 = KIT_fluxonium(C_F_eff=C_inv[5, 5] ** -1, Lq=Lq, Lr=Lr, Δ=Δ, trunc_flux=nmax_f ,φ_ext=φ_ext_3)
+
+    H_qubit_1 = hamiltonian_frc(fluxonium_1, resonator_1, Δ)
+    H_qubit_2 = hamiltonian_frc(fluxonium_2, resonator_2, Δ)
+    H_qubit_3 = hamiltonian_frc(fluxonium_3, resonator_3, Δ)
+
+    I_r = qt.identity(nmax_r)
+    I_f = qt.identity(nmax_f)
+    I_qubit = qt.identity(H_qubit_1.dims[0])
+
+    q_r_1 = qt.tensor(resonator_1.charge_op(0), I_f)
+    q_r_2 = qt.tensor(resonator_2.charge_op(0), I_f)
+    q_r_3 = qt.tensor(resonator_3.charge_op(0), I_f)
+    q_f_1 = qt.tensor(I_r, fluxonium_1.charge_op(0))
+    q_f_2 = qt.tensor(I_r, fluxonium_2.charge_op(0))
+    q_f_3 = qt.tensor(I_r, fluxonium_3.charge_op(0))
+
+    H_0 = (  qt.tensor(H_qubit_1, I_qubit, I_qubit)
+           + qt.tensor(I_qubit, H_qubit_2, I_qubit)
+           + qt.tensor(I_qubit, I_qubit, H_qubit_3) )
+
+
+    C_RR_12 = C_inv[0, 2] ** -1 * fF
+    C_FF_12 = C_inv[1, 3] ** -1 * fF
+    C_RF_12 = C_inv[0, 3] ** -1 * fF
+
+    C_RR_23 = C_inv[2, 4] ** -1 * fF
+    C_FF_23 = C_inv[3, 5] ** -1 * fF
+    C_RF_23 = C_inv[2, 5] ** -1 * fF
+
+    H_coupling = (qt.tensor(q_r_1, q_r_2, I_qubit) / C_RR_12 + qt.tensor(q_f_1, q_f_2, I_qubit) / C_FF_12 +
+                  qt.tensor(q_r_1, q_f_2, I_qubit) / C_RF_12 + qt.tensor(q_f_1, q_r_2, I_qubit) / C_RF_12 +
+                  qt.tensor(I_qubit, q_r_2, q_r_3) / C_RR_23 + qt.tensor(I_qubit, q_f_2, q_f_3) / C_FF_23 +
+                  qt.tensor(I_qubit, q_r_2, q_f_3) / C_RF_23 + qt.tensor(I_qubit, q_f_2, q_r_3) / C_RF_23 )
 
     return H_0 + H_coupling
 
