@@ -330,7 +330,7 @@ def sq_qubit_C_qubit_C_qubit_not_periodic(Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, 
     return qubit_C_qubit_C_qubit
 
 #%% Hamiltonians made by composing small circuits made with sqcircuits
-def hamiltonian_frc(fluxonium, resonator, Δ, Lq = 25, Lr = 10, C_int=None):
+def hamiltonian_frc(fluxonium, resonator, Δ, Lq = 25, Lr = 10, C_int=None, interaction_prefactor=1):
     fF = 1e-15
     nH = 1e-9
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
@@ -346,7 +346,7 @@ def hamiltonian_frc(fluxonium, resonator, Δ, Lq = 25, Lr = 10, C_int=None):
     g_Φ = 2 * Δ / (l * nH)
 
     if C_int is None:
-        H = qt.tensor(I_r, H_f) + qt.tensor(H_r, I_f) + g_Φ * qt.tensor(Φ_r, Φ_f)
+        H = qt.tensor(I_r, H_f) + qt.tensor(H_r, I_f) + g_Φ * qt.tensor(Φ_r, Φ_f) * interaction_prefactor
     else:
         Q_f = fluxonium.charge_op(0)
         Q_r = resonator.charge_op(0)
@@ -533,7 +533,45 @@ def hamiltonian_qubit_C_qubit_C_qubit_full_variables(Cc,φ_ext_1,φ_ext_2,φ_ext
     return H_0 + H_coupling
 
 #%% Spin-boson hamiltonians
-def hamiltonian_spin_boson_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, N_R=1):
+def spin_boson_qubit(nmax_r, nmax_f, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10, N_R=1, interaction_prefactor=1):
+    nH = 1e-9
+    resonator = KIT_resonator(C=C, CJ=CJ, Csh=Csh, Lq=Lq, Lr=Lr, Δ=Δ, EJ=EJ, trunc_res=nmax_r)
+    fluxonium = KIT_fluxonium(C=C, CJ=CJ, Csh=Csh, Lq=Lq, Lr=Lr, Δ=Δ, EJ=EJ, trunc_flux=nmax_f)
+    fluxonium.diag(2)
+    resonator.diag(2)
+
+    ω_f = fluxonium.efreqs[1] - fluxonium.efreqs[0]  # Fluxonium frequency
+    ω_r = resonator.efreqs[1] - resonator.efreqs[0]  # Resonator frequency
+
+    Φ_f = fluxonium.flux_op(0)[0, 1]
+    Φ_r = resonator.flux_op(0)[0, 1]
+
+    # Pauli matrices for the fluxonium
+    sigma_x = np.array([[0, 1], [1, 0]])
+    sigma_z = np.array([[1, 0], [0, -1]])
+
+    # Creation and annihilation operators for the resonator
+    a = create(N_R)
+    a_dagger = annihilate(N_R)
+
+    # Identity matrices
+    I_resonator = np.eye(N_R)
+    I_fluxonium = np.eye(2)
+
+    # Isolated Hamiltonians
+    H_fluxonium = ω_f / 2 * sigma_z
+    H_resonator = ω_r * np.dot(a_dagger, a)
+
+    # Construct the system Hamiltonian with tensor products
+    H_0_qubit = np.kron(H_resonator, I_fluxonium) + np.kron(I_resonator, H_fluxonium)
+
+    l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
+    g_Φ = 2 * Δ / (l * nH) * Φ_f * Φ_r / 2 / np.pi / GHz
+    H_interaction = g_Φ * np.kron(a + a_dagger, sigma_x)
+
+    return H_0_qubit + H_interaction*interaction_prefactor
+
+def spin_boson_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, N_R=1):
     fF = 1e-15
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
     C_R = C / 2
