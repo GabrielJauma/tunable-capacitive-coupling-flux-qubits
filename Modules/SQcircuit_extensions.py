@@ -99,12 +99,15 @@ def KITqubit_asym( Cc, α, C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, 
     return sq.Circuit(elements)
 
 
-def KIT_resonator(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5, trunc_res=15, trunc_flux=25, C_R_eff=False):
+def KIT_resonator(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5, trunc_res=15, trunc_flux=25, C_R_eff=False, L_R_eff=False):
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
-    L_R_eff = l / Lq
+
 
     if C_R_eff == False:
         C_R_eff = C/2
+        
+    if L_R_eff == False:
+        L_R_eff = l / Lq
 
     resonator_elements = {
         (0, 1): [sq.Capacitor(C_R_eff, 'fF'), sq.Inductor(L_R_eff, 'nH')],
