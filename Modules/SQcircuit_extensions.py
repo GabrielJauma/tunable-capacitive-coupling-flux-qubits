@@ -538,16 +538,24 @@ def hamiltonian_qubit_C_qubit_C_qubit_full_variables(Cc,φ_ext_1,φ_ext_2,φ_ext
 #%% Spin-boson hamiltonians
 def spin_boson_qubit(nmax_r, nmax_f, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10, N_R=1, interaction_prefactor=1):
     nH = 1e-9
-    resonator = KIT_resonator(C=C, CJ=CJ, Csh=Csh, Lq=Lq, Lr=Lr, Δ=Δ, EJ=EJ, trunc_res=nmax_r)
-    fluxonium = KIT_fluxonium(C=C, CJ=CJ, Csh=Csh, Lq=Lq, Lr=Lr, Δ=Δ, EJ=EJ, trunc_flux=nmax_f)
+    resonator   = KIT_resonator(C=C, CJ=CJ, Csh=Csh, Lq=Lq, Lr=Lr, Δ=Δ, EJ=EJ, trunc_res=nmax_r)
+    resonator_0 = KIT_resonator(C=C, CJ=CJ, Csh=Csh, Lq=Lq, Lr=Lr, Δ=0, EJ=EJ, trunc_res=nmax_r)
+    fluxonium   = KIT_fluxonium(C=C, CJ=CJ, Csh=Csh, Lq=Lq, Lr=Lr, Δ=Δ, EJ=EJ, trunc_flux=nmax_f)
+    fluxonium_0 = KIT_fluxonium(C=C, CJ=CJ, Csh=Csh, Lq=Lq, Lr=Lr, Δ=0, EJ=EJ, trunc_flux=nmax_f)
     fluxonium.diag(2)
+    resonator_0.diag(2)
     resonator.diag(2)
+    fluxonium_0.diag(2)
 
     ω_f = fluxonium.efreqs[1] - fluxonium.efreqs[0]  # Fluxonium frequency
     ω_r = resonator.efreqs[1] - resonator.efreqs[0]  # Resonator frequency
 
-    Φ_f = fluxonium.flux_op(0)[0, 1]
-    Φ_r = resonator.flux_op(0)[0, 1]
+    # Φ_f = fluxonium.flux_op(0)[0, 1]
+    # Φ_r = resonator.flux_op(0)[0, 1]
+    # Φ_f = fluxonium.flux_op(0, basis='eig')[0, 1]
+    # Φ_r = resonator.flux_op(0, basis='eig')[0, 1]
+    Φ_f = H_eff_p1(fluxonium_0.hamiltonian(), fluxonium.flux_op(0), 2, out=None)[0, 1]
+    Φ_r = H_eff_p1(resonator_0.hamiltonian(), resonator.flux_op(0), 2, out=None)[0, 1]
 
     # Pauli matrices for the fluxonium
     sigma_x = np.array([[0, 1], [1, 0]])
