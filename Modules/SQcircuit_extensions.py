@@ -554,8 +554,8 @@ def spin_boson_qubit(nmax_r, nmax_f, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, E
     # Φ_r = resonator.flux_op(0)[0, 1]
     Φ_f = fluxonium.flux_op(0, basis='eig')[0, 1]
     Φ_r = resonator.flux_op(0, basis='eig')[0, 1]
-    # Φ_f = H_eff_p1(fluxonium_0.hamiltonian(), fluxonium.flux_op(0), 2, out=None)[0, 1]
-    # Φ_r = H_eff_p1(resonator_0.hamiltonian(), resonator.flux_op(0), 2, out=None)[0, 1]
+    # Φ_f = H_eff_SWT(fluxonium_0.hamiltonian(), fluxonium.flux_op(0), 2, out=None)[0, 1]
+    # Φ_r = H_eff_SWT(resonator_0.hamiltonian(), resonator.flux_op(0), 2, out=None)[0, 1]
 
     # Pauli matrices for the fluxonium
     sigma_x = np.array([[0, 1], [1, 0]])
