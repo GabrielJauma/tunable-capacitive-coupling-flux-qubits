@@ -785,7 +785,7 @@ def H_eff_p2(H_0, H, n_eig, out='GHz', real=True, remove_ground=False, solver='s
     return H_eff
 
 
-def H_eff_SWT(H_0, H, n_eig, out='GHz', real=True, remove_ground=False, solver='scipy',return_transformation=False):
+def H_eff_SWT(H_0, H, n_eig, out='None', real=True, remove_ground=False, solver='scipy',return_transformation=False):
 
     ψ_0  = diag(H_0, n_eig, real=real, solver=solver) [1]
     E, ψ = diag(H  , n_eig, real=real, solver=solver)
