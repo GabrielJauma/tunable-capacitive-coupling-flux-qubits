@@ -445,6 +445,9 @@ def hamiltonian_qubit_C_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq
            + qt.tensor(I_qubit, H_qubit, I_qubit)
            + qt.tensor(I_qubit, I_qubit, H_qubit) )
 
+    if Cc == 0:
+        return H_0
+
     # I should do this propperly by multiplying matrices...
     # Q_vec = [q_r, q_f, q_f, q_r, q_f, q_r]
     # H_coupling = 0
