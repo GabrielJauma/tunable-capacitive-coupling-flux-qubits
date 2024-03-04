@@ -359,35 +359,38 @@ def hamiltonian_frc(fluxonium, resonator, Δ, Lq = 25, Lr = 10, C_int=None, inte
     return H
 
 
-def hamiltonian_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, inverse='Numeric'):
+def hamiltonian_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1):
     fF = 1e-15
     C_R = C / 2
     C_C = Cc
     C_F = C / 2 + Csh + CJ
 
-    if inverse == 'Numeric':
-        C_mat = np.array([[C_R + C_C / 2, 0, -C_C / 2, 0],
-                          [0, C_F + C_C / 2, 0, -C_C / 2],
-                          [-C_C / 2, 0, C_R + C_C / 2, 0],
-                          [0, -C_C / 2, 0, C_F + C_C / 2]])
+    # if inverse == 'Numeric':
+    C_mat = np.array([[C_R + C_C / 2, 0, -C_C / 2, 0],
+                      [0, C_F + C_C / 2, 0, -C_C / 2],
+                      [-C_C / 2, 0, C_R + C_C / 2, 0],
+                      [0, -C_C / 2, 0, C_F + C_C / 2]])
 
-        C_inv = np.linalg.inv(C_mat)
-        C_R_tilde = C_inv[0, 0] ** -1
-        C_F_tilde = C_inv[1, 1] ** -1
+    C_inv = np.linalg.inv(C_mat)
+    C_R_tilde = C_inv[0, 0] ** -1
+    C_F_tilde = C_inv[1, 1] ** -1
+    if Cc == 0:
+        pass
+    else:
         C_RR = C_inv[0, 2] ** -1
         C_FF = C_inv[1, 3] ** -1
-
-    elif inverse == 'Analytic':
-        C_R_tilde = (C_C / 2 + C_R) / (C_R * (C_C + C_R))
-        C_F_tilde = (C_C / 2 + C_F) / (C_F * (C_C + C_F))
-        C_RR = C_C / 2 / (C_R * (C_C + C_R))
-        C_FF = C_C / 2 / (C_F * (C_C + C_F))
-
-    elif inverse == 'Approx':
-        C_R_tilde = C_R
-        C_F_tilde = C_F
-        C_RR = 2 * C_R ** 2 / C_C
-        C_FF = 2 * C_F ** 2 / C_C
+    #
+    # elif inverse == 'Analytic':
+    #     C_R_tilde = (C_C / 2 + C_R) / (C_R * (C_C + C_R))
+    #     C_F_tilde = (C_C / 2 + C_F) / (C_F * (C_C + C_F))
+    #     C_RR = C_C / 2 / (C_R * (C_C + C_R))
+    #     C_FF = C_C / 2 / (C_F * (C_C + C_F))
+    #
+    # elif inverse == 'Approx':
+    #     C_R_tilde = C_R
+    #     C_F_tilde = C_F
+    #     C_RR = 2 * C_R ** 2 / C_C
+    #     C_FF = 2 * C_F ** 2 / C_C
 
     resonator = KIT_resonator(C_R_eff=C_R_tilde, Lq=Lq, Lr=Lr, Δ=Δ, trunc_res=nmax_r)
     fluxonium = KIT_fluxonium(C_F_eff=C_F_tilde, Lq=Lq, Lr=Lr, Δ=Δ, trunc_flux=nmax_f)
@@ -402,12 +405,15 @@ def hamiltonian_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=
     q_f = qt.tensor(I_r, fluxonium.charge_op(0))
 
     H_0 = qt.tensor(H_qubit, I_H_qubit) + qt.tensor(I_H_qubit, H_qubit)
+    if Cc == 0:
+        return H_0
+
     H_coupling = 1 / (C_RR * fF) * qt.tensor(q_r, q_r) + 1 / (C_FF * fF) * qt.tensor(q_f, q_f)
 
     return H_0 + H_coupling
 
 
-def hamiltonian_qubit_C_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, periodic=True ):
+def hamiltonian_qubit_C_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, periodic=True, only_outer=False ):
     C_R = C / 2
     C_C = Cc
     C_F = C / 2 + Csh + CJ
@@ -441,9 +447,13 @@ def hamiltonian_qubit_C_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq
     q_r = qt.tensor(resonator.charge_op(0), I_f)
     q_f = qt.tensor(I_r, fluxonium.charge_op(0))
 
-    H_0 = (  qt.tensor(H_qubit, I_qubit, I_qubit)
-           + qt.tensor(I_qubit, H_qubit, I_qubit)
-           + qt.tensor(I_qubit, I_qubit, H_qubit) )
+    if only_outer:
+        H_0 = (  qt.tensor(H_qubit, I_qubit, I_qubit)
+               + qt.tensor(I_qubit, I_qubit, H_qubit) )
+    else:
+        H_0 = (  qt.tensor(H_qubit, I_qubit, I_qubit)
+               + qt.tensor(I_qubit, H_qubit, I_qubit)
+               + qt.tensor(I_qubit, I_qubit, H_qubit) )
 
     if Cc == 0:
         return H_0
@@ -728,11 +738,19 @@ def H_eff_p2_fluxonium_resonator(fluxonium_0, fluxonium, resonator_0, resonator,
 
 # %%  Generic effective Hamiltonians
 
-def H_eff_p1(H_0, H, n_eig, out='GHz', real=True, remove_ground = False, solver='scipy'):
+def H_eff_p1(H_0, H, n_eig, out='GHz', real=True, remove_ground = False, solver='scipy', sparse=False):
 
-    ψ_0 = diag(H_0, n_eig, real=real, solver=solver)[1]
+    if sparse == False:
 
-    H_eff = ψ_0.conj().T @ H.__array__() @ ψ_0
+        ψ_0 = diag(H_0, n_eig, real=real, solver=solver)[1]
+        H_eff = ψ_0.conj().T @ H.__array__() @ ψ_0
+    else:
+
+        H_eff = np.zeros((n_eig, n_eig), dtype=complex)
+        ψ_0 = H_0.eigenstates(sparse=True, eigvals=n_eig, phase_fix=1)[1]
+        for i in range(n_eig):
+            for j in range(n_eig):
+                H_eff[i, j] = (ψ_0[i].dag() * H * ψ_0[j]).data[0, 0]
 
     if out == 'GHz':
         H_eff /= GHz * 2 * np.pi
@@ -788,12 +806,19 @@ def H_eff_p2(H_0, H, n_eig, out='GHz', real=True, remove_ground=False, solver='s
     return H_eff
 
 
-def H_eff_SWT(H_0, H, n_eig, out='None', real=True, remove_ground=False, solver='scipy',return_transformation=False):
+def H_eff_SWT(H_0, H, n_eig, out='None', real=True, remove_ground=False, solver='scipy', return_transformation=False, sparse=False):
+    if sparse == False:
+        ψ_0 = diag(H_0, n_eig, real=real, solver=solver)[1]
+        E, ψ = diag(H, n_eig, real=real, solver=solver)
+        Q = ψ_0.T.conj() @ ψ
+    else:
+        ψ_0 = H_0.eigenstates(sparse=True, eigvals=n_eig, phase_fix=0)[1]
+        E, ψ = H.eigenstates(sparse=True, eigvals=n_eig, phase_fix=0)
+        Q = np.zeros((n_eig, n_eig), dtype=complex)
+        for i in range(n_eig):
+            for j in range(n_eig):
+                Q[i, j] = (ψ_0[i].dag() * ψ[j]).data[0, 0]
 
-    ψ_0  = diag(H_0, n_eig, real=real, solver=solver) [1]
-    E, ψ = diag(H  , n_eig, real=real, solver=solver)
-
-    Q = ψ_0.T.conj() @ ψ
     U, s, Vh = np.linalg.svd(Q)
     A = U @ Vh
 
@@ -884,8 +909,8 @@ def diag(H, n_eig=4, out=None, real=False, solver='scipy'):
     H = qt.Qobj(H)
 
     if solver == 'scipy':
-        efreqs, evecs = sp.sparse.linalg.eigs(H.data, n_eig, which='SR')
-        # efreqs, evecs = sp.sparse.linalg.eigsh(H.data, n_eig, which='SR')
+        # efreqs, evecs = sp.sparse.linalg.eigs(H.data, n_eig, which='SR')
+        efreqs, evecs = sp.sparse.linalg.eigsh(H.data, n_eig, which='SR')
     elif solver == 'numpy':
         efreqs, evecs = np.linalg.eigh(H.__array__())
         efreqs = efreqs[:n_eig]
@@ -1102,7 +1127,7 @@ def rank_by_multiples(arr, tol = 0.1):
     return np.array( np.round(diff_array / unit), dtype='int')
 
 
-def decomposition_in_pauli_2x2(A):
+def decomposition_in_pauli_2x2(A, print=False):
     '''Performs Pauli decomposition of a 2x2 matrix.
 
     Input:
