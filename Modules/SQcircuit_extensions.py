@@ -241,7 +241,7 @@ def sq_qubit_C_qubit_C_qubit_not_periodic(Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, 
 
     return qubit_C_qubit_C_qubit
 
-#%% Miscelaneous circuits
+#%% Miscellaneous circuits
 
 def KIT_qubit_no_JJ(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, φ_ext=0.5):
 
