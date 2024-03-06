@@ -273,14 +273,14 @@ trunc_num = 20
 Δ=1
 
 res     = KIT_resonator          (Δ=Δ)
-# flu     = KIT_fluxonium   (Δ=Δ)
-# qubit   = KIT_qubit      (Δ=Δ)
+# flu     = sq_fluxonium   (Δ=Δ)
+# qubit   = sq_qubit      (Δ=Δ)
 flu     = KIT_fluxonium_no_JJ    (Δ=Δ)
 qubit   = KIT_qubit_no_JJ        (Δ=Δ)
 
 res_0   = KIT_resonator          (Δ=0)
-# flu_0   = KIT_fluxonium    (Δ=0)
-# qubit_0 = KIT_qubit       (Δ=0)
+# flu_0   = sq_fluxonium    (Δ=0)
+# qubit_0 = sq_qubit       (Δ=0)
 flu_0   = KIT_fluxonium_no_JJ    (Δ=0)
 qubit_0 = KIT_qubit_no_JJ        (Δ=0)
 #
