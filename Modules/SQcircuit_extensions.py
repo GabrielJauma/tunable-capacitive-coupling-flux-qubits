@@ -32,7 +32,7 @@ def sq_fluxonium(C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, 
     fluxonium.set_trunc_nums([nmax_f])
     return fluxonium
 
-def sq_resonator(C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, n_max_r=15, n_max_f=25, C_R_eff=False,
+def sq_resonator(C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, nmax_r=15, nmax_f=25, C_R_eff=False,
                  L_R_eff=False):
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
 
@@ -47,10 +47,10 @@ def sq_resonator(C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, 
     }
 
     resonator = sq.Circuit(resonator_elements)
-    resonator.set_trunc_nums([n_max_r])
+    resonator.set_trunc_nums([nmax_r])
     return resonator
 
-def sq_qubit(C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, n_max_r=15, n_max_f=25):
+def sq_qubit(C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, nmax_r=15, nmax_f=25):
 
     # Initialize loop(s)
     loop = sq.Loop(φ_ext)
@@ -75,9 +75,9 @@ def sq_qubit(C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, n_ma
 
     qubit = sq.Circuit(elements)
     try:
-        qubit.set_trunc_nums([n_max_r, n_max_f])
+        qubit.set_trunc_nums([nmax_r, nmax_f])
     except:
-        qubit.set_trunc_nums([1, n_max_r, n_max_f])
+        qubit.set_trunc_nums([1, nmax_r, nmax_f])
 
     # Create and return the circuit
     return qubit
@@ -321,9 +321,11 @@ def KIT_qubit_vs_param(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ =
     return H_qubit_list
 
 #%% Hamiltonians made by composing small circuits made with sqcircuits
-def hamiltonian_qubit(C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10, φ_ext=0.5, nmax_r=15, nmax_f=25, C_int=None):
-    fluxonium = sq_fluxonium(C=C, CJ=CJ, Csh=Csh, Lq=Lq, Lr=Lr, Δ=Δ, EJ=EJ, φ_ext=φ_ext, nmax_r=nmax_r, nmax_f=nmax_f, C_F_eff=False)
-    resonator = sq_resonator(C=C, CJ=CJ, Csh=Csh, Lq=Lq, Lr=Lr, Δ=Δ, EJ=EJ, φ_ext=φ_ext, nmax_r=nmax_r, nmax_f=nmax_f, C_F_eff=False)
+def hamiltonian_qubit(fluxonium = None, resonator=None, Δ=0.1, C=15, CJ=3, Csh=15, Lq=25, Lr=10, EJ=10, φ_ext=0.5, nmax_r=15, nmax_f=25, C_int=None, return_Ψ_nonint=False):
+    if fluxonium is None:
+        fluxonium = sq_fluxonium(C=C, CJ=CJ, Csh=Csh, Lq=Lq, Lr=Lr, Δ=Δ, EJ=EJ, φ_ext=φ_ext, nmax_r=nmax_r, nmax_f=nmax_f)
+    if resonator is None:
+        resonator = sq_resonator(C=C, CJ=CJ, Csh=Csh, Lq=Lq, Lr=Lr, Δ=Δ, EJ=EJ, φ_ext=φ_ext, nmax_r=nmax_r, nmax_f=nmax_f)
 
     fF = 1e-15
     nH = 1e-9
@@ -382,7 +384,7 @@ def hamiltonian_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=
     #     C_RR = 2 * C_R ** 2 / C_C
     #     C_FF = 2 * C_F ** 2 / C_C
 
-    resonator = sq_resonator(C_R_eff=C_R_tilde, Lq=Lq, Lr=Lr, Δ=Δ, n_max_r=nmax_r)
+    resonator = sq_resonator(C_R_eff=C_R_tilde, Lq=Lq, Lr=Lr, Δ=Δ, nmax_r=nmax_r)
     fluxonium = sq_fluxonium(Lq=Lq, Lr=Lr, Δ=Δ, nmax_f=nmax_f, C_F_eff=C_F_tilde)
 
     H_qubit = hamiltonian_qubit(fluxonium, resonator, Δ)
@@ -424,7 +426,7 @@ def hamiltonian_qubit_C_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq
     C_inv = np.linalg.inv(C_mat)
     fF = 1e-15
 
-    resonator = sq_resonator(C_R_eff=C_inv[0, 0] ** -1, Lq=Lq, Lr=Lr, Δ=Δ, n_max_r=nmax_r)
+    resonator = sq_resonator(C_R_eff=C_inv[0, 0] ** -1, Lq=Lq, Lr=Lr, Δ=Δ, nmax_r=nmax_r)
     fluxonium = sq_fluxonium(Lq=Lq, Lr=Lr, Δ=Δ, nmax_f=nmax_f, C_F_eff=C_inv[1, 1] ** -1)
 
     H_qubit = hamiltonian_qubit(fluxonium, resonator, Δ)
@@ -493,11 +495,11 @@ def hamiltonian_qubit_C_qubit_C_qubit_full_variables(Cc,φ_ext_1,φ_ext_2,φ_ext
     C_inv = np.linalg.inv(C_mat)
     fF = 1e-15
 
-    resonator_1 = sq_resonator(C_R_eff=C_inv[0, 0] ** -1, Lq=Lq, Lr=Lr, Δ=Δ, n_max_r=nmax_r)
+    resonator_1 = sq_resonator(C_R_eff=C_inv[0, 0] ** -1, Lq=Lq, Lr=Lr, Δ=Δ, nmax_r=nmax_r)
     fluxonium_1 = sq_fluxonium(Lq=Lq, Lr=Lr, Δ=Δ, φ_ext=φ_ext_1, nmax_f=nmax_f, C_F_eff=C_inv[1, 1] ** -1)
-    resonator_2 = sq_resonator(C_R_eff=C_inv[2, 2] ** -1, Lq=Lq, Lr=Lr, Δ=Δ, n_max_r=nmax_r)
+    resonator_2 = sq_resonator(C_R_eff=C_inv[2, 2] ** -1, Lq=Lq, Lr=Lr, Δ=Δ, nmax_r=nmax_r)
     fluxonium_2 = sq_fluxonium(Lq=Lq, Lr=Lr, Δ=Δ, φ_ext=φ_ext_2, nmax_f=nmax_f, C_F_eff=C_inv[3, 3] ** -1)
-    resonator_3 = sq_resonator(C_R_eff=C_inv[4, 4] ** -1, Lq=Lq, Lr=Lr, Δ=Δ, n_max_r=nmax_r)
+    resonator_3 = sq_resonator(C_R_eff=C_inv[4, 4] ** -1, Lq=Lq, Lr=Lr, Δ=Δ, nmax_r=nmax_r)
     fluxonium_3 = sq_fluxonium(Lq=Lq, Lr=Lr, Δ=Δ, φ_ext=φ_ext_3, nmax_f=nmax_f, C_F_eff=C_inv[5, 5] ** -1)
 
     H_qubit_1 = hamiltonian_qubit(fluxonium_1, resonator_1, Δ)
@@ -636,8 +638,8 @@ def H_eff_SWT(H_0, H, n_eig, out='None', real=True, remove_ground=False, solver=
     else:
         return H_eff
 
-#%% Sorting and labeling functions for the fluxonum + resonator model
-def get_energy_indices(qubit, fluxonium, resonator, n_eig=3):
+#%% Sorting and labeling functions for the fluxonium + resonator model
+def sq_get_energy_indices(qubit, fluxonium, resonator, n_eig=3):
 
     try:
         E_qubit = qubit.efreqs - qubit.efreqs[0]
@@ -651,6 +653,23 @@ def get_energy_indices(qubit, fluxonium, resonator, n_eig=3):
         E_fluxonium = fluxonium.efreqs - fluxonium.efreqs[0]
         E_resonator = resonator.efreqs - resonator.efreqs[0]
 
+    n_eig = len(E_qubit)
+
+    N_fluxonium = np.zeros(n_eig, dtype='int')
+    N_resonator = np.zeros(n_eig, dtype='int')
+
+    E_matrix = E_fluxonium[:, np.newaxis] + E_resonator
+
+    tol = E_qubit[1]-E_qubit[0]
+    for k in range(n_eig):
+        ΔE_matrix = np.abs(E_matrix - E_qubit[k])
+        if ΔE_matrix.min() < tol:
+            N_fluxonium[k], N_resonator[k] = np.unravel_index(ΔE_matrix.argmin(), ΔE_matrix.shape)
+        else:
+            N_fluxonium[k], N_resonator[k] = [-123, -123]
+    return N_fluxonium, N_resonator
+
+def get_energy_indices(E_qubit, E_fluxonium, E_resonator):
     n_eig = len(E_qubit)
 
     N_fluxonium = np.zeros(n_eig, dtype='int')
@@ -697,7 +716,7 @@ def annihilate(n):
     return np.diag(np.sqrt(np.arange(1, n)), 1)
 
 #%% Generic mathematical functions
-def diag(H, n_eig=4, out=None, real=False, solver='scipy'):
+def diag(H, n_eig=4, out=None, real=False, solver='scipy', remove_ground=False):
     H = qt.Qobj(H)
 
     if solver == 'scipy':
@@ -724,6 +743,8 @@ def diag(H, n_eig=4, out=None, real=False, solver='scipy'):
         evecs_sorted = real_eigenvectors(evecs_sorted)
     if out=='GHz':
         efreqs_sorted /= 2 * np.pi * GHz
+    if remove_ground:
+        efreqs_sorted -= efreqs_sorted[0]
 
     return efreqs_sorted, evecs_sorted
 
