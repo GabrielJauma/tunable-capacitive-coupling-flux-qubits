@@ -13,8 +13,44 @@ nH = 1e-9
 Phi0 = 2.067833831e-15  # Flux quantum (in Wb)
 hbar = 1.0545718e-34
 
-#%% Premade circuits with sqcircuits
-def KIT_qubit(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5, trunc_res=15, trunc_flux=25):
+#%% Circuits made with SQcircuits
+#%% Basic circuits
+def sq_fluxonium(C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, nmax_r=15, nmax_f=25, C_F_eff=False):
+    l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
+    L_F_eff = l / (Lq + 4 * Lr)
+    if C_F_eff == False:
+        C_F_eff = C / 2 + Csh + CJ
+
+    loop_fluxonium = sq.Loop(φ_ext)
+    fluxonium_elements = {
+        (0, 1): [sq.Capacitor(C_F_eff, 'fF'),
+                 sq.Inductor(L_F_eff , 'nH', loops=[loop_fluxonium]),
+                 sq.Junction(EJ,      'GHz', loops=[loop_fluxonium])],
+    }
+
+    fluxonium = sq.Circuit(fluxonium_elements)
+    fluxonium.set_trunc_nums([nmax_f])
+    return fluxonium
+
+def sq_resonator(C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, n_max_r=15, n_max_f=25, C_R_eff=False,
+                 L_R_eff=False):
+    l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
+
+    if C_R_eff == False:
+        C_R_eff = C / 2
+
+    if L_R_eff == False:
+        L_R_eff = l / Lq
+
+    resonator_elements = {
+        (0, 1): [sq.Capacitor(C_R_eff, 'fF'), sq.Inductor(L_R_eff, 'nH')],
+    }
+
+    resonator = sq.Circuit(resonator_elements)
+    resonator.set_trunc_nums([n_max_r])
+    return resonator
+
+def sq_qubit(C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, n_max_r=15, n_max_f=25):
 
     # Initialize loop(s)
     loop = sq.Loop(φ_ext)
@@ -39,153 +75,26 @@ def KIT_qubit(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, �
 
     qubit = sq.Circuit(elements)
     try:
-        qubit.set_trunc_nums([trunc_res,trunc_flux])
+        qubit.set_trunc_nums([n_max_r, n_max_f])
     except:
-        qubit.set_trunc_nums([1, trunc_res, trunc_flux])
+        qubit.set_trunc_nums([1, n_max_r, n_max_f])
 
     # Create and return the circuit
     return qubit
 
-def KIT_qubit_no_JJ(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, φ_ext=0.5):
-
-    # Initialize loop(s)
-    # loop = sq.Loop(φ_ext)
-
-    # Circuit components
-    C_01 = sq.Capacitor(C,       'fF')
-    C_02 = sq.Capacitor(C,       'fF')
-    C_12 = sq.Capacitor(CJ+Csh,  'fF')
-    L_03 = sq.Inductor(Lr,       'nH')
-    L_31 = sq.Inductor(Lq/2 - Δ, 'nH')#,  loops=[loop])
-    L_23 = sq.Inductor(Lq/2 + Δ, 'nH')#,  loops=[loop])
-
-    elements = {
-        (0, 3): [L_03],
-        (0, 1): [C_01],
-        (0, 2): [C_02],
-        (3, 1): [L_31],
-        (1, 2): [C_12],
-        (2, 3): [L_23],
-    }
-
-    # Create and return the circuit
-    return sq.Circuit(elements)
-
-
-def KITqubit_asym( Cc, α, C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5):
-
-    # Initialize loop(s)
-    loop = sq.Loop(φ_ext)
-
-    # Circuit components
-    C_01 = sq.Capacitor(C + α*Cc, 'fF')
-    C_02 = sq.Capacitor(C + Cc,   'fF')
-    C_12 = sq.Capacitor(CJ+Csh,   'fF')
-    L_03 = sq.Inductor(Lr,        'nH')
-    L_31 = sq.Inductor(Lq/2 - Δ,  'nH',  loops=[loop])
-    L_23 = sq.Inductor(Lq/2 + Δ,  'nH',  loops=[loop])
-    JJ_12= sq.Junction(EJ,        'GHz', loops=[loop])
-
-    elements = {
-        (0, 3): [L_03],
-        (0, 1): [C_01],
-        (0, 2): [C_02],
-        (3, 1): [L_31],
-        (1, 2): [C_12, JJ_12],
-        (2, 3): [L_23],
-    }
-
-    # Create and return the circuit
-    return sq.Circuit(elements)
-
-
-def KIT_resonator(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5, trunc_res=15, trunc_flux=25, C_R_eff=False, L_R_eff=False):
-    l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
-
-
-    if C_R_eff == False:
-        C_R_eff = C/2
-        
-    if L_R_eff == False:
-        L_R_eff = l / Lq
-
-    resonator_elements = {
-        (0, 1): [sq.Capacitor(C_R_eff, 'fF'), sq.Inductor(L_R_eff, 'nH')],
-    }
-
-    resonator = sq.Circuit(resonator_elements)
-    resonator.set_trunc_nums([trunc_res])
-    return resonator
-
-# def KIT_resonator(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5, trunc_res=15, trunc_flux=25):
-#     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
-#
-#     resonator_elements = {
-#         (0, 1): [sq.Capacitor(C/2, 'fF'), sq.Inductor( l / Lq, 'nH')],
-#     }
-#
-#     resonator = sq.Circuit(resonator_elements)
-#     resonator.set_trunc_nums([trunc_res])
-#     return resonator
-
-
-
-
-def KIT_fluxonium(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5, trunc_res=15, trunc_flux=25, C_F_eff=False):
-    l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
-    L_F_eff = l / (Lq + 4 * Lr)
-    if C_F_eff == False:
-        C_F_eff = C / 2 + Csh + CJ
-
-    loop_fluxonium = sq.Loop(φ_ext)
-    fluxonium_elements = {
-        (0, 1): [sq.Capacitor(C_F_eff, 'fF'),
-                 sq.Inductor(L_F_eff , 'nH', loops=[loop_fluxonium]),
-                 sq.Junction(EJ,      'GHz', loops=[loop_fluxonium])],
-    }
-
-    fluxonium = sq.Circuit(fluxonium_elements)
-    fluxonium.set_trunc_nums([trunc_flux])
-    return fluxonium
-
-def KIT_fluxonium_no_JJ(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, trunc_res=15, trunc_flux=25 ):
-    l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
-    fluxonium_elements = {
-        (0, 1): [sq.Capacitor(C / 2 + Csh + CJ, 'fF'),
-                 sq.Inductor(l / (Lq + 4 * Lr), 'nH')],
-    }
-    fluxonium = sq.Circuit(fluxonium_elements)
-    fluxonium.set_trunc_nums([trunc_flux])
-    return fluxonium
-
-def KIT_qubit_vs_param(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5, trunc_res=15, trunc_flux=25, model='composition'):
-
-    parameters_list = expand_list_with_array([C, CJ, Csh, Lq, Lr, Δ, EJ, φ_ext, trunc_res, trunc_flux])
-    H_qubit_list = []
-
-    for parameters in parameters_list:
-        if model == 'full_circuit':
-            H_qubit_list.append(KIT_qubit(*parameters).hamiltonian())
-        if model == 'composition':
-            fluxonium = KIT_fluxonium(*parameters)
-            resonator = KIT_resonator(*parameters)
-            H_qubit_list.append(hamiltonian_frc(fluxonium, resonator, Δ = parameters[5], Lq = parameters[3], Lr = parameters[4]))
-
-    return H_qubit_list
-
-
-def sq_qubit_C_qubit(Cc, C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5, nmax_r=5, nmax_f=10):
+# %% Composite circuits
+def sq_qubit_C_qubit(Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, nmax_r=5, nmax_f=10):
     loop1 = sq.Loop(φ_ext)
     loop2 = sq.Loop(φ_ext)
 
     # Circuit components
-    C_01    = sq.Capacitor(C, 'fF')
-    C_01_rc = sq.Capacitor(C + Cc, 'fF')    # With extra Cc for redout or coupling
-    C_02    = sq.Capacitor(C, 'fF')
-    C_02_rc = sq.Capacitor(C + Cc, 'fF')     # With extra Cc for redout or coupling
-    C_12    = sq.Capacitor(CJ + Csh, 'fF')
-    L_03    = sq.Inductor(Lr, 'nH')
-    C_C     = sq.Capacitor(Cc, 'fF')
+    C_01 = sq.Capacitor(C, 'fF')
+    C_01_rc = sq.Capacitor(C + Cc, 'fF')  # With extra Cc for redout or coupling
+    C_02 = sq.Capacitor(C, 'fF')
+    C_02_rc = sq.Capacitor(C + Cc, 'fF')  # With extra Cc for redout or coupling
+    C_12 = sq.Capacitor(CJ + Csh, 'fF')
+    L_03 = sq.Inductor(Lr, 'nH')
+    C_C = sq.Capacitor(Cc, 'fF')
 
     L_31, L_23, JJ_12 = [[] for _ in range(3)]
     for loop in [loop1, loop2]:
@@ -219,20 +128,19 @@ def sq_qubit_C_qubit(Cc, C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, E
     return qubit_C_qubit
 
 
-def sq_qubit_C_qubit_C_qubit(Cc, C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5, nmax_r=5, nmax_f=10):
-    
+def sq_qubit_C_qubit_C_qubit(Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, nmax_r=5, nmax_f=10):
     # Initialize loop(s)
-    loop1 = sq.Loop(0.5)  # "Value" corresponds to phiExt / phi0 threading the loop (can change later)
-    loop2 = sq.Loop(0.5)
-    loop3 = sq.Loop(0.5)
-    
-    C_01    = sq.Capacitor(C, 'fF')
-    C_01_rc = sq.Capacitor(C + Cc, 'fF')    # With extra Cc for redout or coupling
-    C_02    = sq.Capacitor(C, 'fF')
-    C_02_rc = sq.Capacitor(C + Cc, 'fF')     # With extra Cc for redout or coupling
-    C_12    = sq.Capacitor(CJ + Csh, 'fF')
-    L_03    = sq.Inductor(Lr, 'nH')
-    C_C     = sq.Capacitor(Cc, 'fF')
+    loop1 = sq.Loop(φ_ext)  # "Value" corresponds to phiExt / phi0 threading the loop (can change later)
+    loop2 = sq.Loop(φ_ext)
+    loop3 = sq.Loop(φ_ext)
+
+    C_01 = sq.Capacitor(C, 'fF')
+    C_01_rc = sq.Capacitor(C + Cc, 'fF')  # With extra Cc for redout or coupling
+    C_02 = sq.Capacitor(C, 'fF')
+    C_02_rc = sq.Capacitor(C + Cc, 'fF')  # With extra Cc for redout or coupling
+    C_12 = sq.Capacitor(CJ + Csh, 'fF')
+    L_03 = sq.Inductor(Lr, 'nH')
+    C_C = sq.Capacitor(Cc, 'fF')
 
     # Circuit elements
     # Elements for the three qubits decoupled
@@ -277,11 +185,12 @@ def sq_qubit_C_qubit_C_qubit(Cc, C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ 
     return qubit_C_qubit_C_qubit
 
 
-def sq_qubit_C_qubit_C_qubit_not_periodic(Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, nmax_r=5, nmax_f=10):
+def sq_qubit_C_qubit_C_qubit_not_periodic(Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, nmax_r=5,
+                                          nmax_f=10):
     # Initialize loop(s)
-    loop1 = sq.Loop(0.5)  # "Value" corresponds to phiExt / phi0 threading the loop (can change later)
-    loop2 = sq.Loop(0.5)
-    loop3 = sq.Loop(0.5)
+    loop1 = sq.Loop(φ_ext)  # "Value" corresponds to phiExt / phi0 threading the loop (can change later)
+    loop2 = sq.Loop(φ_ext)
+    loop3 = sq.Loop(φ_ext)
 
     C_01 = sq.Capacitor(C, 'fF')
     C_01_rc = sq.Capacitor(C + Cc, 'fF')  # With extra Cc for redout or coupling
@@ -332,8 +241,90 @@ def sq_qubit_C_qubit_C_qubit_not_periodic(Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, 
 
     return qubit_C_qubit_C_qubit
 
+#%% Miscelaneous circuits
+
+def KIT_qubit_no_JJ(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, φ_ext=0.5):
+
+    # Initialize loop(s)
+    # loop = sq.Loop(φ_ext)
+
+    # Circuit components
+    C_01 = sq.Capacitor(C,       'fF')
+    C_02 = sq.Capacitor(C,       'fF')
+    C_12 = sq.Capacitor(CJ+Csh,  'fF')
+    L_03 = sq.Inductor(Lr,       'nH')
+    L_31 = sq.Inductor(Lq/2 - Δ, 'nH')#,  loops=[loop])
+    L_23 = sq.Inductor(Lq/2 + Δ, 'nH')#,  loops=[loop])
+
+    elements = {
+        (0, 3): [L_03],
+        (0, 1): [C_01],
+        (0, 2): [C_02],
+        (3, 1): [L_31],
+        (1, 2): [C_12],
+        (2, 3): [L_23],
+    }
+
+    # Create and return the circuit
+    return sq.Circuit(elements)
+
+def KITqubit_asym( Cc, α, C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5):
+
+    # Initialize loop(s)
+    loop = sq.Loop(φ_ext)
+
+    # Circuit components
+    C_01 = sq.Capacitor(C + α*Cc, 'fF')
+    C_02 = sq.Capacitor(C + Cc,   'fF')
+    C_12 = sq.Capacitor(CJ+Csh,   'fF')
+    L_03 = sq.Inductor(Lr,        'nH')
+    L_31 = sq.Inductor(Lq/2 - Δ,  'nH',  loops=[loop])
+    L_23 = sq.Inductor(Lq/2 + Δ,  'nH',  loops=[loop])
+    JJ_12= sq.Junction(EJ,        'GHz', loops=[loop])
+
+    elements = {
+        (0, 3): [L_03],
+        (0, 1): [C_01],
+        (0, 2): [C_02],
+        (3, 1): [L_31],
+        (1, 2): [C_12, JJ_12],
+        (2, 3): [L_23],
+    }
+
+    # Create and return the circuit
+    return sq.Circuit(elements)
+
+def KIT_fluxonium_no_JJ(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, nmax_r=15, nmax_f=25):
+    l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
+    fluxonium_elements = {
+        (0, 1): [sq.Capacitor(C / 2 + Csh + CJ, 'fF'),
+                 sq.Inductor(l / (Lq + 4 * Lr), 'nH')],
+    }
+    fluxonium = sq.Circuit(fluxonium_elements)
+    fluxonium.set_trunc_nums([nmax_f])
+    return fluxonium
+
+#%% Circuits vs parameters
+def KIT_qubit_vs_param(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5, nmax_r=15, nmax_f=25, model='composition'):
+
+    parameters_list = expand_list_with_array([C, CJ, Csh, Lq, Lr, Δ, EJ, φ_ext, nmax_r, nmax_f])
+    H_qubit_list = []
+
+    for parameters in parameters_list:
+        if model == 'full_circuit':
+            H_qubit_list.append(sq_qubit().hamiltonian())
+        if model == 'composition':
+            fluxonium = sq_fluxonium()
+            resonator = sq_resonator(*parameters)
+            H_qubit_list.append(hamiltonian_qubit(fluxonium, resonator, Δ = parameters[5], Lq = parameters[3], Lr = parameters[4]))
+
+    return H_qubit_list
+
 #%% Hamiltonians made by composing small circuits made with sqcircuits
-def hamiltonian_frc(fluxonium, resonator, Δ, Lq = 25, Lr = 10, C_int=None, interaction_prefactor=1):
+def hamiltonian_qubit(C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10, φ_ext=0.5, nmax_r=15, nmax_f=25, C_int=None):
+    fluxonium = sq_fluxonium(C=C, CJ=CJ, Csh=Csh, Lq=Lq, Lr=Lr, Δ=Δ, EJ=EJ, φ_ext=φ_ext, nmax_r=nmax_r, nmax_f=nmax_f, C_F_eff=False)
+    resonator = sq_resonator(C=C, CJ=CJ, Csh=Csh, Lq=Lq, Lr=Lr, Δ=Δ, EJ=EJ, φ_ext=φ_ext, nmax_r=nmax_r, nmax_f=nmax_f, C_F_eff=False)
+
     fF = 1e-15
     nH = 1e-9
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
@@ -349,7 +340,7 @@ def hamiltonian_frc(fluxonium, resonator, Δ, Lq = 25, Lr = 10, C_int=None, inte
     g_Φ = 2 * Δ / (l * nH)
 
     if C_int is None:
-        H = qt.tensor(I_r, H_f) + qt.tensor(H_r, I_f) + g_Φ * qt.tensor(Φ_r, Φ_f) * interaction_prefactor
+        H = qt.tensor(I_r, H_f) + qt.tensor(H_r, I_f) + g_Φ * qt.tensor(Φ_r, Φ_f)
     else:
         Q_f = fluxonium.charge_op(0)
         Q_r = resonator.charge_op(0)
@@ -357,7 +348,6 @@ def hamiltonian_frc(fluxonium, resonator, Δ, Lq = 25, Lr = 10, C_int=None, inte
         H = qt.tensor(I_r, H_f) + qt.tensor(H_r, I_f) + g_Φ * qt.tensor(Φ_r, Φ_f) + g_Q * qt.tensor(Q_r,Q_f)
 
     return H
-
 
 def hamiltonian_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1):
     fF = 1e-15
@@ -392,10 +382,10 @@ def hamiltonian_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=
     #     C_RR = 2 * C_R ** 2 / C_C
     #     C_FF = 2 * C_F ** 2 / C_C
 
-    resonator = KIT_resonator(C_R_eff=C_R_tilde, Lq=Lq, Lr=Lr, Δ=Δ, trunc_res=nmax_r)
-    fluxonium = KIT_fluxonium(C_F_eff=C_F_tilde, Lq=Lq, Lr=Lr, Δ=Δ, trunc_flux=nmax_f)
+    resonator = sq_resonator(C_R_eff=C_R_tilde, Lq=Lq, Lr=Lr, Δ=Δ, n_max_r=nmax_r)
+    fluxonium = sq_fluxonium(Lq=Lq, Lr=Lr, Δ=Δ, nmax_f=nmax_f, C_F_eff=C_F_tilde)
 
-    H_qubit = hamiltonian_frc(fluxonium, resonator, Δ)
+    H_qubit = hamiltonian_qubit(fluxonium, resonator, Δ)
 
     I_r = qt.identity(nmax_r)
     I_f = qt.identity(nmax_f)
@@ -411,7 +401,6 @@ def hamiltonian_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=
     H_coupling = 1 / (C_RR * fF) * qt.tensor(q_r, q_r) + 1 / (C_FF * fF) * qt.tensor(q_f, q_f)
 
     return H_0 + H_coupling
-
 
 def hamiltonian_qubit_C_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, periodic=True, only_outer=False ):
     C_R = C / 2
@@ -435,10 +424,10 @@ def hamiltonian_qubit_C_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq
     C_inv = np.linalg.inv(C_mat)
     fF = 1e-15
 
-    resonator = KIT_resonator(C_R_eff=C_inv[0, 0] ** -1, Lq=Lq, Lr=Lr, Δ=Δ, trunc_res=nmax_r)
-    fluxonium = KIT_fluxonium(C_F_eff=C_inv[1, 1] ** -1, Lq=Lq, Lr=Lr, Δ=Δ, trunc_flux=nmax_f)
+    resonator = sq_resonator(C_R_eff=C_inv[0, 0] ** -1, Lq=Lq, Lr=Lr, Δ=Δ, n_max_r=nmax_r)
+    fluxonium = sq_fluxonium(Lq=Lq, Lr=Lr, Δ=Δ, nmax_f=nmax_f, C_F_eff=C_inv[1, 1] ** -1)
 
-    H_qubit = hamiltonian_frc(fluxonium, resonator, Δ)
+    H_qubit = hamiltonian_qubit(fluxonium, resonator, Δ)
 
     I_r = qt.identity(nmax_r)
     I_f = qt.identity(nmax_f)
@@ -482,8 +471,6 @@ def hamiltonian_qubit_C_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq
                       qt.tensor(I_qubit, q_r, q_f) / C_RF + qt.tensor(I_qubit, q_f, q_r) / C_RF)
     return H_0 + H_coupling
 
-
-
 def hamiltonian_qubit_C_qubit_C_qubit_full_variables(Cc,φ_ext_1,φ_ext_2,φ_ext_3, nmax_r=3, nmax_f=9, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, periodic=True ):
     C_R_1 = C / 2
     C_F_1 = C / 2 + Csh + CJ
@@ -506,16 +493,16 @@ def hamiltonian_qubit_C_qubit_C_qubit_full_variables(Cc,φ_ext_1,φ_ext_2,φ_ext
     C_inv = np.linalg.inv(C_mat)
     fF = 1e-15
 
-    resonator_1 = KIT_resonator(C_R_eff=C_inv[0, 0] ** -1, Lq=Lq, Lr=Lr, Δ=Δ, trunc_res=nmax_r)
-    fluxonium_1 = KIT_fluxonium(C_F_eff=C_inv[1, 1] ** -1, Lq=Lq, Lr=Lr, Δ=Δ, trunc_flux=nmax_f, φ_ext=φ_ext_1)
-    resonator_2 = KIT_resonator(C_R_eff=C_inv[2, 2] ** -1, Lq=Lq, Lr=Lr, Δ=Δ, trunc_res=nmax_r)
-    fluxonium_2 = KIT_fluxonium(C_F_eff=C_inv[3, 3] ** -1, Lq=Lq, Lr=Lr, Δ=Δ, trunc_flux=nmax_f, φ_ext=φ_ext_2)
-    resonator_3 = KIT_resonator(C_R_eff=C_inv[4, 4] ** -1, Lq=Lq, Lr=Lr, Δ=Δ, trunc_res=nmax_r)
-    fluxonium_3 = KIT_fluxonium(C_F_eff=C_inv[5, 5] ** -1, Lq=Lq, Lr=Lr, Δ=Δ, trunc_flux=nmax_f ,φ_ext=φ_ext_3)
+    resonator_1 = sq_resonator(C_R_eff=C_inv[0, 0] ** -1, Lq=Lq, Lr=Lr, Δ=Δ, n_max_r=nmax_r)
+    fluxonium_1 = sq_fluxonium(Lq=Lq, Lr=Lr, Δ=Δ, φ_ext=φ_ext_1, nmax_f=nmax_f, C_F_eff=C_inv[1, 1] ** -1)
+    resonator_2 = sq_resonator(C_R_eff=C_inv[2, 2] ** -1, Lq=Lq, Lr=Lr, Δ=Δ, n_max_r=nmax_r)
+    fluxonium_2 = sq_fluxonium(Lq=Lq, Lr=Lr, Δ=Δ, φ_ext=φ_ext_2, nmax_f=nmax_f, C_F_eff=C_inv[3, 3] ** -1)
+    resonator_3 = sq_resonator(C_R_eff=C_inv[4, 4] ** -1, Lq=Lq, Lr=Lr, Δ=Δ, n_max_r=nmax_r)
+    fluxonium_3 = sq_fluxonium(Lq=Lq, Lr=Lr, Δ=Δ, φ_ext=φ_ext_3, nmax_f=nmax_f, C_F_eff=C_inv[5, 5] ** -1)
 
-    H_qubit_1 = hamiltonian_frc(fluxonium_1, resonator_1, Δ)
-    H_qubit_2 = hamiltonian_frc(fluxonium_2, resonator_2, Δ)
-    H_qubit_3 = hamiltonian_frc(fluxonium_3, resonator_3, Δ)
+    H_qubit_1 = hamiltonian_qubit(fluxonium_1, resonator_1, Δ)
+    H_qubit_2 = hamiltonian_qubit(fluxonium_2, resonator_2, Δ)
+    H_qubit_3 = hamiltonian_qubit(fluxonium_3, resonator_3, Δ)
 
     I_r = qt.identity(nmax_r)
     I_f = qt.identity(nmax_f)
@@ -548,194 +535,6 @@ def hamiltonian_qubit_C_qubit_C_qubit_full_variables(Cc,φ_ext_1,φ_ext_2,φ_ext
 
     return H_0 + H_coupling
 
-#%% Spin-boson hamiltonians
-def spin_boson_qubit(nmax_r, nmax_f, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10, N_R=1, interaction_prefactor=1):
-    nH = 1e-9
-    resonator   = KIT_resonator(C=C, CJ=CJ, Csh=Csh, Lq=Lq, Lr=Lr, Δ=Δ, EJ=EJ, trunc_res=nmax_r)
-    resonator_0 = KIT_resonator(C=C, CJ=CJ, Csh=Csh, Lq=Lq, Lr=Lr, Δ=0, EJ=EJ, trunc_res=nmax_r)
-    fluxonium   = KIT_fluxonium(C=C, CJ=CJ, Csh=Csh, Lq=Lq, Lr=Lr, Δ=Δ, EJ=EJ, trunc_flux=nmax_f)
-    fluxonium_0 = KIT_fluxonium(C=C, CJ=CJ, Csh=Csh, Lq=Lq, Lr=Lr, Δ=0, EJ=EJ, trunc_flux=nmax_f)
-    fluxonium.diag(2)
-    resonator_0.diag(2)
-    resonator.diag(2)
-    fluxonium_0.diag(2)
-
-    ω_f = fluxonium.efreqs[1] - fluxonium.efreqs[0]  # Fluxonium frequency
-    ω_r = resonator.efreqs[1] - resonator.efreqs[0]  # Resonator frequency
-
-    # Φ_f = fluxonium.flux_op(0)[0, 1]
-    # Φ_r = resonator.flux_op(0)[0, 1]
-    Φ_f = fluxonium.flux_op(0, basis='eig')[0, 1]
-    Φ_r = resonator.flux_op(0, basis='eig')[0, 1]
-    # Φ_f = H_eff_SWT(fluxonium_0.hamiltonian(), fluxonium.flux_op(0), 2, out=None)[0, 1]
-    # Φ_r = H_eff_SWT(resonator_0.hamiltonian(), resonator.flux_op(0), 2, out=None)[0, 1]
-
-    # Pauli matrices for the fluxonium
-    sigma_x = np.array([[0, 1], [1, 0]])
-    sigma_z = np.array([[1, 0], [0, -1]])
-
-    # Creation and annihilation operators for the resonator
-    a = create(N_R)
-    a_dagger = annihilate(N_R)
-
-    # Identity matrices
-    I_resonator = np.eye(N_R)
-    I_fluxonium = np.eye(2)
-
-    # Isolated Hamiltonians
-    H_fluxonium = ω_f / 2 * sigma_z
-    H_resonator = ω_r * np.dot(a_dagger, a)
-
-    # Construct the system Hamiltonian with tensor products
-    H_0_qubit = np.kron(H_resonator, I_fluxonium) + np.kron(I_resonator, H_fluxonium)
-
-    l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
-    g_Φ = 2 * Δ / (l * nH) * Φ_f * Φ_r / 2 / np.pi / GHz
-    H_interaction = g_Φ * np.kron(a + a_dagger, sigma_x)
-
-    return H_0_qubit + H_interaction*interaction_prefactor
-
-def spin_boson_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, N_R=1):
-    fF = 1e-15
-    l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
-    C_R = C / 2
-    C_C = Cc
-    C_F = C / 2 + Csh + CJ
-
-    C_mat = np.array([[C_R + C_C / 2, 0, -C_C / 2, 0],
-                      [0, C_F + C_C / 2, 0, -C_C / 2],
-                      [-C_C / 2, 0, C_R + C_C / 2, 0],
-                      [0, -C_C / 2, 0, C_F + C_C / 2]])
-
-    C_inv = np.linalg.inv(C_mat)
-    C_R_tilde = C_inv[0, 0] ** -1
-    C_F_tilde = C_inv[1, 1] ** -1
-    C_RR = C_inv[0, 2] ** -1
-    C_FF = C_inv[1, 3] ** -1
-
-    resonator = KIT_resonator(C_R_eff=C_R_tilde, Lq=Lq, Lr=Lr, Δ=Δ, trunc_res=nmax_r)
-    fluxonium = KIT_fluxonium(C_F_eff=C_F_tilde, Lq=Lq, Lr=Lr, Δ=Δ, trunc_flux=nmax_f)
-    fluxonium.diag(2)
-    resonator.diag(2)
-
-    ω_f = fluxonium.efreqs[1] - fluxonium.efreqs[0]  # Fluxonium frequency
-    ω_r = resonator.efreqs[1] - resonator.efreqs[0]  # Resonator frequency
-
-    Φ_f = fluxonium.flux_op(0)[0, 1]
-    Φ_r = resonator.flux_op(0)[0, 1]
-    Q_F = fluxonium.charge_op(0)[0, 1]
-    Q_R = resonator.charge_op(0)[0, 1]
-    
-
-    # Pauli matrices for the fluxonium
-    sigma_x = np.array([[0, 1], [1, 0]])
-    sigma_y = np.array([[0, -1], [1, 0]]) * 1j
-    sigma_z = np.array([[1, 0], [0, -1]])
-
-    sigma_p = np.array([[0, 1], [0, 0]])
-    sigma_m = np.array([[0, 0], [1, 0]])
-
-
-    # Creation and annihilation operators for the resonator
-    a = create(N_R)
-    a_dagger = annihilate(N_R)
-
-    # Identity matrices
-    I_resonator = np.eye(N_R)
-    I_fluxonium = np.eye(2)
-
-    # Isolated Hamiltonians
-    H_fluxonium = ω_f / 2 * sigma_z
-    H_resonator = ω_r * np.dot(a_dagger, a)
-
-    # Construct the system Hamiltonian with tensor products
-    H_0_qubit = np.kron(H_resonator, I_fluxonium) + np.kron(I_resonator, H_fluxonium)
-    
-    g_Φ = 2 * Δ / (l * nH) * Φ_f * Φ_r / 2 / np.pi / GHz
-    H_interaction = g_Φ * np.kron(a + a_dagger, sigma_x)
-
-    # Circuit Hamiltonian
-    H_circuit = H_0_qubit + H_interaction
-    I_circuit = np.eye(len(H_circuit))
-    H_0 = np.kron(H_circuit, I_circuit) + np.kron(I_circuit, H_circuit)
-
-    # Pali and fock operators with the circuit's hamiltonian shape
-    a_sys = np.kron(a, I_fluxonium)
-    a_dagger_sys = np.kron(a_dagger, I_fluxonium)
-    sigma_y_sys = np.kron(I_resonator, sigma_y)
-
-
-    H_coupling = Q_R ** 2 / (C_RR * fF) * np.kron(a_dagger_sys - a_sys, a_dagger_sys - a_sys) + Q_F ** 2 / (
-                C_FF * fF) * np.kron(sigma_y_sys, sigma_y_sys)
-    H_coupling /= 2 * np.pi * GHz
-
-    return H_0 + H_coupling
-
-
-# %% KIT's qubit internal coupling perturbation theory with fluxonium + resonator decomposition
-def H_eff_p1_fluxonium_resonator(fluxonium_0, fluxonium, resonator_0, resonator, N_f, N_r, Δ, Lq = 25, Lr = 10):
-    '''
-    DANGER, N_f and N_r shold be the enery levels of the non interacting resonator and fluxonium.
-    Now its fine because they are the same as the interacting ones, but careful.
-    '''
-    l   = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
-
-    ψ_0_f = np.array([ψ_i.__array__()[:, 0] for ψ_i in fluxonium_0._evecs]).T
-    ψ_0_r = np.array([ψ_i.__array__()[:, 0] for ψ_i in resonator_0._evecs]).T
-    Φ_f =  fluxonium.flux_op(0).__array__()
-    Φ_r =  resonator.flux_op(0).__array__()
-
-    n_eig = ψ_0_f.shape[1]
-
-    H_eff_p1 = np.zeros((n_eig, n_eig), dtype=complex)  # matrix to store our results.
-
-    for i in range(n_eig):
-        for j in range(n_eig):
-            H_eff_1_f_i_j = np.abs(ψ_0_f[:, N_f[i]].conj().T @ Φ_f @ ψ_0_f[:, N_f[j]])
-            H_eff_1_r_i_j = np.abs(ψ_0_r[:, N_r[i]].conj().T @ Φ_r @ ψ_0_r[:, N_r[j]])
-            H_eff_p1[i,j] = H_eff_1_f_i_j*H_eff_1_r_i_j
-
-    return H_eff_p1 * 2 * Δ / l / 1e-9  / (2 * np.pi * GHz)
-
-
-def H_eff_p2_fluxonium_resonator(fluxonium_0, fluxonium, resonator_0, resonator, N_f, N_r, Δ, Lq = 25, Lr = 10):
-    '''
-    DANGER, N_f and N_r shold be the enery levels of the non interacting resonator and fluxonium.
-    Now its fine because they are the same as the interacting ones, but careful.
-    '''
-    l   = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
-
-    ψ_0_f = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in fluxonium_0._evecs]).T)
-    ψ_f   = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in fluxonium  ._evecs]).T)
-
-    ψ_0_r = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in resonator_0._evecs]).T)
-    ψ_r   = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in resonator  ._evecs]).T)
-
-    Φ_f =  fluxonium.flux_op(0).__array__() / (2 * np.pi * GHz)
-    Φ_r =  resonator.flux_op(0).__array__() / (2 * np.pi * GHz)
-
-    n_eig = ψ_0_f.shape[1]
-    H_eff_p2 = np.zeros((n_eig, n_eig), dtype=complex)  # matrix to store our results.
-
-    for i in range(n_eig):
-        E_0_i = fluxonium_0.efreqs[N_f[i]] + resonator_0.efreqs[N_r[i]]
-        for j in range(n_eig):
-            E_0_j = fluxonium_0.efreqs[N_f[j]] + resonator_0.efreqs[N_r[j]]
-            for k in range(n_eig):
-                E_k = fluxonium.efreqs[N_f[k]] + resonator.efreqs[N_r[k]]
-                H_eff_2_f_ijk = ψ_0_f[:, N_f[i]].conj().T @ Φ_f @ ψ_f  [:, N_f[k]] *  \
-                                  ψ_f[:, N_f[k]].conj().T @ Φ_f @ ψ_0_f[:, N_f[j]]
-
-                H_eff_2_r_ijk = ψ_0_r[:, N_r[i]].conj().T @ Φ_r @ ψ_r  [:, N_r[k]] *  \
-                                  ψ_r[:, N_r[k]].conj().T @ Φ_r @ ψ_0_r[:, N_r[j]]
-
-                coef = 1 / (E_0_i-E_k) + 1 / (E_0_j-E_k)
-                H_eff_p2[i,j] += coef * np.abs(H_eff_2_f_ijk * H_eff_2_r_ijk) #/  GHz #/ 2 / np.pi
-
-    return Δ**2/2  * H_eff_p2 * 2 * Δ / l / 1e-9
-
-
-
 # %%  Generic effective Hamiltonians
 
 def H_eff_p1(H_0, H, n_eig, out='GHz', real=True, remove_ground = False, solver='scipy', sparse=False):
@@ -763,7 +562,6 @@ def H_eff_p1(H_0, H, n_eig, out='GHz', real=True, remove_ground = False, solver=
             H_eff = np.real(H_eff)
 
     return H_eff
-
 
 def H_eff_p2(H_0, H, n_eig, out='GHz', real=True, remove_ground=False, solver='scipy'):
     E_0, ψ_0 = diag(H_0, n_eig, real=real, solver=solver, out=out)
@@ -805,7 +603,6 @@ def H_eff_p2(H_0, H, n_eig, out='GHz', real=True, remove_ground=False, solver='s
 
     return H_eff
 
-
 def H_eff_SWT(H_0, H, n_eig, out='None', real=True, remove_ground=False, solver='scipy', return_transformation=False, sparse=False):
     if sparse == False:
         ψ_0 = diag(H_0, n_eig, real=real, solver=solver)[1]
@@ -839,8 +636,6 @@ def H_eff_SWT(H_0, H, n_eig, out='None', real=True, remove_ground=False, solver=
     else:
         return H_eff
 
-
-
 #%% Sorting and labeling functions for the fluxonum + resonator model
 def get_energy_indices(qubit, fluxonium, resonator, n_eig=3):
 
@@ -872,7 +667,6 @@ def get_energy_indices(qubit, fluxonium, resonator, n_eig=3):
             N_fluxonium[k], N_resonator[k] = [-123, -123]
     return N_fluxonium, N_resonator
 
-
 #%% Operators
 def internal_coupling_fluxonium_resonator(fluxonium, resonator, Δ, Lq = 25, Lr = 10):
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
@@ -895,14 +689,12 @@ def resonator_N_operator(resonator, Z_r, clean=True):
     else:
         return N_r
 
-
 # Resonator operators
 def create(n):
     return np.diag(np.sqrt(np.arange(1, n)), -1)
 
 def annihilate(n):
     return np.diag(np.sqrt(np.arange(1, n)), 1)
-
 
 #%% Generic mathematical functions
 def diag(H, n_eig=4, out=None, real=False, solver='scipy'):
@@ -935,7 +727,6 @@ def diag(H, n_eig=4, out=None, real=False, solver='scipy'):
 
     return efreqs_sorted, evecs_sorted
 
-
 def eigs_sorted(w, v):
     """Sorts the eigenvalues in ascending order and the corresponding eigenvectors.
 
@@ -949,7 +740,6 @@ def eigs_sorted(w, v):
 
     ndx = np.argsort(w)  # gives the correct order for the numbers in v, from smallest to biggest.
     return w[ndx], v[:, ndx]
-
 
 def real_eigenvectors(U):
     '''Fixes the phase of a vector.
@@ -969,7 +759,6 @@ def real_eigenvectors(U):
     # U(i,j) = U(i,j) / z(j) for all i,j
     U = U * avgz.conj()
     return U
-
 
 def get_node_variables(circuit, basis, isolated=False):
     n_modes = circuit.n
@@ -1055,14 +844,12 @@ def print_charge_transformation(circuit):
         vector_str = ' '.join(formatted_vector)
         print(f'q_{i + 1} = [{vector_str}]')
 
-
 def print_flux_transformation(circuit):
     for i in range(circuit.S.shape[1]):
         normalized = circuit.S[:, i] / np.abs(circuit.S[:, i]).max()
         formatted_vector = [f"{num:5.2f}" for num in normalized]
         vector_str = ' '.join(formatted_vector)
         print(f'Φ_{i + 1} = [{vector_str}]')
-
 
 def get_state_label(N_f, N_r, i, j, return_numeric_indices=False):
     if i == j:
@@ -1074,7 +861,6 @@ def get_state_label(N_f, N_r, i, j, return_numeric_indices=False):
         return label, N_f[i], N_f[j], N_r[i], N_r[j]
     else:
         return label
-
 
 def find_indices(data):
     result = []
@@ -1091,7 +877,6 @@ def find_indices(data):
 
     return result
 
-
 def get_or_assign_color(s, colors, color_dict):
     # Check if string is already associated with a color
     if s in color_dict:
@@ -1107,8 +892,6 @@ def get_or_assign_color(s, colors, color_dict):
     # If all colors are already used, you might want to handle this case.
     # For now, it returns None and the unchanged dictionary.
     print('I am out of colorssssssss bro')
-
-
 def rank_by_multiples(arr, tol = 0.1):
     # Receives an array of repeting real values and outputs an array of integers that identify the smallest element and
     # The rest of the elements as multiples of the delta between the smallest and next smallest element.
@@ -1125,7 +908,6 @@ def rank_by_multiples(arr, tol = 0.1):
     unit = np.min([val for val in diff_array if val > tol])
 
     return np.array( np.round(diff_array / unit), dtype='int')
-
 
 def decomposition_in_pauli_2x2(A, print=False):
     '''Performs Pauli decomposition of a 2x2 matrix.
@@ -1149,7 +931,6 @@ def decomposition_in_pauli_2x2(A, print=False):
         P[i] = 0.5 * np.trace(s[i].T.conjugate() @ A)
 
     return P
-
 
 def decomposition_in_pauli_4x4(A, rd, Print=True):
     '''Performs Pauli decomposition of a 2x2 matrix.
@@ -1181,7 +962,6 @@ def decomposition_in_pauli_4x4(A, rd, Print=True):
     return P
 
 #%% Generic functions
-
 def expand_list_with_array(input_list):
     # Find the array and its position in the list
     array_element = None
@@ -1204,7 +984,6 @@ def expand_list_with_array(input_list):
         expanded_list.append(new_list)
 
     return expanded_list
-
 
 #%% Truncation convergence
 def truncation_convergence(circuit, n_eig, trunc_nums=False, threshold=1e-2, refine=True, plot=True):
@@ -1273,7 +1052,6 @@ def truncation_convergence(circuit, n_eig, trunc_nums=False, threshold=1e-2, ref
     circuit.set_trunc_nums(trunc_nums)
     return circuit
 
-
 #%% Elephants' graveyard
 
 # def hamiltonian_frc_qubit(qubit, fluxonium, resonator, Δ, Lq = 25, Lr = 10, factor=1):
@@ -1327,6 +1105,193 @@ def truncation_convergence(circuit, n_eig, trunc_nums=False, threshold=1e-2, ref
 #     return sq.Circuit(elements)
 
 
+#% Spin-boson hamiltonians
+# def spin_boson_qubit(nmax_r, nmax_f, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10, N_R=1, interaction_prefactor=1):
+#     nH = 1e-9
+#     resonator = sq_resonator(C=C, CJ=CJ, Csh=Csh, Lq=Lq, Lr=Lr, Δ=Δ, EJ=EJ, trunc_res=nmax_r)
+#     resonator_0 = sq_resonator(C=C, CJ=CJ, Csh=Csh, Lq=Lq, Lr=Lr, Δ=0, EJ=EJ, trunc_res=nmax_r)
+#     fluxonium = sq_fluxonium(C=C, CJ=CJ, Csh=Csh, Lq=Lq, Lr=Lr, Δ=Δ, EJ=EJ, trunc_flux=nmax_f)
+#     fluxonium_0 = sq_fluxonium(C=C, CJ=CJ, Csh=Csh, Lq=Lq, Lr=Lr, Δ=0, EJ=EJ, trunc_flux=nmax_f)
+#     fluxonium.diag(2)
+#     resonator_0.diag(2)
+#     resonator.diag(2)
+#     fluxonium_0.diag(2)
+#
+#     ω_f = fluxonium.efreqs[1] - fluxonium.efreqs[0]  # Fluxonium frequency
+#     ω_r = resonator.efreqs[1] - resonator.efreqs[0]  # Resonator frequency
+#
+#     # Φ_f = fluxonium.flux_op(0)[0, 1]
+#     # Φ_r = resonator.flux_op(0)[0, 1]
+#     Φ_f = fluxonium.flux_op(0, basis='eig')[0, 1]
+#     Φ_r = resonator.flux_op(0, basis='eig')[0, 1]
+#     # Φ_f = H_eff_SWT(fluxonium_0.hamiltonian(), fluxonium.flux_op(0), 2, out=None)[0, 1]
+#     # Φ_r = H_eff_SWT(resonator_0.hamiltonian(), resonator.flux_op(0), 2, out=None)[0, 1]
+#
+#     # Pauli matrices for the fluxonium
+#     sigma_x = np.array([[0, 1], [1, 0]])
+#     sigma_z = np.array([[1, 0], [0, -1]])
+#
+#     # Creation and annihilation operators for the resonator
+#     a = create(N_R)
+#     a_dagger = annihilate(N_R)
+#
+#     # Identity matrices
+#     I_resonator = np.eye(N_R)
+#     I_fluxonium = np.eye(2)
+#
+#     # Isolated Hamiltonians
+#     H_fluxonium = ω_f / 2 * sigma_z
+#     H_resonator = ω_r * np.dot(a_dagger, a)
+#
+#     # Construct the system Hamiltonian with tensor products
+#     H_0_qubit = np.kron(H_resonator, I_fluxonium) + np.kron(I_resonator, H_fluxonium)
+#
+#     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
+#     g_Φ = 2 * Δ / (l * nH) * Φ_f * Φ_r / 2 / np.pi / GHz
+#     H_interaction = g_Φ * np.kron(a + a_dagger, sigma_x)
+#
+#     return H_0_qubit + H_interaction * interaction_prefactor
+#
+#
+# def spin_boson_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, N_R=1):
+#     fF = 1e-15
+#     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
+#     C_R = C / 2
+#     C_C = Cc
+#     C_F = C / 2 + Csh + CJ
+#
+#     C_mat = np.array([[C_R + C_C / 2, 0, -C_C / 2, 0],
+#                       [0, C_F + C_C / 2, 0, -C_C / 2],
+#                       [-C_C / 2, 0, C_R + C_C / 2, 0],
+#                       [0, -C_C / 2, 0, C_F + C_C / 2]])
+#
+#     C_inv = np.linalg.inv(C_mat)
+#     C_R_tilde = C_inv[0, 0] ** -1
+#     C_F_tilde = C_inv[1, 1] ** -1
+#     C_RR = C_inv[0, 2] ** -1
+#     C_FF = C_inv[1, 3] ** -1
+#
+#     resonator = sq_resonator(C_R_eff=C_R_tilde, Lq=Lq, Lr=Lr, Δ=Δ, trunc_res=nmax_r)
+#     fluxonium = sq_fluxonium(C_F_eff=C_F_tilde, Lq=Lq, Lr=Lr, Δ=Δ, trunc_flux=nmax_f)
+#     fluxonium.diag(2)
+#     resonator.diag(2)
+#
+#     ω_f = fluxonium.efreqs[1] - fluxonium.efreqs[0]  # Fluxonium frequency
+#     ω_r = resonator.efreqs[1] - resonator.efreqs[0]  # Resonator frequency
+#
+#     Φ_f = fluxonium.flux_op(0)[0, 1]
+#     Φ_r = resonator.flux_op(0)[0, 1]
+#     Q_F = fluxonium.charge_op(0)[0, 1]
+#     Q_R = resonator.charge_op(0)[0, 1]
+#
+#     # Pauli matrices for the fluxonium
+#     sigma_x = np.array([[0, 1], [1, 0]])
+#     sigma_y = np.array([[0, -1], [1, 0]]) * 1j
+#     sigma_z = np.array([[1, 0], [0, -1]])
+#
+#     sigma_p = np.array([[0, 1], [0, 0]])
+#     sigma_m = np.array([[0, 0], [1, 0]])
+#
+#     # Creation and annihilation operators for the resonator
+#     a = create(N_R)
+#     a_dagger = annihilate(N_R)
+#
+#     # Identity matrices
+#     I_resonator = np.eye(N_R)
+#     I_fluxonium = np.eye(2)
+#
+#     # Isolated Hamiltonians
+#     H_fluxonium = ω_f / 2 * sigma_z
+#     H_resonator = ω_r * np.dot(a_dagger, a)
+#
+#     # Construct the system Hamiltonian with tensor products
+#     H_0_qubit = np.kron(H_resonator, I_fluxonium) + np.kron(I_resonator, H_fluxonium)
+#
+#     g_Φ = 2 * Δ / (l * nH) * Φ_f * Φ_r / 2 / np.pi / GHz
+#     H_interaction = g_Φ * np.kron(a + a_dagger, sigma_x)
+#
+#     # Circuit Hamiltonian
+#     H_circuit = H_0_qubit + H_interaction
+#     I_circuit = np.eye(len(H_circuit))
+#     H_0 = np.kron(H_circuit, I_circuit) + np.kron(I_circuit, H_circuit)
+#
+#     # Pali and fock operators with the circuit's hamiltonian shape
+#     a_sys = np.kron(a, I_fluxonium)
+#     a_dagger_sys = np.kron(a_dagger, I_fluxonium)
+#     sigma_y_sys = np.kron(I_resonator, sigma_y)
+#
+#     H_coupling = Q_R ** 2 / (C_RR * fF) * np.kron(a_dagger_sys - a_sys, a_dagger_sys - a_sys) + Q_F ** 2 / (
+#             C_FF * fF) * np.kron(sigma_y_sys, sigma_y_sys)
+#     H_coupling /= 2 * np.pi * GHz
+#
+#     return H_0 + H_coupling
+
+#
+# # %% KIT's qubit internal coupling perturbation theory with fluxonium + resonator decomposition
+# def H_eff_p1_fluxonium_resonator(fluxonium_0, fluxonium, resonator_0, resonator, N_f, N_r, Δ, Lq = 25, Lr = 10):
+#     '''
+#     DANGER, N_f and N_r shold be the enery levels of the non interacting resonator and fluxonium.
+#     Now its fine because they are the same as the interacting ones, but careful.
+#     '''
+#     l   = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
+#
+#     ψ_0_f = np.array([ψ_i.__array__()[:, 0] for ψ_i in fluxonium_0._evecs]).T
+#     ψ_0_r = np.array([ψ_i.__array__()[:, 0] for ψ_i in resonator_0._evecs]).T
+#     Φ_f =  fluxonium.flux_op(0).__array__()
+#     Φ_r =  resonator.flux_op(0).__array__()
+#
+#     n_eig = ψ_0_f.shape[1]
+#
+#     H_eff_p1 = np.zeros((n_eig, n_eig), dtype=complex)  # matrix to store our results.
+#
+#     for i in range(n_eig):
+#         for j in range(n_eig):
+#             H_eff_1_f_i_j = np.abs(ψ_0_f[:, N_f[i]].conj().T @ Φ_f @ ψ_0_f[:, N_f[j]])
+#             H_eff_1_r_i_j = np.abs(ψ_0_r[:, N_r[i]].conj().T @ Φ_r @ ψ_0_r[:, N_r[j]])
+#             H_eff_p1[i,j] = H_eff_1_f_i_j*H_eff_1_r_i_j
+#
+#     return H_eff_p1 * 2 * Δ / l / 1e-9  / (2 * np.pi * GHz)
+#
+#
+# def H_eff_p2_fluxonium_resonator(fluxonium_0, fluxonium, resonator_0, resonator, N_f, N_r, Δ, Lq = 25, Lr = 10):
+#     '''
+#     DANGER, N_f and N_r shold be the enery levels of the non interacting resonator and fluxonium.
+#     Now its fine because they are the same as the interacting ones, but careful.
+#     '''
+#     l   = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
+#
+#     ψ_0_f = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in fluxonium_0._evecs]).T)
+#     ψ_f   = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in fluxonium  ._evecs]).T)
+#
+#     ψ_0_r = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in resonator_0._evecs]).T)
+#     ψ_r   = real_eigenvectors(np.array([ψ_i.__array__()[:, 0] for ψ_i in resonator  ._evecs]).T)
+#
+#     Φ_f =  fluxonium.flux_op(0).__array__() / (2 * np.pi * GHz)
+#     Φ_r =  resonator.flux_op(0).__array__() / (2 * np.pi * GHz)
+#
+#     n_eig = ψ_0_f.shape[1]
+#     H_eff_p2 = np.zeros((n_eig, n_eig), dtype=complex)  # matrix to store our results.
+#
+#     for i in range(n_eig):
+#         E_0_i = fluxonium_0.efreqs[N_f[i]] + resonator_0.efreqs[N_r[i]]
+#         for j in range(n_eig):
+#             E_0_j = fluxonium_0.efreqs[N_f[j]] + resonator_0.efreqs[N_r[j]]
+#             for k in range(n_eig):
+#                 E_k = fluxonium.efreqs[N_f[k]] + resonator.efreqs[N_r[k]]
+#                 H_eff_2_f_ijk = ψ_0_f[:, N_f[i]].conj().T @ Φ_f @ ψ_f  [:, N_f[k]] *  \
+#                                   ψ_f[:, N_f[k]].conj().T @ Φ_f @ ψ_0_f[:, N_f[j]]
+#
+#                 H_eff_2_r_ijk = ψ_0_r[:, N_r[i]].conj().T @ Φ_r @ ψ_r  [:, N_r[k]] *  \
+#                                   ψ_r[:, N_r[k]].conj().T @ Φ_r @ ψ_0_r[:, N_r[j]]
+#
+#                 coef = 1 / (E_0_i-E_k) + 1 / (E_0_j-E_k)
+#                 H_eff_p2[i,j] += coef * np.abs(H_eff_2_f_ijk * H_eff_2_r_ijk) #/  GHz #/ 2 / np.pi
+#
+#     return Δ**2/2  * H_eff_p2 * 2 * Δ / l / 1e-9
+#
+
+
+#%
 # def H_eff_SWT_circ(circuit_0, circuit, return_transformation = False):
 #     ψb0 = real_eigenvectors(np.array([ψb0_i.__array__()[:,0] for ψb0_i in circuit_0._evecs]).T)
 #     ψb  = real_eigenvectors(np.array([ψb0_i.__array__()[:,0] for ψb0_i in circuit  ._evecs]).T)
@@ -1422,7 +1387,6 @@ def truncation_convergence(circuit, n_eig, trunc_nums=False, threshold=1e-2, ref
 #     Φ_r = ψ_0_r[:, i_r].conj().T @ resonator.flux_op(0).__array__() @ ψ_0_r[:, j_r]
 #
 #     return Φ_f * Φ_r / L_c / GHz #/ 2 /np.pi
-
 #%% Functions that are actually in sqcircuits file circuit.py
 
 # def flux_op(self, mode: int, basis: str = 'FC') -> Qobj:
