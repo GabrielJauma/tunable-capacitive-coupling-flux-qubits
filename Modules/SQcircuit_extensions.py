@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy as sp
 import qutip as qt
+from itertools import product
 
 plt.rcParams['backend'] = 'QtAgg'
 
@@ -13,8 +14,7 @@ nH = 1e-9
 Phi0 = 2.067833831e-15  # Flux quantum (in Wb)
 hbar = 1.0545718e-34
 
-#%% Circuits made with SQcircuits
-#%% Basic circuits
+#%% Basic circuits made with SQcircuits
 def sq_fluxonium(C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, nmax_r=15, nmax_f=25, C_F_eff=False):
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
     L_F_eff = l / (Lq + 4 * Lr)
@@ -82,7 +82,7 @@ def sq_qubit(C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, nmax
     # Create and return the circuit
     return qubit
 
-# %% Composite circuits
+#%% Composite circuits made with SQcircuits
 def sq_qubit_C_qubit(Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, nmax_r=5, nmax_f=10):
     loop1 = sq.Loop(φ_ext)
     loop2 = sq.Loop(φ_ext)
@@ -241,8 +241,7 @@ def sq_qubit_C_qubit_C_qubit_not_periodic(Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, 
 
     return qubit_C_qubit_C_qubit
 
-#%% Miscellaneous circuits
-
+#%% Miscellaneous circuits made with SQcircuits
 def KIT_qubit_no_JJ(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, φ_ext=0.5):
 
     # Initialize loop(s)
@@ -304,35 +303,25 @@ def KIT_fluxonium_no_JJ(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, nma
     fluxonium.set_trunc_nums([nmax_f])
     return fluxonium
 
-#%% Circuits vs parameters
-def KIT_qubit_vs_param(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5, nmax_r=15, nmax_f=25, model='composition'):
-
-    parameters_list = expand_list_with_array([C, CJ, Csh, Lq, Lr, Δ, EJ, φ_ext, nmax_r, nmax_f])
-    H_qubit_list = []
-
-    for parameters in parameters_list:
-        if model == 'full_circuit':
-            H_qubit_list.append(sq_qubit().hamiltonian())
-        if model == 'composition':
-            fluxonium = sq_fluxonium()
-            resonator = sq_resonator(*parameters)
-            H_qubit_list.append(hamiltonian_qubit(fluxonium, resonator, Δ = parameters[5], Lq = parameters[3], Lr = parameters[4]))
-
-    return H_qubit_list
-
 #%% Hamiltonians made by composing small circuits made with sqcircuits
-def hamiltonian_qubit(fluxonium = None, resonator=None, Δ=0.1, C=15, CJ=3, Csh=15, Lq=25, Lr=10, EJ=10, φ_ext=0.5, nmax_r=15, nmax_f=25, C_int=None, return_Ψ_nonint=False):
+def hamiltonian_qubit(fluxonium = None, resonator=None, Δ=0.1, C=15, CJ=3, Csh=15, Lq=25, Lr=10, EJ=10, φ_ext=0.5, nmax_r=15, nmax_f=25, C_int=None, return_Ψ_nonint=False, n_eig_Ψ_nonint=4):
+    fF = 1e-15
+    nH = 1e-9
+    l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
+
     if fluxonium is None:
         fluxonium = sq_fluxonium(C=C, CJ=CJ, Csh=Csh, Lq=Lq, Lr=Lr, Δ=Δ, EJ=EJ, φ_ext=φ_ext, nmax_r=nmax_r, nmax_f=nmax_f)
     if resonator is None:
         resonator = sq_resonator(C=C, CJ=CJ, Csh=Csh, Lq=Lq, Lr=Lr, Δ=Δ, EJ=EJ, φ_ext=φ_ext, nmax_r=nmax_r, nmax_f=nmax_f)
 
-    fF = 1e-15
-    nH = 1e-9
-    l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
-
     H_f = fluxonium.hamiltonian()
     H_r = resonator.hamiltonian()
+
+    if return_Ψ_nonint:
+        E_f, Ψ_f = diag(H_f, n_eig_Ψ_nonint, solver='numpy', remove_ground=True)
+        E_r, Ψ_r = diag(H_r, n_eig_Ψ_nonint, solver='numpy', remove_ground=True)
+        E_0, Nf_Nr = generate_and_prioritize_energies([E_f, E_r], n_eig_Ψ_nonint)
+        Ψ_0 = [qt.tensor(qt.Qobj(Ψ_f[:,Nf_Nr_i[0]]), qt.Qobj(Ψ_r[:,Nf_Nr_i[1]]) ) for Nf_Nr_i in Nf_Nr]
 
     I_f = qt.identity(H_f.shape[0])
     I_r = qt.identity(H_r.shape[0])
@@ -342,16 +331,19 @@ def hamiltonian_qubit(fluxonium = None, resonator=None, Δ=0.1, C=15, CJ=3, Csh=
     g_Φ = 2 * Δ / (l * nH)
 
     if C_int is None:
-        H = qt.tensor(I_r, H_f) + qt.tensor(H_r, I_f) + g_Φ * qt.tensor(Φ_r, Φ_f)
+        H = qt.tensor(H_f, I_r) + qt.tensor(I_f, H_r) + g_Φ * qt.tensor(Φ_f, Φ_r)
     else:
         Q_f = fluxonium.charge_op(0)
         Q_r = resonator.charge_op(0)
         g_Q = 1/(C_int*fF)
-        H = qt.tensor(I_r, H_f) + qt.tensor(H_r, I_f) + g_Φ * qt.tensor(Φ_r, Φ_f) + g_Q * qt.tensor(Q_r,Q_f)
+        H = qt.tensor(H_f, I_r) + qt.tensor(I_f, H_r) + g_Φ * qt.tensor(Φ_f, Φ_r) + g_Q * qt.tensor(Q_f,Q_r)
 
-    return H
+    if return_Ψ_nonint:
+        return H, Ψ_0, E_0
+    else:
+        return H
 
-def hamiltonian_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1):
+def hamiltonian_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, return_Ψ_nonint=False, n_eig_Ψ_nonint=4):
     fF = 1e-15
     C_R = C / 2
     C_C = Cc
@@ -387,24 +379,38 @@ def hamiltonian_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=
     resonator = sq_resonator(C_R_eff=C_R_tilde, Lq=Lq, Lr=Lr, Δ=Δ, nmax_r=nmax_r)
     fluxonium = sq_fluxonium(Lq=Lq, Lr=Lr, Δ=Δ, nmax_f=nmax_f, C_F_eff=C_F_tilde)
 
-    H_qubit = hamiltonian_qubit(fluxonium, resonator, Δ)
+
+    if return_Ψ_nonint:
+        H_qubit, Ψ_q_0, E_q_0 = hamiltonian_qubit(fluxonium, resonator, Δ, return_Ψ_nonint=return_Ψ_nonint)
+        Nq_Nq = generate_and_prioritize_energies([E_q_0, E_q_0], n_eig_Ψ_nonint)[1]
+        Ψ_0 = [qt.tensor([Ψ_q_0[Nq_Nq_i[0]], Ψ_q_0[Nq_Nq_i[1]] ]) for Nq_Nq_i in Nq_Nq]
+    else:
+        H_qubit = hamiltonian_qubit(fluxonium, resonator, Δ)
 
     I_r = qt.identity(nmax_r)
     I_f = qt.identity(nmax_f)
-    I_H_qubit = qt.identity(H_qubit.dims[0])
+    I_qubit = qt.identity(H_qubit.dims[0])
 
-    q_r = qt.tensor(resonator.charge_op(0), I_f)
-    q_f = qt.tensor(I_r, fluxonium.charge_op(0))
+    q_r = qt.tensor(I_f, resonator.charge_op(0))
+    q_f = qt.tensor(fluxonium.charge_op(0), I_r)
 
-    H_0 = qt.tensor(H_qubit, I_H_qubit) + qt.tensor(I_H_qubit, H_qubit)
+    H_0 = qt.tensor(H_qubit, I_qubit) + qt.tensor(I_qubit, H_qubit)
     if Cc == 0:
-        return H_0
+        if return_Ψ_nonint:
+            return H_0, Ψ_0
+        else:
+            return H_0
 
     H_coupling = 1 / (C_RR * fF) * qt.tensor(q_r, q_r) + 1 / (C_FF * fF) * qt.tensor(q_f, q_f)
 
-    return H_0 + H_coupling
+    H = H_0 + H_coupling
 
-def hamiltonian_qubit_C_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, periodic=True, only_outer=False ):
+    if return_Ψ_nonint:
+        return H, Ψ_0
+    else:
+        return H
+
+def hamiltonian_qubit_C_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, periodic=True, only_outer=False, return_Ψ_nonint=False, n_eig_Ψ_nonint=4):
     C_R = C / 2
     C_C = Cc
     C_F = C / 2 + Csh + CJ
@@ -431,12 +437,19 @@ def hamiltonian_qubit_C_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq
 
     H_qubit = hamiltonian_qubit(fluxonium, resonator, Δ)
 
+    if return_Ψ_nonint:
+        H_qubit, Ψ_q_0, E_q_0 = hamiltonian_qubit(fluxonium, resonator, Δ, return_Ψ_nonint=return_Ψ_nonint)
+        Nq_Nq_Nq = generate_and_prioritize_energies([E_q_0, E_q_0,E_q_0], n_eig_Ψ_nonint)[1]
+        Ψ_0 = [qt.tensor([Ψ_q_0[Nq_Nq_Nq_i[0]], Ψ_q_0[Nq_Nq_Nq_i[1]],Ψ_q_0[Nq_Nq_Nq_i[2]]  ]) for Nq_Nq_Nq_i in Nq_Nq_Nq]
+    else:
+        H_qubit = hamiltonian_qubit(fluxonium, resonator, Δ)
+
     I_r = qt.identity(nmax_r)
     I_f = qt.identity(nmax_f)
     I_qubit = qt.identity(H_qubit.dims[0])
 
-    q_r = qt.tensor(resonator.charge_op(0), I_f)
-    q_f = qt.tensor(I_r, fluxonium.charge_op(0))
+    q_r = qt.tensor(I_f, resonator.charge_op(0))
+    q_f = qt.tensor(fluxonium.charge_op(0), I_r)
 
     if only_outer:
         H_0 = (  qt.tensor(H_qubit, I_qubit, I_qubit)
@@ -471,7 +484,14 @@ def hamiltonian_qubit_C_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq
                       qt.tensor(q_r, q_f, I_qubit) / C_RF + qt.tensor(q_f, q_r, I_qubit) / C_RF +
                       qt.tensor(I_qubit, q_r, q_r) / C_RR + qt.tensor(I_qubit, q_f, q_f) / C_FF +
                       qt.tensor(I_qubit, q_r, q_f) / C_RF + qt.tensor(I_qubit, q_f, q_r) / C_RF)
-    return H_0 + H_coupling
+
+    H = H_0 + H_coupling
+
+    if return_Ψ_nonint:
+        return H, Ψ_0
+    else:
+        return H
+
 
 def hamiltonian_qubit_C_qubit_C_qubit_full_variables(Cc,φ_ext_1,φ_ext_2,φ_ext_3, nmax_r=3, nmax_f=9, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, periodic=True ):
     C_R_1 = C / 2
@@ -510,12 +530,12 @@ def hamiltonian_qubit_C_qubit_C_qubit_full_variables(Cc,φ_ext_1,φ_ext_2,φ_ext
     I_f = qt.identity(nmax_f)
     I_qubit = qt.identity(H_qubit_1.dims[0])
 
-    q_r_1 = qt.tensor(resonator_1.charge_op(0), I_f)
-    q_r_2 = qt.tensor(resonator_2.charge_op(0), I_f)
-    q_r_3 = qt.tensor(resonator_3.charge_op(0), I_f)
-    q_f_1 = qt.tensor(I_r, fluxonium_1.charge_op(0))
-    q_f_2 = qt.tensor(I_r, fluxonium_2.charge_op(0))
-    q_f_3 = qt.tensor(I_r, fluxonium_3.charge_op(0))
+    q_r_1 = qt.tensor(I_f, resonator_1.charge_op(0))
+    q_r_2 = qt.tensor(I_f, resonator_2.charge_op(0))
+    q_r_3 = qt.tensor(I_f, resonator_3.charge_op(0))
+    q_f_1 = qt.tensor(fluxonium_1.charge_op(0), I_r)
+    q_f_2 = qt.tensor(fluxonium_2.charge_op(0), I_r)
+    q_f_3 = qt.tensor(fluxonium_3.charge_op(0), I_r)
 
     H_0 = (  qt.tensor(H_qubit_1, I_qubit, I_qubit)
            + qt.tensor(I_qubit, H_qubit_2, I_qubit)
@@ -537,21 +557,30 @@ def hamiltonian_qubit_C_qubit_C_qubit_full_variables(Cc,φ_ext_1,φ_ext_2,φ_ext
 
     return H_0 + H_coupling
 
-# %%  Generic effective Hamiltonians
+#%% Circuits vs parameters
+def KIT_qubit_vs_param(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5, nmax_r=15, nmax_f=25, model='composition'):
 
-def H_eff_p1(H_0, H, n_eig, out='GHz', real=True, remove_ground = False, solver='scipy', sparse=False):
+    parameters_list = expand_list_with_array([C, CJ, Csh, Lq, Lr, Δ, EJ, φ_ext, nmax_r, nmax_f])
+    H_qubit_list = []
 
-    if sparse == False:
+    for parameters in parameters_list:
+        if model == 'full_circuit':
+            H_qubit_list.append(sq_qubit().hamiltonian())
+        if model == 'composition':
+            fluxonium = sq_fluxonium()
+            resonator = sq_resonator(*parameters)
+            H_qubit_list.append(hamiltonian_qubit(fluxonium, resonator, Δ = parameters[5], Lq = parameters[3], Lr = parameters[4]))
 
-        ψ_0 = diag(H_0, n_eig, real=real, solver=solver)[1]
-        H_eff = ψ_0.conj().T @ H.__array__() @ ψ_0
-    else:
+    return H_qubit_list
 
-        H_eff = np.zeros((n_eig, n_eig), dtype=complex)
-        ψ_0 = H_0.eigenstates(sparse=True, eigvals=n_eig, phase_fix=1)[1]
-        for i in range(n_eig):
-            for j in range(n_eig):
-                H_eff[i, j] = (ψ_0[i].dag() * H * ψ_0[j]).data[0, 0]
+#%% Generic effective Hamiltonians
+
+def H_eff_p1(ψ_0, H, n_eig, out='GHz', real=False, remove_ground = False):
+
+    H_eff = np.zeros((n_eig, n_eig), dtype=complex)
+    for i in range(n_eig):
+        for j in range(n_eig):
+            H_eff[i, j] = (ψ_0[i].dag() * H * ψ_0[j]).data[0, 0]
 
     if out == 'GHz':
         H_eff /= GHz * 2 * np.pi
@@ -638,7 +667,8 @@ def H_eff_SWT(H_0, H, n_eig, out='None', real=True, remove_ground=False, solver=
     else:
         return H_eff
 
-#%% Sorting and labeling functions for the fluxonium + resonator model
+
+#%% Sorting and labeling functions
 def sq_get_energy_indices(qubit, fluxonium, resonator, n_eig=3):
 
     try:
@@ -669,22 +699,79 @@ def sq_get_energy_indices(qubit, fluxonium, resonator, n_eig=3):
             N_fluxonium[k], N_resonator[k] = [-123, -123]
     return N_fluxonium, N_resonator
 
-def get_energy_indices(E_qubit, E_fluxonium, E_resonator):
-    n_eig = len(E_qubit)
+def get_unique_energy_indices_generalized(E_combined, E_elements):
+    tolerance_E_degenerate = 4  # in number of decimals
+    E_combined = np.round(E_combined, tolerance_E_degenerate)
 
-    N_fluxonium = np.zeros(n_eig, dtype='int')
-    N_resonator = np.zeros(n_eig, dtype='int')
+    indices_combinations = list(product(*[range(len(e)) for e in E_elements]))
 
-    E_matrix = E_fluxonium[:, np.newaxis] + E_resonator
+    total_energies = [sum(E_elements[i][indices[i]] for i in range(len(E_elements))) for indices in
+                      indices_combinations]
 
-    tol = E_qubit[1]-E_qubit[0]
-    for k in range(n_eig):
-        ΔE_matrix = np.abs(E_matrix - E_qubit[k])
-        if ΔE_matrix.min() < tol:
-            N_fluxonium[k], N_resonator[k] = np.unravel_index(ΔE_matrix.argmin(), ΔE_matrix.shape)
+    # Dictionary to store already found index combinations for each energy level
+    used_combinations = {E: [] for E in set(E_combined)}
+
+    matched_indices = []
+    for E in E_combined:
+        differences = np.abs(np.array(total_energies) - E)
+        sorted_diff_indices = np.argsort(differences)
+
+        # Find the closest match that has not been used yet
+        for idx in sorted_diff_indices:
+            if indices_combinations[idx] not in used_combinations[E]:
+                matched_indices.append(indices_combinations[idx])
+                used_combinations[E].append(indices_combinations[idx])
+                break
         else:
-            N_fluxonium[k], N_resonator[k] = [-123, -123]
-    return N_fluxonium, N_resonator
+            # If all combinations have been used or no match found within tolerance
+            matched_indices.append(tuple([-123] * len(E_elements)))
+
+    return reorganize_matched_indices(E_combined, np.array(matched_indices))
+def reorganize_matched_indices(E_combined, matched_indices):
+    # Identify degenerate energy levels and their indices
+    unique, counts = np.unique(E_combined, return_counts=True)
+    degenerate_levels = unique[counts > 1]
+
+    for level in degenerate_levels:
+        degenerate_indices = np.where(E_combined == level)[0]
+        # Extract the matched indices for these degenerate levels
+        degenerate_matched_indices = matched_indices[degenerate_indices]
+
+        # Define a custom sort function that prioritizes the first non-zero index
+        def sort_key(x):
+            for i, xi in enumerate(x):
+                if xi > 0:
+                    return (i, xi)
+            return (len(x), 0)  # Handle the case where all elements are zero
+
+        # Sort based on the custom key
+        sorted_indices = sorted(range(len(degenerate_matched_indices)),
+                                key=lambda i: sort_key(degenerate_matched_indices[i]))
+
+        # Reassign sorted matched indices back to the original array
+        matched_indices[degenerate_indices] = degenerate_matched_indices[sorted_indices]
+
+    return matched_indices
+
+def generate_and_prioritize_energies(E_elements, n_eig):
+    # Generate all possible combinations of indices for the given energy levels
+    all_indices = list(product(*[range(len(e)) for e in E_elements]))
+
+    # Calculate combined energies for each combination and keep track of indices
+    combined_energies_and_indices = [(sum(E_elements[i][indices[i]] for i in range(len(E_elements))), indices) for
+                                     indices in all_indices]
+
+    # First, sort by the prioritization of advancement in states
+    prioritized_energies_and_indices = sorted(combined_energies_and_indices, key=lambda x: (
+    x[0], -sum(i * j for i, j in zip(x[1], range(len(x[1]), 0, -1)))))
+
+    # Extract up to n_eig, ensuring the prioritization
+    if len(prioritized_energies_and_indices) > n_eig:
+        prioritized_energies_and_indices = prioritized_energies_and_indices[:n_eig]
+
+    E_combined, correctly_reorganized_indices = zip(*prioritized_energies_and_indices)
+
+    return np.array(E_combined), [list(index) for index in correctly_reorganized_indices]
 
 #%% Operators
 def internal_coupling_fluxonium_resonator(fluxonium, resonator, Δ, Lq = 25, Lr = 10):
@@ -693,7 +780,7 @@ def internal_coupling_fluxonium_resonator(fluxonium, resonator, Δ, Lq = 25, Lr 
     Φ_r = resonator.flux_op(0)
     Φ_f = fluxonium.flux_op(0)
 
-    return qt.tensor(Φ_r, Φ_f) * 2 * Δ / l / 1e-9
+    return qt.tensor(Φ_f, Φ_r) * 2 * Δ / l / 1e-9
 
 def resonator_N_operator(resonator, Z_r, clean=True):
     Φ_nodes, Q_nodes = get_node_variables(resonator)
@@ -716,7 +803,7 @@ def annihilate(n):
     return np.diag(np.sqrt(np.arange(1, n)), 1)
 
 #%% Generic mathematical functions
-def diag(H, n_eig=4, out=None, real=False, solver='scipy', remove_ground=False):
+def diag(H, n_eig=4, out='GHz', real=False, solver='scipy', remove_ground=False):
     H = qt.Qobj(H)
 
     if solver == 'scipy':
@@ -982,6 +1069,39 @@ def decomposition_in_pauli_4x4(A, rd, Print=True):
 
     return P
 
+import numpy as np
+
+def decomposition_in_pauli_8x8(A, rd, Print=True):
+    '''Performs Pauli decomposition of an 8x8 matrix.
+
+    Input:
+    A= matrix to decompose.
+    rd= number of decimals to use when rounding a number.
+
+    Output:
+    P= coefficients such that A = ΣP[i,j,k]σ_iσ_jσ_k where i,j,k=0, 1, 2, 3. '''
+
+    i = np.eye(2)  # σ_0
+    σx = np.array([[0, 1], [1, 0]])
+    σy = np.array([[0, -1j], [1j, 0]])
+    σz = np.array([[1, 0], [0, -1]])
+    s = [i, σx, σy, σz]  # array containing the matrices.
+    labels = ['I', 'σx', 'σy', 'σz']  # useful to print the result.
+
+    P = np.zeros((4, 4, 4), dtype=complex)  # array to store our results.
+    # Loop to obtain each coefficient.
+    for i in range(4):
+        for j in range(4):
+            for k in range(4):
+                label = labels[i] + ' \U00002A02 ' + labels[j] + ' \U00002A02 ' + labels[k]
+                S = np.kron(np.kron(s[i], s[j]), s[k])  # S_ijk=σ_i ⊗ σ_j ⊗ σ_k.
+                P[i, j, k] = np.round(0.125 * (np.dot(S.T.conjugate(), A)).trace(), rd)  # P[i,j,k]=(1/8)tr(S_ijk^t*A)
+                if P[i, j, k] != 0.0 and Print:
+                    print(" %s\t*\t %s " % (P[i, j, k], label))
+
+    return P
+
+
 #%% Generic functions
 def expand_list_with_array(input_list):
     # Find the array and its position in the list
@@ -1089,7 +1209,7 @@ def truncation_convergence(circuit, n_eig, trunc_nums=False, threshold=1e-2, ref
 #     Φ_f = Φ[1]-Φ[0]
 #     Φ_r = Φ[0]+Φ[1]
 #
-#     H = qt.tensor(I_r, H_f) + qt.tensor(H_r, I_f) + factor * qt.tensor(Φ_r, Φ_f) * 2 * Δ / l / 1e-9
+#     H = qt.tensor(H_f, I_r) + qt.tensor(I_f, H_r) + factor * qt.tensor(Φ_f, Φ_r) * 2 * Δ / l / 1e-9
 #     return H
 
 # def KIT_qubit_triangle(C = 15, CJ = 3, Csh= 15 , Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5):
