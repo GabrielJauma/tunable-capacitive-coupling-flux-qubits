@@ -102,25 +102,43 @@ def sq_qubit_C_qubit(Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_e
         L_23.append(sq.Inductor(Lq / 2 + Δ, 'nH', loops=[loop]))
         JJ_12.append(sq.Junction(EJ, 'GHz', loops=[loop]))
 
-    elements_qubit_C_qubit = {
-        # qubit 1, nodes [0, 1, 2, 3]
-        (0, 3): [L_03],
-        (0, 1): [C_01],
-        (0, 2): [C_02],
-        (3, 1): [L_31[0]],
-        (1, 2): [C_12, JJ_12[0]],
-        (2, 3): [L_23[0]],
-        # qubit 2, nodes [0, 4, 5, 6]
-        (0, 6): [L_03],
-        (0, 4): [C_01],
-        (0, 5): [C_02],
-        (6, 4): [L_31[1]],
-        (4, 5): [C_12, JJ_12[1]],
-        (5, 6): [L_23[1]],
-        # capacitive coupling
-        (2, 4): [C_C],
-        (1, 5): [C_C]
-    }
+    if Cc==0:
+        elements_qubit_C_qubit = {
+            # qubit 1, nodes [0, 1, 2, 3]
+            (0, 3): [L_03],
+            (0, 1): [C_01],
+            (0, 2): [C_02],
+            (3, 1): [L_31[0]],
+            (1, 2): [C_12, JJ_12[0]],
+            (2, 3): [L_23[0]],
+            # qubit 2, nodes [0, 4, 5, 6]
+            (0, 6): [L_03],
+            (0, 4): [C_01],
+            (0, 5): [C_02],
+            (6, 4): [L_31[1]],
+            (4, 5): [C_12, JJ_12[1]],
+            (5, 6): [L_23[1]],
+        }
+    else:
+        elements_qubit_C_qubit = {
+            # qubit 1, nodes [0, 1, 2, 3]
+            (0, 3): [L_03],
+            (0, 1): [C_01],
+            (0, 2): [C_02],
+            (3, 1): [L_31[0]],
+            (1, 2): [C_12, JJ_12[0]],
+            (2, 3): [L_23[0]],
+            # qubit 2, nodes [0, 4, 5, 6]
+            (0, 6): [L_03],
+            (0, 4): [C_01],
+            (0, 5): [C_02],
+            (6, 4): [L_31[1]],
+            (4, 5): [C_12, JJ_12[1]],
+            (5, 6): [L_23[1]],
+            # capacitive coupling
+            (2, 4): [C_C],
+            (1, 5): [C_C]
+        }
 
     qubit_C_qubit = sq.Circuit(elements_qubit_C_qubit)
     qubit_C_qubit.set_trunc_nums([nmax_r, nmax_r, nmax_f, nmax_f])
@@ -376,8 +394,8 @@ def hamiltonian_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=
     #     C_RR = 2 * C_R ** 2 / C_C
     #     C_FF = 2 * C_F ** 2 / C_C
 
-    resonator = sq_resonator(C_R_eff=C_R_tilde, Lq=Lq, Lr=Lr, Δ=Δ, nmax_r=nmax_r)
     fluxonium = sq_fluxonium(Lq=Lq, Lr=Lr, Δ=Δ, nmax_f=nmax_f, C_F_eff=C_F_tilde)
+    resonator = sq_resonator(Lq=Lq, Lr=Lr, Δ=Δ, nmax_r=nmax_r, C_R_eff=C_R_tilde)
 
 
     if return_Ψ_nonint:
@@ -411,6 +429,7 @@ def hamiltonian_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=
         return H
 
 def hamiltonian_qubit_C_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, periodic=True, only_outer=False, return_Ψ_nonint=False, n_eig_Ψ_nonint=4):
+    fF = 1e-15
     C_R = C / 2
     C_C = Cc
     C_F = C / 2 + Csh + CJ
@@ -430,16 +449,13 @@ def hamiltonian_qubit_C_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq
                           [0            , 0             , -C_C / 2      , -C_C / 2      , 0             , C_F + C_C / 2 ]])
 
     C_inv = np.linalg.inv(C_mat)
-    fF = 1e-15
 
-    resonator = sq_resonator(C_R_eff=C_inv[0, 0] ** -1, Lq=Lq, Lr=Lr, Δ=Δ, nmax_r=nmax_r)
     fluxonium = sq_fluxonium(Lq=Lq, Lr=Lr, Δ=Δ, nmax_f=nmax_f, C_F_eff=C_inv[1, 1] ** -1)
-
-    H_qubit = hamiltonian_qubit(fluxonium, resonator, Δ)
+    resonator = sq_resonator(Lq=Lq, Lr=Lr, Δ=Δ, nmax_r=nmax_r, C_R_eff=C_inv[0, 0] ** -1,)
 
     if return_Ψ_nonint:
         H_qubit, Ψ_q_0, E_q_0 = hamiltonian_qubit(fluxonium, resonator, Δ, return_Ψ_nonint=return_Ψ_nonint)
-        Nq_Nq_Nq = generate_and_prioritize_energies([E_q_0, E_q_0,E_q_0], n_eig_Ψ_nonint)[1]
+        Nq_Nq_Nq = generate_and_prioritize_energies([E_q_0, E_q_0, E_q_0], n_eig_Ψ_nonint)[1]
         Ψ_0 = [qt.tensor([Ψ_q_0[Nq_Nq_Nq_i[0]], Ψ_q_0[Nq_Nq_Nq_i[1]],Ψ_q_0[Nq_Nq_Nq_i[2]]  ]) for Nq_Nq_Nq_i in Nq_Nq_Nq]
     else:
         H_qubit = hamiltonian_qubit(fluxonium, resonator, Δ)
@@ -460,7 +476,10 @@ def hamiltonian_qubit_C_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq
                + qt.tensor(I_qubit, I_qubit, H_qubit) )
 
     if Cc == 0:
-        return H_0
+        if return_Ψ_nonint:
+            return H_0, Ψ_0
+        else:
+            return H_0
 
     # I should do this propperly by multiplying matrices...
     # Q_vec = [q_r, q_f, q_f, q_r, q_f, q_r]
@@ -575,12 +594,15 @@ def KIT_qubit_vs_param(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ =
 
 #%% Generic effective Hamiltonians
 
-def H_eff_p1(ψ_0, H, n_eig, out='GHz', real=False, remove_ground = False):
-
-    H_eff = np.zeros((n_eig, n_eig), dtype=complex)
-    for i in range(n_eig):
-        for j in range(n_eig):
-            H_eff[i, j] = (ψ_0[i].dag() * H * ψ_0[j]).data[0, 0]
+def H_eff_p1(ψ_0, H, n_eig, out='GHz', real=False, remove_ground = False, H_0=None):
+    if H_0 is not None:
+        ψ_0 = diag(H_0, n_eig, real=real, solver='numpy')[1]
+        H_eff  = ψ_0.conj().T @ H.__array__() @ ψ_0
+    else:
+        H_eff = np.zeros((n_eig, n_eig), dtype=complex)
+        for i in range(n_eig):
+            for j in range(n_eig):
+                H_eff[i, j] = (ψ_0[i].dag() * H * ψ_0[j]).data[0, 0]
 
     if out == 'GHz':
         H_eff /= GHz * 2 * np.pi
@@ -634,18 +656,15 @@ def H_eff_p2(H_0, H, n_eig, out='GHz', real=True, remove_ground=False, solver='s
 
     return H_eff
 
-def H_eff_SWT(H_0, H, n_eig, out='None', real=True, remove_ground=False, solver='scipy', return_transformation=False, sparse=False):
-    if sparse == False:
-        ψ_0 = diag(H_0, n_eig, real=real, solver=solver)[1]
-        E, ψ = diag(H, n_eig, real=real, solver=solver)
-        Q = ψ_0.T.conj() @ ψ
-    else:
-        ψ_0 = H_0.eigenstates(sparse=True, eigvals=n_eig, phase_fix=0)[1]
-        E, ψ = H.eigenstates(sparse=True, eigvals=n_eig, phase_fix=0)
-        Q = np.zeros((n_eig, n_eig), dtype=complex)
-        for i in range(n_eig):
-            for j in range(n_eig):
-                Q[i, j] = (ψ_0[i].dag() * ψ[j]).data[0, 0]
+def H_eff_SWT(ψ_0, H, n_eig, out='None', real=True, remove_ground=False, solver='scipy', return_transformation=False):
+
+
+    E, ψ = H.eigenstates(sparse=True, eigvals=n_eig, phase_fix=0)
+    Q = np.zeros((n_eig, n_eig), dtype=complex)
+    for i in range(n_eig):
+        for j in range(n_eig):
+            Q[i, j] = (ψ_0[i].dag() * ψ[j]).data[0, 0]
+
 
     U, s, Vh = np.linalg.svd(Q)
     A = U @ Vh
@@ -1194,6 +1213,40 @@ def truncation_convergence(circuit, n_eig, trunc_nums=False, threshold=1e-2, ref
     return circuit
 
 #%% Elephants' graveyard
+
+# def H_eff_SWT(H_0, H, n_eig, out='None', real=True, remove_ground=False, solver='scipy', return_transformation=False,
+#               sparse=False):
+#     if sparse == False:
+#         ψ_0 = diag(H_0, n_eig, real=real, solver=solver)[1]
+#         E, ψ = diag(H, n_eig, real=real, solver=solver)
+#         Q = ψ_0.T.conj() @ ψ
+#     else:
+#         ψ_0 = H_0.eigenstates(sparse=True, eigvals=n_eig, phase_fix=0)[1]
+#         E, ψ = H.eigenstates(sparse=True, eigvals=n_eig, phase_fix=0)
+#         Q = np.zeros((n_eig, n_eig), dtype=complex)
+#         for i in range(n_eig):
+#             for j in range(n_eig):
+#                 Q[i, j] = (ψ_0[i].dag() * ψ[j]).data[0, 0]
+#
+#     U, s, Vh = np.linalg.svd(Q)
+#     A = U @ Vh
+#
+#     H_eff = A @ np.diag(E) @ A.T.conj()
+#
+#     if out == 'GHz':
+#         H_eff /= GHz * 2 * np.pi
+#
+#     if remove_ground:
+#         H_eff -= H_eff[0, 0] * np.eye(len(H_eff))
+#
+#     if real:
+#         if np.allclose(np.imag(H_eff), 0):
+#             H_eff = np.real(H_eff)
+#
+#     if return_transformation:
+#         return H_eff, A
+#     else:
+#         return H_eff
 
 # def hamiltonian_frc_qubit(qubit, fluxonium, resonator, Δ, Lq = 25, Lr = 10, factor=1):
 #     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
