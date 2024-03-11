@@ -602,7 +602,11 @@ def H_eff_p1(ψ_0, H, n_eig, out='GHz', real=False, remove_ground = False, H_0=N
         H_eff = np.zeros((n_eig, n_eig), dtype=complex)
         for i in range(n_eig):
             for j in range(n_eig):
-                H_eff[i, j] = (ψ_0[i].dag() * H * ψ_0[j]).data[0, 0]
+                try:
+                    H_eff[i, j] = (ψ_0[i].dag() * H * ψ_0[j]).data[0, 0]
+                except:
+                    print('Wrong dimensions, doing the tensor product in dense form')
+                    H_eff[i, j] = ψ_0[i].dag().__array__() @ H.__array__() @ ψ_0[j].__array__()
 
     if out == 'GHz':
         H_eff /= GHz * 2 * np.pi
