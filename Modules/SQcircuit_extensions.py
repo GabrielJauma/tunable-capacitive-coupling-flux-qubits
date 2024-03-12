@@ -519,10 +519,10 @@ def hamiltonian_qubit_C_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq
         C_RR = C_inv[0, 2] ** -1 * fF
         C_FF = C_inv[1, 3] ** -1 * fF
         C_RF = C_inv[0, 3] ** -1 * fF
-        H_coupling = (qt.tensor(q_r_1, q_r_2, I_qubit) / C_inv[0, 2] ** -1 * fF + qt.tensor(q_f_1, q_f_2, I_qubit) / C_inv[1, 3] ** -1 * fF +
-                      qt.tensor(q_r_1, q_f_2, I_qubit) / C_inv[0, 3] ** -1 * fF + qt.tensor(q_f_1, q_r_2, I_qubit) / C_inv[0, 3] ** -1 * fF +
-                      qt.tensor(I_qubit, q_r_2, q_r_3) / C_inv[2, 4] ** -1 * fF + qt.tensor(I_qubit, q_f_2, q_f_3) / C_inv[3, 4] ** -1 * fF +
-                      qt.tensor(I_qubit, q_r_2, q_f_3) / C_inv[2, 5] ** -1 * fF + qt.tensor(I_qubit, q_f_2, q_r_3) / C_inv[2, 5] ** -1 * fF)
+        H_coupling = (qt.tensor(q_r_1, q_r_2, I_qubit) / (C_inv[0, 2] ** -1 * fF) + qt.tensor(q_f_1, q_f_2, I_qubit) / (C_inv[1, 3] ** -1 * fF )+
+                      qt.tensor(q_r_1, q_f_2, I_qubit) / (C_inv[0, 3] ** -1 * fF) + qt.tensor(q_f_1, q_r_2, I_qubit) / (C_inv[0, 3] ** -1 * fF )+
+                      qt.tensor(I_qubit, q_r_2, q_r_3) / (C_inv[2, 4] ** -1 * fF) + qt.tensor(I_qubit, q_f_2, q_f_3) / (C_inv[3, 4] ** -1 * fF )+
+                      qt.tensor(I_qubit, q_r_2, q_f_3) / (C_inv[2, 5] ** -1 * fF) + qt.tensor(I_qubit, q_f_2, q_r_3) / (C_inv[2, 5] ** -1 * fF))
 
     H = H_0 + H_coupling
 
@@ -701,7 +701,7 @@ def H_eff_p2(H_0, H, n_eig, out='GHz', real=True, remove_ground=False, solver='s
 
     return H_eff
 
-def H_eff_SWT(ψ_0, H, n_eig, out='None', real=True, remove_ground=False, solver='scipy', return_transformation=False):
+def H_eff_SWT(ψ_0, H, n_eig, out='GHz', real=True, remove_ground=False, solver='scipy', return_transformation=False):
 
 
     E, ψ = H.eigenstates(sparse=True, eigvals=n_eig, phase_fix=0)
