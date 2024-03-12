@@ -450,30 +450,50 @@ def hamiltonian_qubit_C_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq
 
     C_inv = np.linalg.inv(C_mat)
 
-    fluxonium = sq_fluxonium(Lq=Lq, Lr=Lr, Δ=Δ, nmax_f=nmax_f, C_F_eff=C_inv[1, 1] ** -1)
-    resonator = sq_resonator(Lq=Lq, Lr=Lr, Δ=Δ, nmax_r=nmax_r, C_R_eff=C_inv[0, 0] ** -1,)
+    resonator_1 = sq_resonator(Lq=Lq, Lr=Lr, Δ=Δ, nmax_r=nmax_r, C_R_eff=C_inv[0, 0] ** -1)
+    fluxonium_1 = sq_fluxonium(Lq=Lq, Lr=Lr, Δ=Δ, nmax_f=nmax_f, C_F_eff=C_inv[1, 1] ** -1)
+    resonator_2 = sq_resonator(Lq=Lq, Lr=Lr, Δ=Δ, nmax_r=nmax_r, C_R_eff=C_inv[2, 2] ** -1)
+    fluxonium_2 = sq_fluxonium(Lq=Lq, Lr=Lr, Δ=Δ, nmax_f=nmax_f, C_F_eff=C_inv[3, 3] ** -1)
+    resonator_3 = sq_resonator(Lq=Lq, Lr=Lr, Δ=Δ, nmax_r=nmax_r, C_R_eff=C_inv[4, 4] ** -1)
+    fluxonium_3 = sq_fluxonium(Lq=Lq, Lr=Lr, Δ=Δ, nmax_f=nmax_f, C_F_eff=C_inv[5, 5] ** -1)
 
     if return_Ψ_nonint:
-        H_qubit, Ψ_q_0, E_q_0 = hamiltonian_qubit(fluxonium, resonator, Δ, return_Ψ_nonint=return_Ψ_nonint)
-        Nq_Nq_Nq = generate_and_prioritize_energies([E_q_0, E_q_0, E_q_0], n_eig_Ψ_nonint)[1]
-        Ψ_0 = [qt.tensor([Ψ_q_0[Nq_Nq_Nq_i[0]], Ψ_q_0[Nq_Nq_Nq_i[1]],Ψ_q_0[Nq_Nq_Nq_i[2]]  ]) for Nq_Nq_Nq_i in Nq_Nq_Nq]
+        H_qubit_1, Ψ_q_0_1, E_q_0_1 = hamiltonian_qubit(fluxonium_1, resonator_1, Δ, return_Ψ_nonint=return_Ψ_nonint)
+        H_qubit_2, Ψ_q_0_2, E_q_0_2 = hamiltonian_qubit(fluxonium_2, resonator_2, Δ, return_Ψ_nonint=return_Ψ_nonint)
+        H_qubit_3, Ψ_q_0_3, E_q_0_3 = hamiltonian_qubit(fluxonium_3, resonator_3, Δ, return_Ψ_nonint=return_Ψ_nonint)
+        # Nq_Nq_Nq = generate_and_prioritize_energies([E_q_0_1, E_q_0_2, E_q_0_3], n_eig_Ψ_nonint)[1]
+        Nq_Nq_Nq = np.array([[0, 0, 0],
+                             [1, 0, 0],
+                             [0, 1, 0],
+                             [1, 1, 0],
+                             [0, 0, 1],
+                             [0, 1, 1],
+                             [1, 0, 1],
+                             [1, 1, 1]])
+        Ψ_0 = [qt.tensor([Ψ_q_0_1[Nq_Nq_Nq_i[0]], Ψ_q_0_2[Nq_Nq_Nq_i[1]],Ψ_q_0_3[Nq_Nq_Nq_i[2]]  ]) for Nq_Nq_Nq_i in Nq_Nq_Nq]
     else:
-        H_qubit = hamiltonian_qubit(fluxonium, resonator, Δ)
+        H_qubit_1 = hamiltonian_qubit(fluxonium_1, resonator_1, Δ )
+        H_qubit_2 = hamiltonian_qubit(fluxonium_2, resonator_2, Δ )
+        H_qubit_3 = hamiltonian_qubit(fluxonium_3, resonator_3, Δ )
 
     I_r = qt.identity(nmax_r)
     I_f = qt.identity(nmax_f)
-    I_qubit = qt.identity(H_qubit.dims[0])
+    I_qubit = qt.identity(H_qubit_1.dims[0])
 
-    q_r = qt.tensor(I_f, resonator.charge_op(0))
-    q_f = qt.tensor(fluxonium.charge_op(0), I_r)
+    q_r_1 = qt.tensor(I_f, resonator_1.charge_op(0))
+    q_f_1 = qt.tensor(fluxonium_1.charge_op(0), I_r)
+    q_r_2 = qt.tensor(I_f, resonator_2.charge_op(0))
+    q_f_2 = qt.tensor(fluxonium_2.charge_op(0), I_r)
+    q_r_3 = qt.tensor(I_f, resonator_3.charge_op(0))
+    q_f_3 = qt.tensor(fluxonium_3.charge_op(0), I_r)
 
     if only_outer:
-        H_0 = (  qt.tensor(H_qubit, I_qubit, I_qubit)
-               + qt.tensor(I_qubit, I_qubit, H_qubit) )
+        H_0 = (  qt.tensor(H_qubit_1, I_qubit, I_qubit)
+               + qt.tensor(I_qubit, I_qubit, H_qubit_3) )
     else:
-        H_0 = (  qt.tensor(H_qubit, I_qubit, I_qubit)
-               + qt.tensor(I_qubit, H_qubit, I_qubit)
-               + qt.tensor(I_qubit, I_qubit, H_qubit) )
+        H_0 = (  qt.tensor(H_qubit_1, I_qubit, I_qubit)
+               + qt.tensor(I_qubit, H_qubit_2, I_qubit)
+               + qt.tensor(I_qubit, I_qubit, H_qubit_3) )
 
     if Cc == 0:
         if return_Ψ_nonint:
@@ -492,17 +512,17 @@ def hamiltonian_qubit_C_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq
         C_RR = C_inv[0, 2] ** -1 * fF
         C_FF = C_inv[1, 3] ** -1 * fF
         #maybe i can kill fluxonium fluxonium...
-        H_coupling = qt.tensor(q_r, q_r, I_qubit) / C_RR + qt.tensor(q_f, q_f, I_qubit) / C_FF + \
-                     qt.tensor(I_qubit, q_r, q_r) / C_RR + qt.tensor(I_qubit, q_f, q_f) / C_FF + \
-                     qt.tensor(q_r, I_qubit, q_r) / C_RR + qt.tensor(q_f, I_qubit, q_f) / C_FF
+        H_coupling = qt.tensor(q_r_1, q_r_2, I_qubit) / C_RR + qt.tensor(q_f_1, q_f_2, I_qubit) / C_FF + \
+                     qt.tensor(I_qubit, q_r_2, q_r_3) / C_RR + qt.tensor(I_qubit, q_f_2, q_f_3) / C_FF + \
+                     qt.tensor(q_r_1, I_qubit, q_r_3) / C_RR + qt.tensor(q_f_1, I_qubit, q_f_3) / C_FF
     else:
         C_RR = C_inv[0, 2] ** -1 * fF
         C_FF = C_inv[1, 3] ** -1 * fF
         C_RF = C_inv[0, 3] ** -1 * fF
-        H_coupling = (qt.tensor(q_r, q_r, I_qubit) / C_RR + qt.tensor(q_f, q_f, I_qubit) / C_FF +
-                      qt.tensor(q_r, q_f, I_qubit) / C_RF + qt.tensor(q_f, q_r, I_qubit) / C_RF +
-                      qt.tensor(I_qubit, q_r, q_r) / C_RR + qt.tensor(I_qubit, q_f, q_f) / C_FF +
-                      qt.tensor(I_qubit, q_r, q_f) / C_RF + qt.tensor(I_qubit, q_f, q_r) / C_RF)
+        H_coupling = (qt.tensor(q_r_1, q_r_2, I_qubit) / C_inv[0, 2] ** -1 * fF + qt.tensor(q_f_1, q_f_2, I_qubit) / C_inv[1, 3] ** -1 * fF +
+                      qt.tensor(q_r_1, q_f_2, I_qubit) / C_inv[0, 3] ** -1 * fF + qt.tensor(q_f_1, q_r_2, I_qubit) / C_inv[0, 3] ** -1 * fF +
+                      qt.tensor(I_qubit, q_r_2, q_r_3) / C_inv[2, 4] ** -1 * fF + qt.tensor(I_qubit, q_f_2, q_f_3) / C_inv[3, 4] ** -1 * fF +
+                      qt.tensor(I_qubit, q_r_2, q_f_3) / C_inv[2, 5] ** -1 * fF + qt.tensor(I_qubit, q_f_2, q_r_3) / C_inv[2, 5] ** -1 * fF)
 
     H = H_0 + H_coupling
 
