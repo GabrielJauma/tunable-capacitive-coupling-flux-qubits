@@ -428,6 +428,51 @@ def hamiltonian_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=
     else:
         return H
 
+def hamiltonian_fluxonium_C_fluxonium (nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, return_Ψ_nonint=False, n_eig_Ψ_nonint=4):
+    fF = 1e-15
+    C_C = Cc
+    C_F = C / 2 + Csh + CJ
+
+    C_mat = np.array([ [ C_F + C_C / 2,   -C_C / 2],
+                       [ -C_C / 2,  C_F + C_C / 2]])
+
+    C_inv = np.linalg.inv(C_mat)
+    C_F_tilde = C_inv[1, 1] ** -1
+    if Cc == 0:
+        pass
+    else:
+        C_FF = C_inv[0, 1] ** -1
+
+    fluxonium = sq_fluxonium(Lq=Lq, Lr=Lr, Δ=Δ, nmax_f=nmax_f, C_F_eff=C_F_tilde)
+
+    if return_Ψ_nonint:
+        H_qubit = fluxonium.hamiltonian()
+        fluxonium.diag(2)
+        Ψ_f = diag(H_qubit,2, solver='numpy')[1]
+        Ψ_0 = [qt.tensor(qt.Qobj(Ψ_f[:,0]),qt.Qobj(Ψ_f[:,0])),qt.tensor(qt.Qobj(Ψ_f[:,0]),qt.Qobj(Ψ_f[:,1])),qt.tensor(qt.Qobj(Ψ_f[:,1]),qt.Qobj(Ψ_f[:,0])),qt.tensor(qt.Qobj(Ψ_f[:,1]),qt.Qobj(Ψ_f[:,1]))]
+    else:
+        H_qubit = fluxonium.hamiltonian()
+
+    I_qubit = qt.identity(H_qubit.dims[0])
+
+    q_f = fluxonium.charge_op(0)
+
+    H_0 = qt.tensor(H_qubit, I_qubit) + qt.tensor(I_qubit, H_qubit)
+    if Cc == 0:
+        if return_Ψ_nonint:
+            return H_0, Ψ_0
+        else:
+            return H_0
+
+    H_coupling =  1 / (C_FF * fF) * qt.tensor(q_f, q_f)
+
+    H = H_0 + H_coupling
+
+    if return_Ψ_nonint:
+        return H, Ψ_0
+    else:
+        return H
+
 def hamiltonian_qubit_C_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, periodic=True, only_outer=False, return_Ψ_nonint=False, n_eig_Ψ_nonint=4):
     fF = 1e-15
     C_R = C / 2
@@ -1104,7 +1149,7 @@ def decomposition_in_pauli_2x2(A, print=False):
 
     return P
 
-def decomposition_in_pauli_4x4(A, rd, Print=True):
+def decomposition_in_pauli_4x4(A, rd=4, print=True):
     '''Performs Pauli decomposition of a 2x2 matrix.
 
     Input:
@@ -1128,14 +1173,14 @@ def decomposition_in_pauli_4x4(A, rd, Print=True):
             label = labels[i] + ' \U00002A02' + labels[j]
             S = np.kron(s[i], s[j])  # S_ij=σ_i /otimes σ_j.
             P[i, j] = np.round(0.25 * (np.dot(S.T.conjugate(), A)).trace(), rd)  # P[i,j]=(1/4)tr(S_ij^t*A)
-            if P[i, j] != 0.0 and Print == True:
+            if P[i, j] != 0.0 and print == True:
                 print(" %s\t*\t %s " % (P[i, j], label))
 
     return P
 
 import numpy as np
 
-def decomposition_in_pauli_8x8(A, rd, Print=True):
+def decomposition_in_pauli_8x8(A, rd, print=True):
     '''Performs Pauli decomposition of an 8x8 matrix.
 
     Input:
@@ -1160,7 +1205,7 @@ def decomposition_in_pauli_8x8(A, rd, Print=True):
                 label = labels[i] + ' \U00002A02 ' + labels[j] + ' \U00002A02 ' + labels[k]
                 S = np.kron(np.kron(s[i], s[j]), s[k])  # S_ijk=σ_i ⊗ σ_j ⊗ σ_k.
                 P[i, j, k] = np.round(0.125 * (np.dot(S.T.conjugate(), A)).trace(), rd)  # P[i,j,k]=(1/8)tr(S_ijk^t*A)
-                if P[i, j, k] != 0.0 and Print:
+                if P[i, j, k] != 0.0 and print:
                     print(" %s\t*\t %s " % (P[i, j, k], label))
 
     return P
