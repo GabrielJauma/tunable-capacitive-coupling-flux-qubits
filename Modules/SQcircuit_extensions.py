@@ -361,17 +361,23 @@ def hamiltonian_qubit(fluxonium = None, resonator=None, Δ=0.1, C=15, CJ=3, Csh=
     else:
         return H
 
-def hamiltonian_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, return_Ψ_nonint=False, n_eig_Ψ_nonint=4):
+def hamiltonian_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, return_Ψ_nonint=False, n_eig_Ψ_nonint=4, periodic=True):
     fF = 1e-15
     C_R = C / 2
     C_C = Cc
     C_F = C / 2 + Csh + CJ
 
     # if inverse == 'Numeric':
-    C_mat = np.array([[C_R + C_C / 2, 0, -C_C / 2, 0],
-                      [0, C_F + C_C / 2, 0, -C_C / 2],
-                      [-C_C / 2, 0, C_R + C_C / 2, 0],
-                      [0, -C_C / 2, 0, C_F + C_C / 2]])
+    if periodic == True:
+        C_mat = np.array([[C_R + C_C / 2, 0, -C_C / 2, 0],
+                          [0, C_F + C_C / 2, 0, -C_C / 2],
+                          [-C_C / 2, 0, C_R + C_C / 2, 0],
+                          [0, -C_C / 2, 0, C_F + C_C / 2]])
+    else:
+        C_mat = np.array([[C_R + C_C / 2   , 0    , -C_C / 2, -C_C / 2],
+                          [0, C_F + C_C / 2, -C_C / 2 , -C_C / 2],
+                          [-C_C / 2 , -C_C / 2 , C_R + C_C / 2, 0],
+                          [-C_C / 2 , -C_C / 2, 0, C_F + C_C / 2]])
 
     C_inv = np.linalg.inv(C_mat)
     C_R_tilde = C_inv[0, 0] ** -1
@@ -399,7 +405,8 @@ def hamiltonian_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=
 
 
     if return_Ψ_nonint:
-        H_qubit, Ψ_q_0, E_q_0 = hamiltonian_qubit(fluxonium, resonator, Δ, return_Ψ_nonint=return_Ψ_nonint)
+        H_qubit, Ψ_q_0, E_q_0 = hamiltonian_qubit( nmax_f=nmax_f,nmax_r=nmax_r,  return_Ψ_nonint=return_Ψ_nonint)
+        # H_qubit, Ψ_q_0, E_q_0 = hamiltonian_qubit(fluxonium, resonator, Δ, return_Ψ_nonint=return_Ψ_nonint)
         Nq_Nq = generate_and_prioritize_energies([E_q_0, E_q_0], n_eig_Ψ_nonint)[1]
         Ψ_0 = [qt.tensor([Ψ_q_0[Nq_Nq_i[0]], Ψ_q_0[Nq_Nq_i[1]] ]) for Nq_Nq_i in Nq_Nq]
     else:
@@ -419,7 +426,12 @@ def hamiltonian_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=
         else:
             return H_0
 
-    H_coupling = 1 / (C_RR * fF) * qt.tensor(q_r, q_r) + 1 / (C_FF * fF) * qt.tensor(q_f, q_f)
+    if periodic == True:
+        H_coupling = 1 / (C_RR * fF) * qt.tensor(q_r, q_r) + 1 / (C_FF * fF) * qt.tensor(q_f, q_f)
+    else:
+        C_RF = C_inv[0, 3] ** -1
+        H_coupling = 1 / (C_RR * fF) * qt.tensor(q_r, q_r) + 1 / (C_FF * fF) * qt.tensor(q_f, q_f) + \
+                     + 1 / (C_RF * fF) * qt.tensor(q_r, q_f) + + 1 / (C_RF * fF) * qt.tensor(q_f, q_r)
 
     H = H_0 + H_coupling
 
