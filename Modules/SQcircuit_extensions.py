@@ -361,7 +361,7 @@ def hamiltonian_qubit(fluxonium = None, resonator=None, Δ=0.1, C=15, CJ=3, Csh=
     else:
         return H
 
-def hamiltonian_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, return_Ψ_nonint=False, n_eig_Ψ_nonint=4, periodic=True):
+def hamiltonian_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1,EJ=10, return_Ψ_nonint=False, n_eig_Ψ_nonint=4, periodic=True):
     fF = 1e-15
     C_R = C / 2
     C_C = Cc
@@ -400,12 +400,12 @@ def hamiltonian_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=
     #     C_RR = 2 * C_R ** 2 / C_C
     #     C_FF = 2 * C_F ** 2 / C_C
 
-    fluxonium = sq_fluxonium(Lq=Lq, Lr=Lr, Δ=Δ, nmax_f=nmax_f, C_F_eff=C_F_tilde)
-    resonator = sq_resonator(Lq=Lq, Lr=Lr, Δ=Δ, nmax_r=nmax_r, C_R_eff=C_R_tilde)
+    fluxonium = sq_fluxonium(Lq=Lq, Lr=Lr, Δ=Δ, EJ=EJ, nmax_f=nmax_f, C_F_eff=C_F_tilde)
+    resonator = sq_resonator(Lq=Lq, Lr=Lr, Δ=Δ, EJ=EJ, nmax_r=nmax_r, C_R_eff=C_R_tilde)
 
 
     if return_Ψ_nonint:
-        H_qubit, Ψ_q_0, E_q_0 = hamiltonian_qubit( nmax_f=nmax_f,nmax_r=nmax_r,  return_Ψ_nonint=return_Ψ_nonint)
+        H_qubit, Ψ_q_0, E_q_0 = hamiltonian_qubit( nmax_f=nmax_f,nmax_r=nmax_r,Lq=Lq, Lr=Lr, Δ=Δ,EJ=EJ,  return_Ψ_nonint=return_Ψ_nonint)
         # H_qubit, Ψ_q_0, E_q_0 = hamiltonian_qubit(fluxonium, resonator, Δ, return_Ψ_nonint=return_Ψ_nonint)
         Nq_Nq = generate_and_prioritize_energies([E_q_0, E_q_0], n_eig_Ψ_nonint)[1]
         Ψ_0 = [qt.tensor([Ψ_q_0[Nq_Nq_i[0]], Ψ_q_0[Nq_Nq_i[1]] ]) for Nq_Nq_i in Nq_Nq]
@@ -440,7 +440,7 @@ def hamiltonian_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=
     else:
         return H
 
-def hamiltonian_fluxonium_C_fluxonium (nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, return_Ψ_nonint=False, n_eig_Ψ_nonint=4):
+def hamiltonian_fluxonium_C_fluxonium (nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, return_Ψ_nonint=False, n_eig_Ψ_nonint=4):
     fF = 1e-15
     C_C = Cc
     C_F = C / 2 + Csh + CJ
@@ -455,7 +455,7 @@ def hamiltonian_fluxonium_C_fluxonium (nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr
     else:
         C_FF = C_inv[0, 1] ** -1
 
-    fluxonium = sq_fluxonium(Lq=Lq, Lr=Lr, Δ=Δ, nmax_f=nmax_f, C_F_eff=C_F_tilde)
+    fluxonium = sq_fluxonium(Lq=Lq, Lr=Lr, Δ=Δ, EJ=EJ, φ_ext=φ_ext, nmax_f=nmax_f, C_F_eff=C_F_tilde)
 
     if return_Ψ_nonint:
         H_qubit = fluxonium.hamiltonian()
