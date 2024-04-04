@@ -26,9 +26,9 @@
      showborder="true"
      labelstyle="default"
      shape-rendering="auto"
-     inkscape:zoom="1.641842"
-     inkscape:cx="471.72626"
-     inkscape:cy="408.99184"
+     inkscape:zoom="2"
+     inkscape:cx="440.25"
+     inkscape:cy="449.25"
      inkscape:window-width="3840"
      inkscape:window-height="2083"
      inkscape:window-x="0"
@@ -66,7 +66,10 @@
      id="layer1">
     <g
        id="g13"
-       style="display:inline;stroke:#20c997">
+       style="display:inline;stroke:#20c997"
+       inkscape:export-filename="Chain.pdf"
+       inkscape:export-xdpi="68.417511"
+       inkscape:export-ydpi="68.417511">
       <path
          style="fill:#d63384;stroke:#20c997;stroke-width:1;stroke-dasharray:none;stroke-opacity:1"
          d="M 87.583022,68.832359 H 139.89534"
@@ -379,19 +382,6 @@
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.35px;font-family:'DejaVu Math TeX Gyre';-inkscape-font-specification:'DejaVu Math TeX Gyre';fill:#000000;fill-opacity:1;stroke-width:0.264583"
-       x="173.27686"
-       y="123.22729"
-       id="text27"><tspan
-         sodipodi:role="line"
-         id="tspan27"
-         style="stroke-width:0.264583"
-         x="173.27686"
-         y="123.22729">g<tspan
-   style="font-size:65%;baseline-shift:sub"
-   id="tspan28">Q,RR</tspan></tspan></text>
-    <text
-       xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.35px;font-family:'DejaVu Math TeX Gyre';-inkscape-font-specification:'DejaVu Math TeX Gyre';fill:#000000;fill-opacity:1;stroke-width:0.264583"
        x="173.67021"
        y="64.494202"
        id="text27-7"><tspan
@@ -399,34 +389,55 @@
          id="tspan27-7"
          style="stroke-width:0.264583"
          x="173.67021"
-         y="64.494202">g<tspan
+         y="64.494202">q<tspan
    style="font-size:65%;baseline-shift:sub"
-   id="tspan28-5">Q,FF</tspan></tspan></text>
+   id="tspan30">R</tspan><tspan
+   id="tspan32"
+   style="font-size:65%;baseline-shift:super">2</tspan></tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.35px;font-family:'DejaVu Math TeX Gyre';-inkscape-font-specification:'DejaVu Math TeX Gyre';fill:#000000;fill-opacity:1;stroke-width:0.264583"
-       x="166.6768"
-       y="80.251015"
-       id="text27-7-2"><tspan
+       x="173.79198"
+       y="125.07014"
+       id="text27-7-0"><tspan
          sodipodi:role="line"
          id="tspan27-7-8"
          style="stroke-width:0.264583"
-         x="166.6768"
-         y="80.251015">g<tspan
+         x="173.79198"
+         y="125.07014">q<tspan
    style="font-size:65%;baseline-shift:sub"
-   id="tspan28-5-9">Q,RF</tspan></tspan></text>
+   id="tspan33">F</tspan><tspan
+   id="tspan32-0"
+   style="font-size:65%;baseline-shift:super">2</tspan></tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.35px;font-family:'DejaVu Math TeX Gyre';-inkscape-font-specification:'DejaVu Math TeX Gyre';fill:#000000;fill-opacity:1;stroke-width:0.264583"
-       x="166.6768"
-       y="107.83377"
-       id="text27-7-2-0"><tspan
+       x="161.90523"
+       y="78.163437"
+       id="text27-7-0-2"><tspan
          sodipodi:role="line"
-         id="tspan27-7-8-2"
+         id="tspan27-7-8-5"
          style="stroke-width:0.264583"
-         x="166.6768"
-         y="107.83377">g<tspan
+         x="161.90523"
+         y="78.163437">+iq<tspan
    style="font-size:65%;baseline-shift:sub"
-   id="tspan28-5-9-1">Q,RF</tspan></tspan></text>
+   id="tspan34">R</tspan>q<tspan
+   style="font-size:65%;baseline-shift:sub"
+   id="tspan33-8">F</tspan></tspan></text>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:6.35px;font-family:'DejaVu Math TeX Gyre';-inkscape-font-specification:'DejaVu Math TeX Gyre';fill:#000000;fill-opacity:1;stroke-width:0.264583"
+       x="163.45145"
+       y="111.04897"
+       id="text27-7-0-2-7"><tspan
+         sodipodi:role="line"
+         id="tspan27-7-8-5-2"
+         style="stroke-width:0.264583"
+         x="163.45145"
+         y="111.04897">-iq<tspan
+   style="font-size:65%;baseline-shift:sub"
+   id="tspan34-4">R</tspan>q<tspan
+   style="font-size:65%;baseline-shift:sub"
+   id="tspan33-8-0">F</tspan></tspan></text>
   </g>
 </svg>
