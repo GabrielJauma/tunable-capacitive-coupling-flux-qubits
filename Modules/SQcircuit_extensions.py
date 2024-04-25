@@ -381,14 +381,14 @@ def hamiltonian_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=
     # if inverse == 'Numeric':
     if periodic == True:
         C_mat = np.array([[C_R + C_C / 2, 0, -C_C / 2, 0],
-                          [0, C_F + C_C / 2, 0, -C_C / 2],
+                          [0, C_F + C_C / 2, 0, +C_C / 2],
                           [-C_C / 2, 0, C_R + C_C / 2, 0],
-                          [0, -C_C / 2, 0, C_F + C_C / 2]])
+                          [0, +C_C / 2, 0, C_F + C_C / 2]])
     else:
-        C_mat = np.array([[C_R + C_C / 2   , 0    , -C_C / 2, -C_C / 2],
-                          [0, C_F + C_C / 2, -C_C / 2 , -C_C / 2],
-                          [-C_C / 2 , -C_C / 2 , C_R + C_C / 2, 0],
-                          [-C_C / 2 , -C_C / 2, 0, C_F + C_C / 2]])
+        C_mat = np.array([[C_R + C_C / 2   , 0  , -C_C / 2, +C_C / 2],
+                          [0, C_F + C_C / 2, -C_C / 2 , +C_C / 2],
+                          [-C_C / 2 , +C_C / 2 , C_R + C_C / 2, 0],
+                          [-C_C / 2 , +C_C / 2, 0, C_F + C_C / 2]])
 
     C_inv = np.linalg.inv(C_mat)
     C_R_tilde = C_inv[0, 0] ** -1
@@ -503,18 +503,18 @@ def hamiltonian_qubit_C_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq
     C_F = C / 2 + Csh + CJ
     if periodic == True:
         C_mat = np.array([[C_R + C_C / 2, 0, -C_C / 2, 0, -C_C / 2, 0],
-                          [0, C_F + C_C / 2, 0, -C_C / 2, 0, -C_C / 2],
+                          [0, C_F + C_C / 2, 0, +C_C / 2, 0, +C_C / 2],
                           [-C_C / 2, 0, C_R + C_C / 2, 0, -C_C / 2, 0],
-                          [0, -C_C / 2, 0, C_F + C_C / 2, 0, -C_C / 2],
+                          [0, +C_C / 2, 0, C_F + C_C / 2, 0, +C_C / 2],
                           [-C_C / 2, 0, -C_C / 2, 0, C_R + C_C / 2, 0],
-                          [0, -C_C / 2, 0, -C_C / 2, 0, C_F + C_C / 2]])
+                          [0, +C_C / 2, 0, +C_C / 2, 0, C_F + C_C / 2]])
     else:
-        C_mat = np.array([[C_R + C_C / 2, 0             , -C_C / 2      , -C_C / 2      , 0             ,        0      ],
-                          [0            , C_F + C_C / 2 , -C_C / 2      , -C_C / 2      , 0             , 0             ],
-                          [-C_C / 2     , -C_C / 2      , C_R + C_C / 2 , 0             , -C_C / 2      , -C_C / 2      ],
-                          [-C_C / 2     , -C_C / 2      , 0             , C_F + C_C / 2 , -C_C / 2      , -C_C / 2      ],
-                          [0            , 0             , -C_C / 2      , -C_C / 2      , C_R + C_C / 2 , 0             ],
-                          [0            , 0             , -C_C / 2      , -C_C / 2      , 0             , C_F + C_C / 2 ]])
+        C_mat = np.array([[C_R + C_C / 2, 0             , -C_C / 2      , +C_C / 2      , 0             ,        0      ],
+                          [0            , C_F + C_C / 2 , -C_C / 2      , +C_C / 2      , 0             , 0             ],
+                          [-C_C / 2     , +C_C / 2      , C_R + C_C / 2 , 0             , -C_C / 2      , +C_C / 2      ],
+                          [-C_C / 2     , +C_C / 2      , 0             , C_F + C_C / 2 , -C_C / 2      , +C_C / 2      ],
+                          [0            , 0             , -C_C / 2      , +C_C / 2      , C_R + C_C / 2 , 0             ],
+                          [0            , 0             , -C_C / 2      , +C_C / 2      , 0             , C_F + C_C / 2 ]])
 
     C_inv = np.linalg.inv(C_mat)
 
@@ -614,12 +614,12 @@ def hamiltonian_qubit_C_qubit_C_qubit_full_variables(Cc,φ_ext_1=0.5,φ_ext_2=0.
     C_C = Cc
 
 
-    C_mat = np.array([[C_R_1 + C_C / 2, 0             , -C_C / 2      , -C_C / 2      , 0             ,        0      ],
-                      [0            , C_F_1 + C_C / 2 , -C_C / 2      , -C_C / 2      , 0             , 0             ],
-                      [-C_C / 2     , -C_C / 2      , C_R_2 + C_C / 2 , 0             , -C_C / 2      , -C_C / 2      ],
-                      [-C_C / 2     , -C_C / 2      , 0             , C_F_2 + C_C / 2 , -C_C / 2      , -C_C / 2      ],
-                      [0            , 0             , -C_C / 2      , -C_C / 2      , C_R_3 + C_C / 2 , 0             ],
-                      [0            , 0             , -C_C / 2      , -C_C / 2      , 0             , C_F_3 + C_C / 2 ]])
+    C_mat = np.array([[C_R_1 + C_C / 2, 0             , -C_C / 2      , +C_C / 2      , 0             ,        0      ],
+                      [0            , C_F_1 + C_C / 2 , -C_C / 2      , +C_C / 2      , 0             , 0             ],
+                      [-C_C / 2     , +C_C / 2      , C_R_2 + C_C / 2 , 0             , -C_C / 2      , +C_C / 2      ],
+                      [-C_C / 2     , +C_C / 2      , 0             , C_F_2 + C_C / 2 , -C_C / 2      , +C_C / 2      ],
+                      [0            , 0             , -C_C / 2      , +C_C / 2      , C_R_3 + C_C / 2 , 0             ],
+                      [0            , 0             , -C_C / 2      , +C_C / 2      , 0             , C_F_3 + C_C / 2 ]])
 
     C_inv = np.linalg.inv(C_mat)
     fF = 1e-15
