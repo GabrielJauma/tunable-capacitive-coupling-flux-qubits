@@ -693,9 +693,9 @@ def KIT_qubit_vs_param(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ =
 
     for parameters in parameters_list:
         if model == 'full_circuit':
-            H_qubit_list.append(sq_qubit().hamiltonian())
+            H_qubit_list.append(sq_qubit(*parameters).hamiltonian())
         if model == 'composition':
-            fluxonium = sq_fluxonium()
+            fluxonium = sq_fluxonium(*parameters)
             resonator = sq_resonator(*parameters)
             H_qubit_list.append(hamiltonian_qubit(fluxonium, resonator, Δ = parameters[5], Lq = parameters[3], Lr = parameters[4]))
 
@@ -703,19 +703,10 @@ def KIT_qubit_vs_param(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ =
 
 #%% Generic effective Hamiltonians
 
-def H_eff_p1(ψ_0, H, n_eig, out='GHz', real=False, remove_ground = False, H_0=None):
-    if H_0 is not None:
-        ψ_0 = diag(H_0, n_eig, real=real, solver='numpy')[1]
-        H_eff  = ψ_0.conj().T @ H.__array__() @ ψ_0
-    else:
-        H_eff = np.zeros((n_eig, n_eig), dtype=complex)
-        for i in range(n_eig):
-            for j in range(n_eig):
-                try:
-                    H_eff[i, j] = (ψ_0[i].dag() * H * ψ_0[j]).data[0, 0]
-                except:
-                    print('Wrong dimensions, doing the tensor product in dense form')
-                    H_eff[i, j] = ψ_0[i].dag().__array__() @ H.__array__() @ ψ_0[j].__array__()
+def H_eff_p1(H_0, H, n_eig, out='GHz', real=False, remove_ground = False ):
+
+    ψ_0 = diag(H_0, n_eig, real=real, solver='scipy')[1]
+    H_eff  = ψ_0.conj().T @ H.__array__() @ ψ_0
 
     if out == 'GHz':
         H_eff /= GHz * 2 * np.pi
@@ -729,7 +720,7 @@ def H_eff_p1(ψ_0, H, n_eig, out='GHz', real=False, remove_ground = False, H_0=N
 
     return H_eff
 
-def H_eff_p2(H_0, H, n_eig, out='GHz', real=True, remove_ground=False, solver='scipy'):
+def H_eff_p2(H_0, H, n_eig, out='GHz', real=False, remove_ground=False, solver='scipy'):
     E_0, ψ_0 = diag(H_0, n_eig, real=real, solver=solver, out=out)
     E,   ψ   = diag(H  , n_eig, real=real, solver=solver, out=out)
     H_0 = H_0.__array__()
@@ -769,14 +760,17 @@ def H_eff_p2(H_0, H, n_eig, out='GHz', real=True, remove_ground=False, solver='s
 
     return H_eff
 
-def H_eff_SWT(ψ_0, H, n_eig, out='GHz', real=True, remove_ground=False, solver='scipy', return_transformation=False):
+def H_eff_SWT(H_0, H, n_eig, out='GHz', real=False, remove_ground=False, return_transformation=False ):
 
+    ψ_0 = diag(H_0, n_eig, real=real, solver='numpy')[1]
 
-    E, ψ = H.eigenstates(sparse=True, eigvals=n_eig, phase_fix=0)
+    E, ψ = diag(H, n_eig, real=real, solver='numpy', out='Hz')
+    # E, ψ = H.eigenstates(sparse=False, eigvals=n_eig, phase_fix=0)
+
     Q = np.zeros((n_eig, n_eig), dtype=complex)
     for i in range(n_eig):
         for j in range(n_eig):
-            Q[i, j] = (ψ_0[i].dag() * ψ[j]).data[0, 0]
+            Q[i, j] = ψ_0[:,i].conj().T @ ψ[:,j]
 
 
     U, s, Vh = np.linalg.svd(Q)
