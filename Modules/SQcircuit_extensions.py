@@ -15,14 +15,16 @@ Phi0 = 2.067833831e-15  # Flux quantum (in Wb)
 hbar = 1.0545718e-34
 
 #%% Basic circuits made with SQcircuits
-def sq_fluxonium(C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, nmax_r=15, nmax_f=25, C_F_eff=False, E_L = False, E_C=False):
+def sq_fluxonium(C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, nmax_r=15, nmax_f=25, C_F_eff=False, L_F_eff=False,  E_L = False, E_C=False):
     nH = 1e9
     h = 6.626e-34
     e0 = 1.602e-19
     Φ_0 = h / (2 * e0)
 
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
-    L_F_eff = l / (Lq + 4 * Lr)
+
+    if L_F_eff == False:
+        L_F_eff = l / (Lq + 4 * Lr)
 
     if C_F_eff == False:
         C_F_eff = C / 2 + Csh + CJ
