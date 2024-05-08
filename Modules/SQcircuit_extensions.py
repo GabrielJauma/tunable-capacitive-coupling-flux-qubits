@@ -11,15 +11,13 @@ plt.rcParams['backend'] = 'QtAgg'
 #%% Constants
 GHz  = 1e9
 nH = 1e-9
-Phi0 = 2.067833831e-15  # Flux quantum (in Wb)
-hbar = 1.0545718e-34
+fF = 1e-15
+h = 6.626e-34
+e0 = 1.602e-19
+Φ_0 = h / (2 * e0)
 
 #%% Basic circuits made with SQcircuits
-def sq_fluxonium(C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, nmax_r=15, nmax_f=25, C_F_eff=False, L_F_eff=False,  E_L = False, E_C=False):
-    nH = 1e9
-    h = 6.626e-34
-    e0 = 1.602e-19
-    Φ_0 = h / (2 * e0)
+def sq_fluxonium(C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, nmax_r=15, nmax_f=25, C_F_eff=False, L_F_eff=False, E_L=False, E_C=False):
 
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
 
@@ -30,9 +28,9 @@ def sq_fluxonium(C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, 
         C_F_eff = C / 2 + Csh + CJ
 
     if E_L:
-        L_F_eff= (Φ_0 / (2 * np.pi)) ** 2 / E_L / h / nH
+        L_F_eff = (Φ_0 / (2 * np.pi)) ** 2 / (E_L * nH) / h / GHz
     if E_C:
-        C_F_eff = e0 ** 2 / (2 * E_C * 1e-15) / h
+        C_F_eff = e0 ** 2 / (2 * E_C * fF) / h / 2 / GHz
 
     loop_fluxonium = sq.Loop(φ_ext)
     fluxonium_elements = {
@@ -45,8 +43,7 @@ def sq_fluxonium(C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, 
     fluxonium.set_trunc_nums([nmax_f])
     return fluxonium
 
-def sq_resonator(C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, nmax_r=15, nmax_f=25, C_R_eff=False,
-                 L_R_eff=False):
+def sq_resonator(C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, nmax_r=15, nmax_f=25, C_R_eff=False, L_R_eff=False, E_L=False, E_C=False):
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
 
     if C_R_eff == False:
@@ -54,6 +51,11 @@ def sq_resonator(C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, 
 
     if L_R_eff == False:
         L_R_eff = l / Lq
+
+    if E_L:
+        L_R_eff = (Φ_0 / (2 * np.pi)) ** 2 / (E_L * nH) / h / GHz
+    if E_C:
+        C_R_eff = e0 ** 2 / (2 * E_C * fF) / h / 2 / GHz
 
     resonator_elements = {
         (0, 1): [sq.Capacitor(C_R_eff, 'fF'), sq.Inductor(L_R_eff, 'nH')],
