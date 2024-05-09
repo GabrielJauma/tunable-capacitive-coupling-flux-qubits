@@ -9,12 +9,51 @@ from itertools import product
 plt.rcParams['backend'] = 'QtAgg'
 
 #%% Constants
-GHz  = 1e9
-nH = 1e-9
-fF = 1e-15
-h = 6.626e-34
-e0 = 1.602e-19
+GHz = 1e9
+nH  = 1e-9
+fF  = 1e-15
+h   = 6.626e-34
+e0  = 1.602e-19
 Φ_0 = h / (2 * e0)
+
+#% Conversion functions
+def L_to_EL(L, L_units='nH', E_units='GHz'):
+
+    if L_units=='nH':
+        L = L * nH
+    E_L = (Φ_0/(2*np.pi))**2 / L
+    if E_units == 'GHz':
+        return E_L / (GHz*h)
+    else:
+        return E_L
+
+def C_to_EC(C, C_units='fF', E_units='GHz'):
+    if C_units == 'fF':
+        C = C * fF
+    E_C = e0**2 / (2 * C)
+    if E_units == 'GHz':
+        return E_C / (GHz*h)
+    else:
+        return E_C
+
+def EL_to_L(E_L, L_units='nH', E_units='GHz'):
+    if E_units == 'GHz':
+        E_L = E_L*GHz*h
+    L = (Φ_0/(2*np.pi))**2 / E_L
+    if L_units == 'nH':
+        return L/nH
+    else:
+        return L
+
+def EC_to_C(E_C, C_units='fF', E_units='GHz'):
+    if E_units == 'GHz':
+        E_C = E_C*GHz*h
+    C = e0**2 / (2 * E_C)
+    if C_units == 'fF':
+        return C/fF
+    else:
+        return C
+
 
 #%% Basic circuits made with SQcircuits
 def sq_fluxonium(C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, nmax_r=15, nmax_f=25, C_F_eff=False, L_F_eff=False, E_L=False, E_C=False):
@@ -28,9 +67,9 @@ def sq_fluxonium(C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, 
         C_F_eff = C / 2 + Csh + CJ
 
     if E_L:
-        L_F_eff = (Φ_0 / (2 * np.pi)) ** 2 / (E_L * nH) / h / GHz
+        L_F_eff = EL_to_L(E_L)
     if E_C:
-        C_F_eff = e0 ** 2 / (2 * E_C * fF) / h / 2 / GHz
+        C_F_eff = EC_to_C(E_C)
 
     loop_fluxonium = sq.Loop(φ_ext)
     fluxonium_elements = {
@@ -53,9 +92,9 @@ def sq_resonator(C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, 
         L_R_eff = l / Lq
 
     if E_L:
-        L_R_eff = (Φ_0 / (2 * np.pi)) ** 2 / (E_L * nH) / h / GHz
+        L_R_eff = EL_to_L(E_L)
     if E_C:
-        C_R_eff = e0 ** 2 / (2 * E_C * fF) / h / 2 / GHz
+        C_R_eff = EC_to_C(E_C)
 
     resonator_elements = {
         (0, 1): [sq.Capacitor(C_R_eff, 'fF'), sq.Inductor(L_R_eff, 'nH')],
