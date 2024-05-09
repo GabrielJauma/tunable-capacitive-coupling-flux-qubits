@@ -746,7 +746,7 @@ def KIT_qubit_vs_param(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ =
 
 #%% Generic effective Hamiltonians
 
-def H_eff_p1(H_0, H, n_eig, out='GHz', real=False, remove_ground = False ):
+def H_eff_p1(H_0, H, n_eig, out='GHz', real=True, remove_ground = False ):
 
     ψ_0 = diag(H_0, n_eig, real=real, solver='numpy')[1]
     H_eff  = ψ_0.conj().T @ H.__array__() @ ψ_0
@@ -839,7 +839,6 @@ def H_eff_SWT(H_0, H, n_eig, out='GHz', real=False, remove_ground=False, return_
 
 #%% Sorting and labeling functions
 def sq_get_energy_indices(qubit, fluxonium, resonator, n_eig=3):
-
     try:
         E_qubit = qubit.efreqs - qubit.efreqs[0]
         E_fluxonium = fluxonium.efreqs - fluxonium.efreqs[0]
@@ -851,6 +850,27 @@ def sq_get_energy_indices(qubit, fluxonium, resonator, n_eig=3):
         E_qubit      = qubit.efreqs    - qubit.efreqs[0]
         E_fluxonium = fluxonium.efreqs - fluxonium.efreqs[0]
         E_resonator = resonator.efreqs - resonator.efreqs[0]
+
+    n_eig = len(E_qubit)
+
+    N_fluxonium = np.zeros(n_eig, dtype='int')
+    N_resonator = np.zeros(n_eig, dtype='int')
+
+    E_matrix = E_fluxonium[:, np.newaxis] + E_resonator
+
+    tol = E_qubit[1]-E_qubit[0]
+    for k in range(n_eig):
+        ΔE_matrix = np.abs(E_matrix - E_qubit[k])
+        if ΔE_matrix.min() < tol:
+            N_fluxonium[k], N_resonator[k] = np.unravel_index(ΔE_matrix.argmin(), ΔE_matrix.shape)
+        else:
+            N_fluxonium[k], N_resonator[k] = [-123, -123]
+    return N_fluxonium, N_resonator
+
+def sq_get_energy_indices_hamiltonian(H_qubit, H_fluxonium, H_resonator, n_eig=3):
+    E_qubit     = diag(H_qubit    , n_eig=n_eig, remove_ground=True)[0]
+    E_fluxonium = diag(H_fluxonium, n_eig=n_eig, remove_ground=True)[0]
+    E_resonator = diag(H_resonator, n_eig=n_eig, remove_ground=True)[0]
 
     n_eig = len(E_qubit)
 
@@ -941,6 +961,18 @@ def generate_and_prioritize_energies(E_elements, n_eig):
     E_combined, correctly_reorganized_indices = zip(*prioritized_energies_and_indices)
 
     return np.array(E_combined), [list(index) for index in correctly_reorganized_indices]
+
+def get_subspace(H, E, threshold):
+    # Check diagonal elements of the hamiltonian
+    diagonal_elements = np.diag(H)
+
+    # Create a boolean array where True indicates the diagonal element is within the threshold of any vector element
+    mask = np.any(np.abs(diagonal_elements[:, None] - E) <= threshold, axis=1)
+
+    # Filter the rows and columns based on the mask
+    H_subspace = H[mask][:, mask]
+
+    return H_subspace
 
 #%% Operators
 def internal_coupling_fluxonium_resonator(fluxonium, resonator, Δ, Lq = 25, Lr = 10):
@@ -1209,8 +1241,8 @@ def decomposition_in_pauli_2x2(A, print=False):
 
     return P
 
-def decomposition_in_pauli_4x4(A, rd=4, print=True):
-    '''Performs Pauli decomposition of a 2x2 matrix.
+def decomposition_in_pauli_4x4(A,  print_pretty=True):
+    '''Performs Pauli decomposition of a 4x4 matrix.
 
     Input:
     A= matrix to decompose.
@@ -1232,8 +1264,8 @@ def decomposition_in_pauli_4x4(A, rd=4, print=True):
         for j in range(4):
             label = labels[i] + ' \U00002A02' + labels[j]
             S = np.kron(s[i], s[j])  # S_ij=σ_i /otimes σ_j.
-            P[i, j] = np.round(0.25 * (np.dot(S.T.conjugate(), A)).trace(), rd)  # P[i,j]=(1/4)tr(S_ij^t*A)
-            if P[i, j] != 0.0 and print == True:
+            P[i, j] = 0.25 * (np.dot(S.T.conjugate(), A)).trace() # P[i,j]=(1/4)tr(S_ij^t*A)
+            if P[i, j] != 0.0 and print_pretty == True:
                 print(" %s\t*\t %s " % (P[i, j], label))
 
     return P
