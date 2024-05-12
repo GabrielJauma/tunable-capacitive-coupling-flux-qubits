@@ -209,7 +209,7 @@ def sq_qubit_C_qubit(CC, C, CJ, Csh, Lq, Lr, Δ, EJ, C_prime, CJ_prime, Csh_prim
             elements_qubit_C_qubit[(2, 4)] = [C_C]
             if compensate_extra_cap:
                 elements_qubit_C_qubit[(0, 1)] = [C_01, C_C]
-                elements_qubit_C_qubit[(0, 5)] = [C_02, C_C]
+                elements_qubit_C_qubit[(0, 5)] = [C_05, C_C]
         else:
             elements_qubit_C_qubit[(2, 4)] = [C_C]
             elements_qubit_C_qubit[(1, 5)] = [C_C]
@@ -217,23 +217,56 @@ def sq_qubit_C_qubit(CC, C, CJ, Csh, Lq, Lr, Δ, EJ, C_prime, CJ_prime, Csh_prim
     qubit_C_qubit = sq.Circuit(elements_qubit_C_qubit)
 
     # Check where are the resonator modes and assign then their corresponding trunc num
+    # This shit does not really work...
     CF, CR = C_CJ_Csh_to_CF_CR_eff(C=C, CJ=CJ, Csh=Csh)
     LF, LR = Lq_Lr_to_LF_LR_eff(Lq=Lq, Lr=Lr, Δ=Δ)
     CF_prime, CR_prime = C_CJ_Csh_to_CF_CR_eff(C=C_prime, CJ=CJ_prime, Csh=Csh_prime)
     LF_prime, LR_prime = Lq_Lr_to_LF_LR_eff(Lq=Lq_prime, Lr=Lr_prime, Δ=Δ_prime)
 
-    ω = 1 / np.sqrt(CR * fF * LR * nH)
-    ω_prime = 1 / np.sqrt(CR_prime * fF * LR_prime * nH)
+    C0_mat = np.array([[CF, 0, 0, 0],
+                       [0, CR, 0, 0],
+                       [0, 0, CF_prime, 0],
+                       [0, 0, 0, CR_prime]])
+
+    if only_inner == True:
+        if not compensate_extra_cap:
+            CC_mat = np.array([[CC / 4, -CC / 4, CC / 4, CC / 4],
+                               [-CC / 4, CC / 4, -CC / 4, -CC / 4],
+                               [CC / 4, -CC / 4, CC / 4, CC / 4],
+                               [CC / 4, -CC / 4, CC / 4, CC / 4]])
+        else:
+            CC_mat = np.array([[CC / 2, 0, CC / 4, CC / 4],
+                               [0, CC / 2, -CC / 4, -CC / 4],
+                               [CC / 4, -CC / 4, CC / 2, 0],
+                               [CC / 4, -CC / 4, 0, CC / 2]])
+
+    else:
+        CC_mat = np.array([[CC / 2, 0, CC / 2, 0],
+                           [0, CC / 2, 0, -CC / 2],
+                           [CC / 2, 0, CC / 2, 0],
+                           [0, -CC / 2, 0, CC / 2]])
+
+    C_mat = C0_mat + CC_mat
+
+    C_inv = np.linalg.inv(C_mat)
+    CR_tilde = C_inv[1, 1] ** -1
+    CR_prime_tilde = C_inv[3, 3] ** -1
+
+    ω = 1 / np.sqrt(CR_tilde * fF * LR * nH)
+    ω_prime = 1 / np.sqrt(CR_prime_tilde * fF * LR_prime * nH)
 
     trunc_nums = [nmax_f, nmax_f, nmax_f, nmax_f]
 
-    k = 0
-    for i, ω_n in enumerate(qubit_C_qubit.omega):
-        if np.isclose(ω, ω_n, rtol=1e-2) or np.isclose(ω_prime, ω_n, rtol=1e-2):
-            k+=1
-            trunc_nums[i] = nmax_r
-    if k != 2:
-        print('something is wrong with the truncation numbers')
+    res_index_list = []
+    for ω_r in [ω, ω_prime]:
+        res_index = np.argsort( np.abs(ω_r - qubit_C_qubit.omega)/ω_r )[0]
+        if res_index not in res_index_list:
+            res_index_list.append(res_index)
+            trunc_nums[res_index] = nmax_r
+        else:
+            res_index = np.argsort(np.abs(ω_r - qubit_C_qubit.omega)/ω_r)[1]
+            res_index_list.append(res_index)
+            trunc_nums[res_index] = nmax_r
 
     qubit_C_qubit.set_trunc_nums(trunc_nums)
 
