@@ -486,7 +486,7 @@ def hamiltonian_qubit(fluxonium = None, resonator=None, Δ=0.1, C=15, CJ=3, Csh=
     else:
         return H
 
-def hamiltonian_qubit_C_qubit(CC, CR, CF, LF, LR, EJ, Δ, CR_prime, CF_prime, LF_prime, LR_prime, EJ_prime, Δ_prime, nmax_r=15, nmax_f=25, return_Ψ_nonint=False, n_eig_Ψ_nonint=4, only_inner = True, compensate_extra_cap=False):
+def hamiltonian_qubit_C_qubit(CC, CR, CF, LF, LR, EJ, Δ, φ_ext, CR_prime, CF_prime, LF_prime, LR_prime, EJ_prime, Δ_prime, φ_ext_prime, nmax_r=15, nmax_f=25, return_Ψ_nonint=False, n_eig_Ψ_nonint=4, only_inner = True, compensate_extra_cap=False):
 
     # The basis here is changed with rspecto to the notes: first the fluxonium and then the resonator
     C0_mat =  np.array([[ CF     , 0       , 0       , 0        ],
@@ -515,15 +515,25 @@ def hamiltonian_qubit_C_qubit(CC, CR, CF, LF, LR, EJ, Δ, CR_prime, CF_prime, LF
     C_mat = C0_mat + CC_mat
 
     C_inv = np.linalg.inv(C_mat)
+
     CF_tilde = C_inv[0, 0] ** -1
     CR_tilde = C_inv[1, 1] ** -1
     CF_prime_tilde = C_inv[2, 2] ** -1
     CR_prime_tilde = C_inv[3, 3] ** -1
 
-    fluxonium       = sq_fluxonium(C_F_eff=CF_tilde,       L_F_eff=LF,       Δ=Δ,       EJ=EJ,       nmax_f=nmax_f)
+
+    fluxonium       = sq_fluxonium(C_F_eff=CF_tilde,       L_F_eff=LF,       Δ=Δ,       EJ=EJ,       nmax_f=nmax_f, φ_ext=φ_ext)
     resonator       = sq_resonator(C_R_eff=CR_tilde,       L_R_eff=LR,       Δ=Δ,       EJ=EJ,       nmax_r=nmax_r)
-    fluxonium_prime = sq_fluxonium(C_F_eff=CF_prime_tilde, L_F_eff=LF_prime, Δ=Δ_prime, EJ=EJ_prime, nmax_f=nmax_f)
+    fluxonium_prime = sq_fluxonium(C_F_eff=CF_prime_tilde, L_F_eff=LF_prime, Δ=Δ_prime, EJ=EJ_prime, nmax_f=nmax_f, φ_ext=φ_ext_prime)
     resonator_prime = sq_resonator(C_R_eff=CR_prime_tilde, L_R_eff=LR_prime, Δ=Δ_prime, EJ=EJ_prime, nmax_r=nmax_r)
+
+
+    # C_int = C_inv[0, 1] ** -1
+    # C_int_prime = C_inv[2, 3] ** -1
+    # fluxonium       = sq_fluxonium(C_F_eff=CF,       L_F_eff=LF,       Δ=Δ,       EJ=EJ,       nmax_f=nmax_f, φ_ext=φ_ext)
+    # resonator       = sq_resonator(C_R_eff=CR,       L_R_eff=LR,       Δ=Δ,       EJ=EJ,       nmax_r=nmax_r)
+    # fluxonium_prime = sq_fluxonium(C_F_eff=CF_prime, L_F_eff=LF_prime, Δ=Δ_prime, EJ=EJ_prime, nmax_f=nmax_f, φ_ext=φ_ext_prime)
+    # resonator_prime = sq_resonator(C_R_eff=CR_prime, L_R_eff=LR_prime, Δ=Δ_prime, EJ=EJ_prime, nmax_r=nmax_r)
 
     Lq,       Lr        = LF_LR_eff_to_Lq_Lr(LF=LF, LR=LR, Δ=Δ)
     Lq_prime, Lr_prime  = LF_LR_eff_to_Lq_Lr(LF=LF_prime, LR=LR_prime, Δ=Δ_prime)
@@ -534,7 +544,9 @@ def hamiltonian_qubit_C_qubit(CC, CR, CF, LF, LR, EJ, Δ, CR_prime, CF_prime, LF
         Nq_Nq = generate_and_prioritize_energies([E_q_0, E_q_0_prime], n_eig_Ψ_nonint)[1]
         Ψ_0 = [qt.tensor([Ψ_q_0[Nq_Nq_i[0]], Ψ_q_0_prime[Nq_Nq_i[1]] ]) for Nq_Nq_i in Nq_Nq]
     else:
+        # H_uc = hamiltonian_qubit(fluxonium, resonator, Lq=Lq, Lr=Lr, Δ=Δ, C_int=C_int)
         H_uc = hamiltonian_qubit(fluxonium, resonator, Lq=Lq, Lr=Lr, Δ=Δ)
+        # H_uc_prime = hamiltonian_qubit(fluxonium_prime, resonator_prime, Lq=Lq_prime, Lr=Lr_prime, Δ=Δ_prime,C_int=C_int_prime)
         H_uc_prime = hamiltonian_qubit(fluxonium_prime, resonator_prime, Lq=Lq_prime, Lr=Lr_prime, Δ=Δ_prime)
 
     I_R  = qt.identity(nmax_r)
@@ -555,7 +567,13 @@ def hamiltonian_qubit_C_qubit(CC, CR, CF, LF, LR, EJ, Δ, CR_prime, CF_prime, LF
         else:
             return H_0
 
+    # Chapuza Rapida para quitarme el acoplo interno
+    # C_inv[0, 1] = 0
+    # C_inv[1, 0] = 0
+    # C_inv[2, 3] = 0
+    # C_inv[3, 2] = 0
     H_coupling = 0
+
     for i in range(3):
         for j in range(3):
             if i == j: # we ommit the diagonal terms since we have already included the reonarmalizations (LR and LF tilde) in H_0.
