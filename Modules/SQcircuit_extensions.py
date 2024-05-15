@@ -460,7 +460,7 @@ def KIT_fluxonium_no_JJ(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, nma
     return fluxonium
 
 #%% Capacitance matrices
-def C_mat_qubit_C_qubit(CC, CR, CF, CR_prime, CF_prime, only_inner, compensate_extra_cap, only_renormalization):
+def C_mat_qubit_C_qubit(CC, CR, CF, CR_prime, CF_prime, only_inner, compensate_extra_cap, only_renormalization=False):
     # The basis here is changed with rspecto to the notes: first the fluxonium and then the resonator
     C0_mat = np.array([[CF, 0, 0, 0],
                        [0, CR, 0, 0],
@@ -603,8 +603,8 @@ def hamiltonian_qubit_C_qubit(CC, CR, CF, LF, LR, EJ, Δ, φ_ext, CR_prime, CF_p
     Q_R_prime = resonator_prime.charge_op(0)
     Q_vec = [Q_F, Q_R, Q_F_prime, Q_R_prime]
     H_coupling = 0
-    for i in range(3):
-        for j in range(3):
+    for i in range(4):
+        for j in range(4):
             op_list = [I_F, I_R, I_F, I_R]
             if i == j: # we ommit the diagonal terms since we have already included the reonarmalizations (LR and LF tilde) in H_0.
                 continue
