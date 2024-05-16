@@ -79,6 +79,48 @@ def C_CJ_Csh_to_CF_CR_eff(C, CJ, Csh):
     CR = C/2
     return CF, CR
 
+#%% Experimental parameters
+def get_experimental_parameters(qubit_name, Δ, LR, return_effective=True):
+    if qubit_name == 'qubit_A':
+        # qR7
+        LF  = 26.5
+        CF  = 26.9
+        EJ  = 5.4
+        ω_r = 6.46
+
+        CR = 1 / (LR * nH) / (ω_r * 2 * np.pi * GHz) ** 2 / fF
+        Lq, Lr     =  LF_LR_eff_to_Lq_Lr   (LF=LF, LR=LR, Δ=Δ)
+        C, CJ, Csh =  CF_CR_eff_to_C_CJ_Csh(CF=CF, CR=CR)
+
+    elif qubit_name == 'coupler':
+        # bG1
+        LF  = 20.4
+        CF  = 22.4
+        EJ  = 9.5
+        ω_r = 6.274
+
+        CR = 1 / (LR* nH) / (ω_r* 2 * np.pi * GHz) ** 2 / fF
+        Lq, Lr     = LF_LR_eff_to_Lq_Lr   (LF=LF, LR=LR, Δ=Δ)
+        C, CJ, Csh = CF_CR_eff_to_C_CJ_Csh(CF=CF, CR=CR)
+
+    elif qubit_name == 'qubit_B':
+        # qS16
+        LF  = 32.2
+        CF  = 24.8
+        EJ  = 5.6
+        ω_r = 5.22
+
+        CR = 1 / (LR * nH) / (ω_r * 2 * np.pi * GHz) ** 2 / fF
+        Lq, Lr     = LF_LR_eff_to_Lq_Lr   (LF=LF, LR=LR, Δ=Δ)
+        C, CJ, Csh = CF_CR_eff_to_C_CJ_Csh(CF=CF, CR=CR)
+
+    if return_effective :
+        return CR, CF, LF, LR, EJ, Δ, ω_r
+    else:
+        return C, CJ, Csh, Lq, Lr, Δ, EJ
+
+
+
 #%% Basic circuits made with SQcircuits
 def sq_fluxonium(C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, nmax_r=15, nmax_f=25, C_F_eff=False, L_F_eff=False, E_L=False, E_C=False):
 
@@ -915,9 +957,6 @@ def H_eff_p2(H_0, H, n_eig, out='GHz', real=False, remove_ground=False, solver='
     # H_eff = H_eff_1 + H_eff_2
     H_eff = H_eff_2
 
-
-    # if out == 'GHz':
-    #     H_eff /= GHz * 2 * np.pi
 
     if remove_ground:
         H_eff -= H_eff[0, 0] * np.eye(len(H_eff))
