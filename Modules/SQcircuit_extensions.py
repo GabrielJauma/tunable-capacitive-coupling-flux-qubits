@@ -583,7 +583,7 @@ def hamiltonian_qubit(fluxonium = None, resonator=None, Δ=0.1, C=15, CJ=3, Csh=
         return H
 
 def hamiltonian_qubit_C_qubit(CC, CR, CF, LF, LR, EJ, Δ, φ_ext, CR_prime, CF_prime, LF_prime, LR_prime, EJ_prime, Δ_prime, φ_ext_prime,
-                              nmax_r=15, nmax_f=25, return_Ψ_nonint=False, n_eig_Ψ_nonint=4, only_inner = True, compensate_extra_cap=False, only_renormalization=False):
+                              nmax_r=5, nmax_f=15, return_Ψ_nonint=False, n_eig_Ψ_nonint=4, only_inner = True, compensate_extra_cap=False, only_renormalization=False):
 
     C_mat = C_mat_qubit_C_qubit(CC, CR, CF, CR_prime, CF_prime, only_inner, compensate_extra_cap, only_renormalization)
     C_inv = np.linalg.inv(C_mat)
@@ -1001,6 +1001,31 @@ def H_eff_SWT(H_0, H, n_eig, out='GHz', real=False, remove_ground=False, return_
         return H_eff
 
 
+#%% Optimization functions
+def find_resonance(H_target, input_circuit):
+    # Step 1: Calculate the target gap ω_target
+    ω_target = diag(H_target, n_eig=2, remove_ground=True)[0][1]
+
+    # Step 2: Define the objective function to minimize the difference between ω_target and ω_input
+    def objective(φ_ext):
+        # Set the external flux of the input circuit
+        loop = input_circuit.loops[0]
+        loop.set_flux(φ_ext)
+
+        # Diagonalize the input circuit Hamiltonian
+        E_input = input_circuit.diag(n_eig=2)[0]
+        ω_input = E_input[1] - E_input[0]
+
+        # Return the absolute difference between ω_target and ω_input
+        return np.abs(ω_target - ω_input)
+
+    # Step 3: Use an optimization method to find the optimal φ_ext
+    result = sp.optimize.minimize_scalar(objective, bounds=(0.5, 1), method='bounded')
+
+    # Return the optimal φ_ext and the corresponding gap
+    optimal_φ_ext = result.x
+
+    return optimal_φ_ext
 #%% Sorting and labeling functions
 def sq_get_energy_indices(qubit, fluxonium, resonator, n_eig=3):
     try:
