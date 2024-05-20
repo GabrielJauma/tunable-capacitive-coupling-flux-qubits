@@ -81,7 +81,7 @@ def C_CJ_Csh_to_CF_CR_eff(C, CJ, Csh):
 
 #%% Experimental parameters
 def get_experimental_parameters(qubit_name, Δ, LR, return_effective=True):
-    if qubit_name == 'qubit_A':
+    if qubit_name == 'qubit 1':
         # qR7
         LF  = 26.5
         CF  = 26.9
@@ -92,7 +92,7 @@ def get_experimental_parameters(qubit_name, Δ, LR, return_effective=True):
         Lq, Lr     =  LF_LR_eff_to_Lq_Lr   (LF=LF, LR=LR, Δ=Δ)
         C, CJ, Csh =  CF_CR_eff_to_C_CJ_Csh(CF=CF, CR=CR)
 
-    elif qubit_name == 'coupler':
+    elif qubit_name == 'qubit 2':
         # bG1
         LF  = 20.4
         CF  = 22.4
@@ -103,7 +103,7 @@ def get_experimental_parameters(qubit_name, Δ, LR, return_effective=True):
         Lq, Lr     = LF_LR_eff_to_Lq_Lr   (LF=LF, LR=LR, Δ=Δ)
         C, CJ, Csh = CF_CR_eff_to_C_CJ_Csh(CF=CF, CR=CR)
 
-    elif qubit_name == 'qubit_B':
+    elif qubit_name == 'qubit 3':
         # qS16
         LF  = 32.2
         CF  = 24.8
@@ -1220,6 +1220,8 @@ def diag(H, n_eig=4, out='GHz', real=False, solver='scipy', remove_ground=False)
         evecs_sorted = real_eigenvectors(evecs_sorted)
     if out=='GHz':
         efreqs_sorted /= 2 * np.pi * GHz
+    elif out =='Hz':
+        efreqs_sorted /= 2 * np.pi
     if remove_ground:
         efreqs_sorted -= efreqs_sorted[0]
 
