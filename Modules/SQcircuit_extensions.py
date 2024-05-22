@@ -54,6 +54,12 @@ def EC_to_C(E_C, C_units='fF', E_units='GHz'):
     else:
         return C
 
+def ωR_to_LR_CR(ωR, LR=None, CR=None):
+    if CR is None:
+        CR = 1 / (LR * nH) / (ωR * 2 * np.pi * GHz) ** 2 / fF
+    elif LR is None:
+        LR = 1 / (CR * fF) / (ωR * 2 * np.pi * GHz) ** 2 / nH
+    return LR, CR
 
 def LF_LR_eff_to_Lq_Lr(LF, LR, Δ):
     Lq = 1/2*( LF + np.sqrt(LF * (16*Δ**2+LF*LR) / LR  ) )
