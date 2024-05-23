@@ -324,7 +324,7 @@ def get_theoretical_spectrum(experiment_name):
                 return error
             elif out == 'spectrum':
                 return φ_ext_values, ω_vs_φ_ext * GHz
-
+        # hope not
         return r_q_av_cross_spectrum
 
                 #%% Optimization results
