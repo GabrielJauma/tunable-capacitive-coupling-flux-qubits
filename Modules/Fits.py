@@ -166,8 +166,6 @@ def get_experimental_spectrum(experiment_name):
 
         return φ_ext_exp, ω_exp, I_exp, I0, Iss
 
-
-
 #%% Theoretical spectra
 def get_theoretical_spectrum(experiment_name):
     if experiment_name == 'qubit_1_single_1' or experiment_name == 'qubit_1':
@@ -327,7 +325,45 @@ def get_theoretical_spectrum(experiment_name):
 
         return r_q_av_cross_spectrum
 
-                #%% Optimization results
+    if experiment_name == 'resonator_and_qubit_1':
+        def unit_cell_single_spectrum(parameters, data_set, out='error'):
+
+            CF, LF, EJ, I0_F, I_origin_F, C_int, CR, LR, Δ, I0_R, I_origin_R = parameters
+            I_exp_F, ω_exp_F, I_exp_R, ω_exp_R, crossing_index_1_F, crossing_index_1_R, crossing_index_2_R, nmax_r, nmax_f = data_set
+
+            Lq, Lr = sq_ext.LF_LR_eff_to_Lq_Lr(LF=LF, LR=LR, Δ=Δ)
+            resonator = sq_ext.sq_resonator(C_R_eff=CR, L_R_eff=LR, nmax_r=nmax_r)
+            qubit = sq_ext.sq_fluxonium(C_F_eff=CF, L_F_eff=LF, EJ=EJ, nmax_f=nmax_f)
+            loop = qubit.loops[0]
+
+            φ_ext_R = (I_exp_R - I_origin_R) / I0_R
+            ωR_vs_φ_ext = np.zeros([len(φ_ext_R), 2])
+            for i, φ_ext in enumerate(φ_ext_R):
+                loop.set_flux(φ_ext)
+                H = sq_ext.hamiltonian_qubit(fluxonium=qubit, resonator=resonator, Lq=Lq, Lr=Lr, Δ=Δ, C_int=C_int)
+                ωR_vs_φ_ext[i] = sq_ext.diag(H, 3, remove_ground=True)[0][1:]
+            ωR_vs_φ_ext = np.concatenate(
+                [ωR_vs_φ_ext[0:crossing_index_1_R, 0], ωR_vs_φ_ext[crossing_index_1_R:-crossing_index_2_R, 1],
+                 ωR_vs_φ_ext[-crossing_index_2_R:, 0]])
+
+            φ_ext_F = (I_exp_F - I_origin_F) / I0_F
+            ωF_vs_φ_ext = np.zeros([len(φ_ext_F), 2])
+            for i, φ_ext in enumerate(φ_ext_F):
+                loop.set_flux(φ_ext)
+                H = sq_ext.hamiltonian_qubit(fluxonium=qubit, resonator=resonator, Lq=Lq, Lr=Lr, Δ=Δ, C_int=C_int)
+                ωF_vs_φ_ext[i] = sq_ext.diag(H, 3, remove_ground=True)[0][1:]
+            ωF_vs_φ_ext = np.concatenate([ωF_vs_φ_ext[:crossing_index_1_F, 0], ωF_vs_φ_ext[crossing_index_1_F:, 1]])
+
+            if out == 'error':
+                error = np.sum((ωR_vs_φ_ext - ω_exp_R * 1e-9) ** 2) + np.sum((ωF_vs_φ_ext - ω_exp_F * 1e-9) ** 2)
+                print(error)
+                return error
+            elif out == 'spectrum':
+                return φ_ext_F, ωF_vs_φ_ext * 1e9, φ_ext_R, ωR_vs_φ_ext * 1e9
+        return unit_cell_single_spectrum
+
+
+#%% Optimization results
 def load_optimization_results(experiment_name):
     experiment_file = os.getcwd() + opt_dir + experiment_name + '.npz'
     data = np.load(experiment_file)
