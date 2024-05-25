@@ -166,9 +166,64 @@ def get_experimental_spectrum(experiment_name):
 
         return φ_ext_exp, ω_exp, I_exp, I0, Iss
 
+    elif experiment_name == 'qubit_2':
+        with open(os.getcwd() + data_dir + r'/x__q2_tt_low_q2.pkl', 'rb') as f:
+            x__q2_tt_low = pickle.load(f)
+        with open(os.getcwd() + data_dir + r'/y__q2_tt_low_q2.pkl', 'rb') as f:
+            y__q2_tt_low = pickle.load(f)
+
+        with open(os.getcwd() + data_dir + r'/x__q2_tt_up_q2.pkl', 'rb') as f:
+            x__q2_tt_up = pickle.load(f)
+        with open(os.getcwd() + data_dir + r'/y__q2_tt_up_q2.pkl', 'rb') as f:
+            y__q2_tt_up = pickle.load(f)
+
+        I_ss_low__fs = -0.0018375
+        I_ss_up__fs = 0.0029075
+        Anzahl_Perioden = 1
+        I_ss__q2_tt_low = -2.2e-3
+
+        I0_c2 = (I_ss_up__fs - I_ss_low__fs) / Anzahl_Perioden
+
+        x__q2_tt = np.concatenate([x__q2_tt_low, x__q2_tt_up])
+        y__q2_tt = np.concatenate([y__q2_tt_low, y__q2_tt_up])
+        phi_q2_tt = (x__q2_tt - I_ss__q2_tt_low + I0_c2 / 2) / I0_c2
+
+        I0 = I0_c2
+        Iss = I_ss__q2_tt_low
+        φ_ext_exp = phi_q2_tt
+        ω_exp = y__q2_tt
+        I_exp = x__q2_tt
+
+        return φ_ext_exp, ω_exp, I_exp, I0, Iss
+
+    elif experiment_name == 'resonator_2':
+        with open(os.getcwd() + data_dir + r'/current__fres_q2_coil2.pkl', 'rb') as f:
+            current_q2_coil2 = pickle.load(f)
+        with open(os.getcwd() + data_dir + r'/fres__fres_q2_coil2.pkl', 'rb') as f:
+            fres_q2_coil2 = pickle.load(f)
+
+        I_ss_low__fs = -0.0018375
+        I_ss_up__fs = 0.0029075
+        Anzahl_Perioden = 1
+        I0_c2 = (I_ss_up__fs - I_ss_low__fs) / Anzahl_Perioden
+        I_ss__c2_fs = 0.00254
+
+        current_q2_coil2 = np.concatenate([current_q2_coil2[0], current_q2_coil2[1], current_q2_coil2[2]])
+        fres_q2_coil2 = np.concatenate([fres_q2_coil2[0], fres_q2_coil2[1], fres_q2_coil2[2]])
+
+        phi_q2_coil2 = (current_q2_coil2 - I_ss__c2_fs + I0_c2 / 2) / I0_c2
+
+        I0 = I0_c2
+        Iss = I_ss__c2_fs
+        I_exp = current_q2_coil2
+        φ_ext_exp = phi_q2_coil2
+        ω_exp = fres_q2_coil2
+
+        return φ_ext_exp, ω_exp, I_exp, I0, Iss
+
 #%% Theoretical spectra
 def get_theoretical_spectrum(experiment_name):
-    if experiment_name == 'qubit_1_single_1' or experiment_name == 'qubit_1':
+    if experiment_name == 'qubit_1_single_1' or experiment_name == 'qubit_1' or experiment_name == 'qubit_2' or experiment_name == 'qubit_3':
         def qubit_spectrum(parameters, data_set, out='error'):
             CF, LF, EJ, I0, I_origin = parameters
             I_exp, ω_exp = data_set
@@ -193,7 +248,8 @@ def get_theoretical_spectrum(experiment_name):
                 return φ_ext_values, ω_vs_φ_ext * 1e9
         return qubit_spectrum
 
-    if experiment_name == 'resonator_1_single_1':
+    elif experiment_name == 'resonator_1_single_1' or experiment_name == 'resonator_2':
+        # Resonator 2 also here because the symmetry of the coupling capacitance neglects the inner capacitive coupling
         def r_q_av_cross_single_spectrum(parameters, data_set, out='error'):
 
             CR, LR, Δ, I0, I_origin = parameters
@@ -223,7 +279,7 @@ def get_theoretical_spectrum(experiment_name):
                 return φ_ext_values, ω_vs_φ_ext * 1e9
         return r_q_av_cross_single_spectrum
 
-    if experiment_name == 'resonator_and_qubit_1_single_1':
+    elif experiment_name == 'resonator_and_qubit_1_single_1':
         def unit_cell_single_spectrum(parameters, data_set, out='error'):
 
             CF, LF, EJ, I0_F, I_origin_F, CR, LR, Δ, I0_R, I_origin_R = parameters
@@ -260,7 +316,7 @@ def get_theoretical_spectrum(experiment_name):
                 return φ_ext_F, ωF_vs_φ_ext * 1e9, φ_ext_R, ωR_vs_φ_ext * 1e9
         return unit_cell_single_spectrum
 
-    if experiment_name == 'resonator_and_qubit_1_single_2':
+    elif experiment_name == 'resonator_and_qubit_1_single_2':
         def unit_cell_single_spectrum(parameters, data_set, out='error'):
 
             CF, LF, EJ, I0_F, I_origin_F, CR, LR, Δ, I0_R, I_origin_R = parameters
@@ -299,8 +355,8 @@ def get_theoretical_spectrum(experiment_name):
     elif experiment_name == 'resonator_1':
         def r_q_av_cross_spectrum(parameters, data_set, out='error'):
 
-            C_int, CR, LR, Δ, I0, I_origin = parameters
-            I_exp, ω_exp, crossing_index_1, crossing_index_2, CF, LF, EJ, nmax_r, nmax_f = data_set
+            C_int, CR, LR, I0, I_origin = parameters
+            I_exp, ω_exp, crossing_index_1, crossing_index_2, CF, LF, EJ, Δ,  nmax_r, nmax_f = data_set
 
             Lq, Lr = sq_ext.LF_LR_eff_to_Lq_Lr(LF=LF, LR=LR, Δ=Δ)
 
@@ -325,11 +381,11 @@ def get_theoretical_spectrum(experiment_name):
 
         return r_q_av_cross_spectrum
 
-    if experiment_name == 'resonator_and_qubit_1':
+    elif experiment_name == 'resonator_and_qubit_1':
         def unit_cell_single_spectrum(parameters, data_set, out='error'):
 
-            CF, LF, EJ, I0_F, I_origin_F, C_int, CR, LR, Δ, I0_R, I_origin_R = parameters
-            I_exp_F, ω_exp_F, I_exp_R, ω_exp_R, crossing_index_1_F, crossing_index_1_R, crossing_index_2_R, nmax_r, nmax_f = data_set
+            CF, LF, EJ, I0_F, I_origin_F, C_int, CR, LR, I0_R, I_origin_R = parameters
+            I_exp_F, ω_exp_F, I_exp_R, ω_exp_R,  Δ, crossing_index_1_F, crossing_index_1_R, crossing_index_2_R, nmax_r, nmax_f = data_set
 
             Lq, Lr = sq_ext.LF_LR_eff_to_Lq_Lr(LF=LF, LR=LR, Δ=Δ)
             resonator = sq_ext.sq_resonator(C_R_eff=CR, L_R_eff=LR, nmax_r=nmax_r)
