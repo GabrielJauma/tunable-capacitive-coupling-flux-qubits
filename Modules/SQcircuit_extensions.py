@@ -86,13 +86,15 @@ def C_CJ_Csh_to_CF_CR_eff(C, CJ, Csh):
     return CF, CR
 
 #%% Experimental parameters
-def get_experimental_parameters(qubit_name, Δ, LR, return_effective=True):
+def get_experimental_parameters(qubit_name,return_effective=True):
     if qubit_name == 'qubit 1':
         # qR7
         LF  = 26.5
         CF  = 26.9
         EJ  = 5.4
         ω_r = 6.46
+        Δ   = 0.38
+        LR  = 20.03 * 4
 
         CR = 1 / (LR * nH) / (ω_r * 2 * np.pi * GHz) ** 2 / fF
         Lq, Lr     =  LF_LR_eff_to_Lq_Lr   (LF=LF, LR=LR, Δ=Δ)
@@ -104,6 +106,8 @@ def get_experimental_parameters(qubit_name, Δ, LR, return_effective=True):
         CF  = 22.4
         EJ  = 9.5
         ω_r = 6.274
+        Δ   = 0.14
+        LR  = 25.26 * 4
 
         CR = 1 / (LR* nH) / (ω_r* 2 * np.pi * GHz) ** 2 / fF
         Lq, Lr     = LF_LR_eff_to_Lq_Lr   (LF=LF, LR=LR, Δ=Δ)
@@ -115,6 +119,8 @@ def get_experimental_parameters(qubit_name, Δ, LR, return_effective=True):
         CF  = 24.8
         EJ  = 5.6
         ω_r = 5.22
+        Δ   = 0.64
+        LR  = 20.66 * 4
 
         CR = 1 / (LR * nH) / (ω_r * 2 * np.pi * GHz) ** 2 / fF
         Lq, Lr     = LF_LR_eff_to_Lq_Lr   (LF=LF, LR=LR, Δ=Δ)

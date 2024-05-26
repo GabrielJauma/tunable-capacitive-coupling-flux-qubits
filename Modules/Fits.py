@@ -221,6 +221,57 @@ def get_experimental_spectrum(experiment_name):
 
         return φ_ext_exp, ω_exp, I_exp, I0, Iss
 
+    elif experiment_name == 'qubit_3':
+        with open(os.getcwd() + data_dir + r'/x__q3_tt_low_q3.pkl', 'rb') as f:
+            x__q3_tt_low = pickle.load(f)
+        with open(os.getcwd() + data_dir + r'/y__q3_tt_low_q3.pkl', 'rb') as f:
+            y__q3_tt_low = pickle.load(f)
+
+        with open(os.getcwd() + data_dir + r'/x__q3_tt_up_q3.pkl', 'rb') as f:
+            x__q3_tt_up = pickle.load(f)
+        with open(os.getcwd() + data_dir + r'/y__q3_tt_up_q3.pkl', 'rb') as f:
+            y__q3_tt_up = pickle.load(f)
+
+        I_ss__q3_tt_low = -2.85e-4
+        I_ss_low__fs = -0.002335
+        I_ss_up__fs = 0.0024648
+        Anzahl_Perioden = 2
+        I0_q3 = (I_ss_up__fs - I_ss_low__fs) / Anzahl_Perioden
+        x__q3_tt = -np.concatenate([x__q3_tt_low, x__q3_tt_up])
+        y__q3_tt = np.concatenate([y__q3_tt_low, y__q3_tt_up])
+        phi_q3_tt = (x__q3_tt - I_ss__q3_tt_low + I0_q3 / 2) / I0_q3
+
+        I0 = I0_q3
+        Iss = I_ss__q3_tt_low
+        φ_ext_exp = phi_q3_tt
+        ω_exp = y__q3_tt
+        I_exp = x__q3_tt
+
+        return φ_ext_exp, ω_exp, I_exp, I0, Iss
+
+    elif experiment_name == 'resonator_3':
+        with open(os.getcwd() + data_dir + r'/current__fres_q3_coil3.pkl', 'rb') as f:
+            current_q3_coil3 = pickle.load(f)
+        with open(os.getcwd() + data_dir + r'/fres__fres_q3_coil3.pkl', 'rb') as f:
+            fres_q3_coil3 = pickle.load(f)
+
+        I_ss_low__fs = -0.002335
+        I_ss_up__fs = 0.0024648
+        I_ss__q3_fs = 0.00029
+        Anzahl_Perioden = 2
+        I0_q3 = (I_ss_up__fs - I_ss_low__fs) / Anzahl_Perioden
+        current_q3_coil3 = np.concatenate([current_q3_coil3[0], current_q3_coil3[1], current_q3_coil3[2]])
+        fres_q3_coil3 = np.concatenate([fres_q3_coil3[0], fres_q3_coil3[1], fres_q3_coil3[2]])
+        phi_q3_coil3 = (current_q3_coil3 - I_ss__q3_fs + I0_q3 / 2) / I0_q3
+
+        I0 = I0_q3
+        Iss = I_ss__q3_fs
+        φ_ext_exp = phi_q3_coil3
+        ω_exp = fres_q3_coil3
+        I_exp = current_q3_coil3
+
+        return φ_ext_exp, ω_exp, I_exp, I0, Iss
+
 #%% Theoretical spectra
 def get_theoretical_spectrum(experiment_name):
     if experiment_name == 'qubit_1_single_1' or experiment_name == 'qubit_1' or experiment_name == 'qubit_2' or experiment_name == 'qubit_3':
@@ -267,6 +318,7 @@ def get_theoretical_spectrum(experiment_name):
                 loop.set_flux(φ_ext)
                 H = sq_ext.hamiltonian_qubit(fluxonium=qubit, resonator=resonator, Lq=Lq, Lr=Lr, Δ=Δ)
                 ω_vs_φ_ext[i] = sq_ext.diag(H, 3, remove_ground=True)[0][1:]
+
             ω_vs_φ_ext = np.concatenate(
                 [ω_vs_φ_ext[0:crossing_index_1, 0], ω_vs_φ_ext[crossing_index_1:-crossing_index_2, 1],
                  ω_vs_φ_ext[-crossing_index_2:, 0]])
@@ -279,7 +331,7 @@ def get_theoretical_spectrum(experiment_name):
                 return φ_ext_values, ω_vs_φ_ext * 1e9
         return r_q_av_cross_single_spectrum
 
-    elif experiment_name == 'resonator_and_qubit_1_single_1':
+    elif experiment_name == 'resonator_and_qubit_1_single_1' or experiment_name == 'resonator_and_qubit_2':
         def unit_cell_single_spectrum(parameters, data_set, out='error'):
 
             CF, LF, EJ, I0_F, I_origin_F, CR, LR, Δ, I0_R, I_origin_R = parameters
@@ -352,7 +404,7 @@ def get_theoretical_spectrum(experiment_name):
                 return φ_ext_F, ωF_vs_φ_ext * 1e9, φ_ext_R, ωR_vs_φ_ext * 1e9
         return unit_cell_single_spectrum
 
-    elif experiment_name == 'resonator_1':
+    elif experiment_name == 'resonator_1' or experiment_name == 'resonator_3':
         def r_q_av_cross_spectrum(parameters, data_set, out='error'):
 
             C_int, CR, LR, I0, I_origin = parameters
@@ -381,7 +433,7 @@ def get_theoretical_spectrum(experiment_name):
 
         return r_q_av_cross_spectrum
 
-    elif experiment_name == 'resonator_and_qubit_1':
+    elif experiment_name == 'resonator_and_qubit_1' or experiment_name == 'resonator_and_qubit_3':
         def unit_cell_single_spectrum(parameters, data_set, out='error'):
 
             CF, LF, EJ, I0_F, I_origin_F, C_int, CR, LR, I0_R, I_origin_R = parameters
