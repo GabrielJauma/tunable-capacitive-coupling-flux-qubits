@@ -284,6 +284,10 @@ def get_experimental_spectrum(experiment_name):
         I_exp = x__tt_q1_q2
         ω_exp = y__tt_q1_q2
 
+        change_index = 11
+        I_exp = [I_exp[:change_index], I_exp[change_index:]]
+        ω_exp = [ω_exp[:change_index], ω_exp[change_index:]]
+
         return ω_exp, I_exp
 
     elif experiment_name == 'qubit_1_qubit_2_qubit_3':
@@ -295,7 +299,6 @@ def get_experimental_spectrum(experiment_name):
         I_exp = x__tt_3LevAC
         ω_exp = y__tt_3LevAC
         return ω_exp, I_exp
-
 #%% Theoretical spectra
 def get_theoretical_spectrum(experiment_name):
     if experiment_name == 'qubit_1_single_1' or experiment_name == 'qubit_1' or experiment_name == 'qubit_2' or experiment_name == 'qubit_3':
@@ -315,7 +318,7 @@ def get_theoretical_spectrum(experiment_name):
                 ω_vs_φ_ext[i] = fluxonium.efreqs[1] - fluxonium.efreqs[0]
 
             if out == 'error':
-                error = np.sum((ω_vs_φ_ext - ω_exp * 1e-9) ** 2)
+                error = np.sum(np.abs(ω_vs_φ_ext - ω_exp * 1e-9))
                 print(error)
                 return error
 
@@ -348,7 +351,7 @@ def get_theoretical_spectrum(experiment_name):
                  ω_vs_φ_ext[-crossing_index_2:, 0]])
 
             if out == 'error':
-                error = np.sum((ω_vs_φ_ext - ω_exp * 1e-9) ** 2)
+                error = np.sum(np.abs(ω_vs_φ_ext - ω_exp * 1e-9))
                 print(error)
                 return error
             elif out == 'spectrum':
@@ -385,7 +388,7 @@ def get_theoretical_spectrum(experiment_name):
             ωF_vs_φ_ext = np.concatenate([ωF_vs_φ_ext[:crossing_index_1_F, 0], ωF_vs_φ_ext[crossing_index_1_F:, 1]])
 
             if out == 'error':
-                error = np.sum((ωR_vs_φ_ext - ω_exp_R * 1e-9) ** 2) + np.sum((ωF_vs_φ_ext - ω_exp_F * 1e-9) ** 2)
+                error = np.sum(np.abs(ωR_vs_φ_ext - ω_exp_R * 1e-9)) + np.sum(np.abs(ωF_vs_φ_ext - ω_exp_F * 1e-9))
                 print(error)
                 return error
             elif out == 'spectrum':
@@ -421,7 +424,7 @@ def get_theoretical_spectrum(experiment_name):
                 ωF_vs_φ_ext[i] = sq_ext.diag(H, 2, remove_ground=True)[0][1]
 
             if out == 'error':
-                error = np.sum((ωR_vs_φ_ext - ω_exp_R * 1e-9) ** 2) + np.sum((ωF_vs_φ_ext - ω_exp_F * 1e-9) ** 2)
+                error = np.sum(np.abs(ωR_vs_φ_ext - ω_exp_R * 1e-9)) + np.sum(np.abs(ωF_vs_φ_ext - ω_exp_F * 1e-9))
                 print(error)
                 return error
             elif out == 'spectrum':
@@ -449,7 +452,7 @@ def get_theoretical_spectrum(experiment_name):
             ω_vs_φ_ext = np.concatenate([ω_vs_φ_ext[0:crossing_index_1, 0], ω_vs_φ_ext[crossing_index_1:-crossing_index_2, 1], ω_vs_φ_ext[-crossing_index_2:, 0]])
 
             if out == 'error':
-                error = np.sum((ω_vs_φ_ext - ω_exp*1e-9) ** 2)
+                error = np.sum(np.abs(ω_vs_φ_ext - ω_exp*1e-9))
                 print(error)
                 return error
             elif out == 'spectrum':
@@ -487,7 +490,7 @@ def get_theoretical_spectrum(experiment_name):
             ωF_vs_φ_ext = np.concatenate([ωF_vs_φ_ext[:crossing_index_1_F, 0], ωF_vs_φ_ext[crossing_index_1_F:, 1]])
 
             if out == 'error':
-                error = np.sum((ωR_vs_φ_ext - ω_exp_R * 1e-9) ** 2) + np.sum((ωF_vs_φ_ext - ω_exp_F * 1e-9) ** 2)
+                error = np.sum(np.abs(ωR_vs_φ_ext - ω_exp_R * 1e-9)) + np.sum(np.abs(ωF_vs_φ_ext - ω_exp_F * 1e-9))
                 print(error)
                 return error
             elif out == 'spectrum':
@@ -497,7 +500,13 @@ def get_theoretical_spectrum(experiment_name):
     elif experiment_name == 'qubit_1_qubit_2':
         def qubit_qubit_crossing_spectrum(parameters, data_set, out='error'):
             C_int, φ_ext_i, φ_ext_f, LF_1 = parameters
-            CF_1, EJ_1, CF_2, LF_2, EJ_2, I_exp, ω_exp, indices_0, indices_1, nmax_f = data_set
+            CF_1, EJ_1, CF_2, LF_2, EJ_2, I_exp, ω_exp,nmax_f = data_set
+
+            I_exp_arr = np.concatenate((I_exp[0], I_exp[1]))
+            I_exp_max = I_exp_arr.max()
+            I_exp_min = I_exp_arr.min()
+            Δ_φ_ext = φ_ext_f - φ_ext_i
+
 
             qubit_1 = sq_ext.sq_fluxonium(C_F_eff=CF_1, L_F_eff=LF_1, EJ=EJ_1, nmax_f=nmax_f)
             H_1 = qubit_1.hamiltonian()
@@ -507,36 +516,38 @@ def get_theoretical_spectrum(experiment_name):
             qubit_2 = sq_ext.sq_fluxonium(C_F_eff=CF_2, L_F_eff=LF_2, EJ=EJ_2, nmax_f=nmax_f)
             loop = qubit_2.loops[0]
 
-            I_unitary = (I_exp - I_exp.min()) / (I_exp.max() - I_exp.min())
-            Δ_φ_ext = φ_ext_f - φ_ext_i
-            φ_ext_values = I_unitary * Δ_φ_ext + φ_ext_i
-            ω_vs_φ_ext = np.zeros([len(φ_ext_values), 2])
+            φ_ext_values_list = []
+            ω_vs_φ_ext_list   = []
+            for I_exp_i in I_exp:
+                I_unitary = (I_exp_i - I_exp_min) / (I_exp_max - I_exp_min)
+                φ_ext_values_list.append(I_unitary * Δ_φ_ext + φ_ext_i)
 
-            for i, φ_ext in enumerate(φ_ext_values):
-                loop.set_flux(φ_ext)
-                H_2 = qubit_2.hamiltonian()
-                Q_2 = qubit_2.charge_op(0)
-                H = qt.tensor(H_1, I) + qt.tensor(I, H_2) + C_int ** -1 * fF ** -1 * qt.tensor(Q_1, Q_2)
-                ω_vs_φ_ext[i] = sq_ext.diag(H, 3, remove_ground=True)[0][1:]
+            for k, φ_ext_values in enumerate(φ_ext_values_list):
+                ω_vs_φ_ext = np.zeros(len(φ_ext_values))
 
+                for i, φ_ext in enumerate(φ_ext_values):
+                    loop.set_flux(φ_ext)
+                    H_2 = qubit_2.hamiltonian()
+                    Q_2 = qubit_2.charge_op(0)
+                    H = qt.tensor(H_1, I) + qt.tensor(I, H_2) + C_int ** -1 * fF ** -1 * qt.tensor(Q_1, Q_2)
+                    ω_vs_φ_ext[i] = sq_ext.diag(H, k+2, remove_ground=True)[0][k+1]
+
+                ω_vs_φ_ext_list.append(ω_vs_φ_ext)
             if out == 'error':
-                sort_indices = np.argsort(φ_ext_values)
-                ω_vs_φ_ext_sorted = ω_vs_φ_ext[sort_indices]
-                ω_exp_sorted = ω_exp[sort_indices]
-                error_0 = np.sum((ω_exp_sorted[indices_0] - ω_vs_φ_ext_sorted[indices_0, 0]) ** 2)
-                error_1 = np.sum((ω_exp_sorted[indices_1] - ω_vs_φ_ext_sorted[indices_1, 1]) ** 2)
-                error = error_0 + error_1
+                error = 0
+                for ω_exp_i,ω_vs_φ_ext_i  in zip(ω_exp, ω_vs_φ_ext_list):
+                    error += np.sum(np.abs(ω_exp_i - ω_vs_φ_ext_i))
                 print(error)
                 return error
 
             elif out == 'spectrum':
-                return φ_ext_values, ω_vs_φ_ext * 1e9
+                return φ_ext_values_list, ω_vs_φ_ext_list
         return qubit_qubit_crossing_spectrum
 
     elif experiment_name == 'qubit_1_qubit_2_qubit_3':
         def qubit_qubit_crossing_spectrum(parameters, data_set, out='error'):
             C_int_12, C_int_23, C_int_13 = parameters
-            LF_1, CF_1, EJ_1, CF_2, LF_2, EJ_2, CF_3, LF_3, EJ_3, I_exp, ω_exp, indices_0, indices_1, φ_ext_i, φ_ext_f, nmax_f = data_set
+            LF_1, CF_1, EJ_1, CF_2, LF_2, EJ_2, CF_3, LF_3, EJ_3, I_exp, ω_exp, φ_ext_i, φ_ext_f, nmax_f = data_set
             Δ_φ_ext = φ_ext_f - φ_ext_i
             I_exp_arr = np.concatenate((I_exp[0], I_exp[1], I_exp[2]))
             I_exp_max = I_exp_arr.max()
@@ -584,7 +595,7 @@ def get_theoretical_spectrum(experiment_name):
             if out == 'error':
                 error = 0
                 for ω_exp_i,ω_vs_φ_ext_i  in zip(ω_exp, ω_vs_φ_ext_list):
-                    error += np.sum((ω_exp_i - ω_vs_φ_ext_i) ** 2)
+                    error += np.sum(np.abs(ω_exp_i - ω_vs_φ_ext_i))
                 print(error)
                 return error
 
@@ -594,7 +605,7 @@ def get_theoretical_spectrum(experiment_name):
         return qubit_qubit_crossing_spectrum
 
 
-#%% Optimization results
+#%% Miscelanea
 def load_optimization_results(experiment_name):
     experiment_file = os.getcwd() + opt_dir + experiment_name + '.npz'
     data = np.load(experiment_file)
@@ -604,4 +615,16 @@ def load_optimization_results(experiment_name):
     bounds           = (data['bounds'])
 
     return parameters_opt, parameters_guess, bounds
+
+def create_bounds(parameters):
+    bounds = []
+    for param in parameters:
+        lower_bound = param * 0.8
+        upper_bound = param * 1.2
+        # Reverse the bounds if the parameter is negative
+        if param < 0:
+            bounds.append((upper_bound, lower_bound))
+        else:
+            bounds.append((lower_bound, upper_bound))
+    return tuple(bounds)
 
