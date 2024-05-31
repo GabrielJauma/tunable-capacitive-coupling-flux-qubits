@@ -546,8 +546,8 @@ def get_theoretical_spectrum(experiment_name):
 
     elif experiment_name == 'qubit_1_qubit_2_qubit_3':
         def qubit_qubit_crossing_spectrum(parameters, data_set, out='error'):
-            C_int_12, C_int_23, C_int_13, LF_1 = parameters
-            CF_1, EJ_1, CF_2, LF_2, EJ_2, CF_3, LF_3, EJ_3, I_exp, ω_exp, φ_ext_i, φ_ext_f, nmax_f = data_set
+            C_int_12, C_int_23, C_int_13, LF_1, CF_1, EJ_1, CF_2, LF_2, EJ_2, CF_3, LF_3, EJ_3 = parameters
+            I_exp, ω_exp, φ_ext_i, φ_ext_f, nmax_f = data_set
             Δ_φ_ext = φ_ext_f - φ_ext_i
             I_exp_arr = np.concatenate((I_exp[0], I_exp[1], I_exp[2]))
             I_exp_max = I_exp_arr.max()
