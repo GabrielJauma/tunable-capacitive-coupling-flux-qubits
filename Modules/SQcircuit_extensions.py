@@ -920,6 +920,28 @@ def hamiltonian_qubit_C_qubit_C_qubit_full_variables(Cc,φ_ext_1=0.5,φ_ext_2=0.
     else:
         return H
 
+#%% Low-energy hamiltonians
+def hamiltonian_qubit_low_ene(ω_q, μ, ω_r, g_Φ, φ_ext, g_q=0):
+    σ_x, σ_y, σ_z = pauli_matrices()
+    a_dag   = create(3)
+    a       = annihilate(3)
+
+    H_f = ω_q/2 * σ_z + μ * (φ_ext-0.5) * σ_x
+    H_r = ω_r * a_dag @ a
+
+    I_r = qt.identity(H_r.shape[0])
+    I_f = qt.identity(H_f.shape[0])
+
+    H = np.kron(H_f, I_r) + np.kron(I_f, H_r) + g_Φ * np.kron(σ_x, a_dag + a) + g_q * np.kron(σ_y, 1j*(a_dag - a))
+
+    return H
+
+def hamiltonian_fluxonium_low_ene(ω_q, μ, φ_ext):
+    σ_x, σ_y, σ_z = pauli_matrices()
+
+    H = ω_q/2 * σ_z + μ * (φ_ext-0.5) * σ_x
+
+    return H
 #%% Circuits vs parameters
 def KIT_qubit_vs_param(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5, nmax_r=15, nmax_f=25, model='composition'):
 
@@ -936,7 +958,7 @@ def KIT_qubit_vs_param(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ =
 
     return H_qubit_list
 
-#%% Generic effective Hamiltonians
+#%% Transformations to obtain effective Hamiltonians
 
 def H_eff_p1(H_0, H, n_eig, out='GHz', real=True, remove_ground = False ):
 
@@ -1216,6 +1238,13 @@ def create(n):
 
 def annihilate(n):
     return np.diag(np.sqrt(np.arange(1, n)), 1)
+
+def pauli_matrices():
+    σ_x = np.array([[0, 1], [1, 0]])
+    σ_y = np.array([[0, -1], [1, 0]]) * 1j
+    σ_z = np.array([[1, 0], [0, -1]])
+
+    return σ_x ,σ_y ,σ_z
 
 #%% Generic mathematical functions
 def diag(H, n_eig=4, out='GHz', real=False, solver='scipy', remove_ground=False):
