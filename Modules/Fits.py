@@ -727,7 +727,7 @@ def get_theoretical_spectrum_low_ene(experiment_name):
         def r_q_av_cross_spectrum(parameters, data_set, out='error'):
 
             ω_q, μ, ω_r, g_Φ, g_q, I0, I_origin = parameters
-            I_exp, ω_exp, crossing_index_1, crossing_index_2 = data_set
+            I_exp, ω_exp, crossing_index_1, crossing_index_2, extra_important_indices = data_set
 
             φ_ext_values = (I_exp - I_origin) / I0
             ω_vs_φ_ext = np.zeros([len(φ_ext_values), 2])
@@ -740,7 +740,13 @@ def get_theoretical_spectrum_low_ene(experiment_name):
                  ω_vs_φ_ext[-crossing_index_2:, 0]])
 
             if out == 'error':
-                error = np.sum(np.abs(ω_vs_φ_ext - ω_exp * 1e-9))
+                error = 0
+                for i in range(len(ω_vs_φ_ext)):
+                    if i in extra_important_indices:
+                        multiplier = 10
+                    else:
+                        multiplier = 1
+                    error += np.abs(ω_vs_φ_ext[i] - ω_exp[i] * 1e-9) * multiplier
                 print(error)
                 return error
             elif out == 'spectrum':
@@ -903,11 +909,17 @@ def load_optimization_results(experiment_name):
 
     return parameters_opt, parameters_guess, bounds
 
-def create_bounds(parameters):
+def create_bounds(parameters, flexible_param_indices=None):
+    if flexible_param_indices is None:
+        flexible_param_indices = []
     bounds = []
-    for param in parameters:
-        lower_bound = param * 0.8
-        upper_bound = param * 1.2
+    for i, param in enumerate(parameters):
+        if i in flexible_param_indices:
+            lower_bound = param * 0.1
+            upper_bound = param * 10
+        else:
+            lower_bound = param * 0.8
+            upper_bound = param * 1.2
         # Reverse the bounds if the parameter is negative
         if param < 0:
             bounds.append((upper_bound, lower_bound))
