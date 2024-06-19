@@ -634,6 +634,7 @@ def get_theoretical_spectrum_low_ene(experiment_name):
             I_exp, ω_exp, crossing_index_1, crossing_index_2, extra_important_indices, important_multiplier = data_set
 
             φ_ext_values = (I_exp - I_origin) / I0
+            repeated_φ_ext_indices = find_repeat_indices(φ_ext_values)
             ω_vs_φ_ext = np.zeros([len(φ_ext_values), 2])
             for i, φ_ext in enumerate(φ_ext_values):
                 H = sq_ext.hamiltonian_qubit_low_ene(ω_q, μ, ω_r, g_Φ, φ_ext)
@@ -646,6 +647,8 @@ def get_theoretical_spectrum_low_ene(experiment_name):
             if out == 'error':
                 error = 0
                 for i in range(len(ω_vs_φ_ext)):
+                    if i in repeated_φ_ext_indices:
+                        continue
                     if i in extra_important_indices:
                         multiplier = important_multiplier
                     else:
@@ -937,24 +940,71 @@ def create_bounds(parameters, flexible_param_indices=None):
     return tuple(bounds)
 
 
-def rotate(x_values, y_values, angle = 45):
-    # Define the rotation matrix for 45 degrees
-    angle =  angle * np.pi / 180  # 45 degrees in radians
+
+def normalize_values(values):
+    min_val = np.min(values)
+    max_val = np.max(values)
+    return (values - min_val) / (max_val - min_val) * 2 - 1, min_val, max_val
+
+
+def denormalize_values(normalized_values, min_val, max_val):
+    return (normalized_values + 1) / 2 * (max_val - min_val) + min_val
+
+
+def rotate_normalized(x_values, y_values, angle=45):
+    # Convert angle from degrees to radians
+    angle_radians = np.radians(angle)
+
+    # Define the rotation matrix for the given angle
     rotation_matrix = np.array([
-        [np.cos(angle), -np.sin(angle)],
-        [np.sin(angle), np.cos(angle)]
+        [np.cos(angle_radians), -np.sin(angle_radians)],
+        [np.sin(angle_radians), np.cos(angle_radians)]
     ])
+
+    # Calculate the mean of the x and y values
+    mean_x = np.mean(x_values)
+    mean_y = np.mean(y_values)
+
+    # Normalize x and y values
+    normalized_x, min_x, max_x = normalize_values(x_values)
+    normalized_y, min_y, max_y = normalize_values(y_values)
 
     # Initialize lists for the rotated points
     rotated_x_values = []
     rotated_y_values = []
 
-    # Rotate each point
-    for x, y in zip(x_values, y_values):
-        original_point = np.array([x, y])
-        rotated_point = rotation_matrix.dot(original_point)
+    # Rotate each point around the mean
+    for x, y in zip(normalized_x, normalized_y):
+        # Translate point to origin (mean_x, mean_y)
+        translated_point = np.array([x, y])
+
+        # Rotate the translated point
+        rotated_point = rotation_matrix.dot(translated_point)
+
         rotated_x_values.append(rotated_point[0])
         rotated_y_values.append(rotated_point[1])
 
-    return rotated_x_values, rotated_y_values
+    # Denormalize the rotated values
+    final_x_values = denormalize_values(np.array(rotated_x_values), min_x, max_x)
+    final_y_values = denormalize_values(np.array(rotated_y_values), min_y, max_y)
 
+    return final_x_values, final_y_values
+
+
+def find_repeat_indices(array):
+    # Convert array to a NumPy array if it isn't one already
+    arr = np.array(array)
+
+    # Find unique elements and their inverse mapping
+    unique_elements, inverse_indices = np.unique(arr, return_inverse=True)
+
+    # Count occurrences of each unique element
+    counts = np.bincount(inverse_indices)
+
+    # Find which elements occur more than once
+    repeated = np.where(counts > 1)[0]
+
+    # Find indices of repeated elements
+    repeat_indices = np.where(np.isin(inverse_indices, repeated))[0]
+
+    return repeat_indices
