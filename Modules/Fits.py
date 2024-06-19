@@ -614,15 +614,16 @@ def get_theoretical_spectrum_low_ene(experiment_name):
             ω_vs_φ_ext = np.zeros(len(φ_ext_values))
             for i, φ_ext in enumerate(φ_ext_values):
                 H = sq_ext.hamiltonian_fluxonium_low_ene(ω_q, μ, φ_ext)
-                ω_vs_φ_ext[i] = sq_ext.diag(H, 2, remove_ground=True, solver='numpy')[0][1]
+                ω_vs_φ_ext[i] = sq_ext.diag(H, 2, remove_ground=True, solver='numpy', out=None)[0][1]
 
             if out == 'error':
-                error = np.sum(np.abs(ω_vs_φ_ext - ω_exp * 1e-9))
+                error = np.sum(np.abs(ω_vs_φ_ext - ω_exp))
+                error /= GHz
                 print(error)
                 return error
 
             elif out == 'spectrum':
-                return φ_ext_values, ω_vs_φ_ext * 1e9
+                return φ_ext_values, ω_vs_φ_ext
         return qubit_spectrum
 
     elif experiment_name == 'resonator_1_single_1' or experiment_name == 'resonator_2':
@@ -630,24 +631,31 @@ def get_theoretical_spectrum_low_ene(experiment_name):
         def r_q_av_cross_single_spectrum(parameters, data_set, out='error'):
 
             ω_q, μ, ω_r, g_Φ, I0, I_origin = parameters
-            I_exp, ω_exp, crossing_index_1, crossing_index_2 = data_set
+            I_exp, ω_exp, crossing_index_1, crossing_index_2, extra_important_indices, important_multiplier = data_set
 
             φ_ext_values = (I_exp - I_origin) / I0
             ω_vs_φ_ext = np.zeros([len(φ_ext_values), 2])
             for i, φ_ext in enumerate(φ_ext_values):
                 H = sq_ext.hamiltonian_qubit_low_ene(ω_q, μ, ω_r, g_Φ, φ_ext)
-                ω_vs_φ_ext[i] = sq_ext.diag(H, 3, remove_ground=True, solver='numpy')[0][1:]
+                ω_vs_φ_ext[i] = sq_ext.diag(H, 3, remove_ground=True, solver='numpy', out = 'None')[0][1:]
 
             ω_vs_φ_ext = np.concatenate(
                 [ω_vs_φ_ext[0:crossing_index_1, 0], ω_vs_φ_ext[crossing_index_1:-crossing_index_2, 1],
                  ω_vs_φ_ext[-crossing_index_2:, 0]])
 
             if out == 'error':
-                error = np.sum(np.abs(ω_vs_φ_ext - ω_exp * 1e-9))
+                error = 0
+                for i in range(len(ω_vs_φ_ext)):
+                    if i in extra_important_indices:
+                        multiplier = important_multiplier
+                    else:
+                        multiplier = 1
+                    error += np.abs(ω_vs_φ_ext[i] - ω_exp[i]) * multiplier
+                error /= GHz
                 print(error)
                 return error
             elif out == 'spectrum':
-                return φ_ext_values, ω_vs_φ_ext * 1e9
+                return φ_ext_values, ω_vs_φ_ext
         return r_q_av_cross_single_spectrum
 
     elif experiment_name == 'resonator_and_qubit_1_single_1' or experiment_name == 'resonator_and_qubit_2':
@@ -727,13 +735,13 @@ def get_theoretical_spectrum_low_ene(experiment_name):
         def r_q_av_cross_spectrum(parameters, data_set, out='error'):
 
             ω_q, μ, ω_r, g_Φ, g_q, I0, I_origin = parameters
-            I_exp, ω_exp, crossing_index_1, crossing_index_2, extra_important_indices = data_set
+            I_exp, ω_exp, crossing_index_1, crossing_index_2, extra_important_indices, important_multiplier = data_set
 
             φ_ext_values = (I_exp - I_origin) / I0
             ω_vs_φ_ext = np.zeros([len(φ_ext_values), 2])
             for i, φ_ext in enumerate(φ_ext_values):
                 H = sq_ext.hamiltonian_qubit_low_ene(ω_q, μ, ω_r, g_Φ, φ_ext, g_q)
-                ω_vs_φ_ext[i] = sq_ext.diag(H, 3, remove_ground=True, solver='numpy')[0][1:]
+                ω_vs_φ_ext[i] = sq_ext.diag(H, 3, remove_ground=True, solver='numpy', out=None)[0][1:]
 
             ω_vs_φ_ext = np.concatenate(
                 [ω_vs_φ_ext[0:crossing_index_1, 0], ω_vs_φ_ext[crossing_index_1:-crossing_index_2, 1],
@@ -743,14 +751,15 @@ def get_theoretical_spectrum_low_ene(experiment_name):
                 error = 0
                 for i in range(len(ω_vs_φ_ext)):
                     if i in extra_important_indices:
-                        multiplier = 10
+                        multiplier = important_multiplier
                     else:
                         multiplier = 1
-                    error += np.abs(ω_vs_φ_ext[i] - ω_exp[i] * 1e-9) * multiplier
+                    error += np.abs(ω_vs_φ_ext[i] - ω_exp[i]) * multiplier
+                error /= GHz
                 print(error)
                 return error
             elif out == 'spectrum':
-                return φ_ext_values, ω_vs_φ_ext * 1e9
+                return φ_ext_values, ω_vs_φ_ext
 
         return r_q_av_cross_spectrum
 
@@ -926,4 +935,26 @@ def create_bounds(parameters, flexible_param_indices=None):
         else:
             bounds.append((lower_bound, upper_bound))
     return tuple(bounds)
+
+
+def rotate(x_values, y_values, angle = 45):
+    # Define the rotation matrix for 45 degrees
+    angle =  angle * np.pi / 180  # 45 degrees in radians
+    rotation_matrix = np.array([
+        [np.cos(angle), -np.sin(angle)],
+        [np.sin(angle), np.cos(angle)]
+    ])
+
+    # Initialize lists for the rotated points
+    rotated_x_values = []
+    rotated_y_values = []
+
+    # Rotate each point
+    for x, y in zip(x_values, y_values):
+        original_point = np.array([x, y])
+        rotated_point = rotation_matrix.dot(original_point)
+        rotated_x_values.append(rotated_point[0])
+        rotated_y_values.append(rotated_point[1])
+
+    return rotated_x_values, rotated_y_values
 
