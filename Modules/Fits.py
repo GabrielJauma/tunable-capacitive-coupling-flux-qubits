@@ -2,6 +2,7 @@ import os
 import pickle
 import Modules.SQcircuit_extensions as sq_ext
 import numpy as np
+from scipy.optimize import minimize
 import qutip as qt
 
 data_dir = r'/data'
@@ -607,7 +608,7 @@ def get_theoretical_spectrum(experiment_name):
 def get_theoretical_spectrum_low_ene(experiment_name):
     if experiment_name == 'qubit_1_single_1' or experiment_name == 'qubit_1' or experiment_name == 'qubit_2' or experiment_name == 'qubit_3':
         def qubit_spectrum(parameters, data_set, out='error'):
-            ω_q, μ, I0, I_origin = parameters
+            I0, I_origin, ω_q, μ = parameters
             I_exp, ω_exp = data_set
 
             φ_ext_values = (I_exp - I_origin) / I0
@@ -630,7 +631,7 @@ def get_theoretical_spectrum_low_ene(experiment_name):
         # Resonator 2 also here because the symmetry of the coupling capacitance neglects the inner capacitive coupling
         def r_q_av_cross_single_spectrum(parameters, data_set, out='error'):
 
-            ω_q, μ, ω_r, g_Φ, I0, I_origin = parameters
+            I0, I_origin, ω_r, g_Φ, ω_q, μ = parameters
             I_exp, ω_exp, crossing_index_1, crossing_index_2, extra_important_indices, important_multiplier = data_set
 
             φ_ext_values = (I_exp - I_origin) / I0
@@ -661,86 +662,13 @@ def get_theoretical_spectrum_low_ene(experiment_name):
                 return φ_ext_values, ω_vs_φ_ext
         return r_q_av_cross_single_spectrum
 
-    elif experiment_name == 'resonator_and_qubit_1_single_1' or experiment_name == 'resonator_and_qubit_2':
-        def unit_cell_single_spectrum(parameters, data_set, out='error'):
-
-            CF, LF, EJ, I0_F, I_origin_F, CR, LR, Δ, I0_R, I_origin_R = parameters
-            I_exp_F, ω_exp_F, I_exp_R, ω_exp_R, crossing_index_1_F, crossing_index_1_R, crossing_index_2_R, nmax_r, nmax_f = data_set
-
-            Lq, Lr = sq_ext.LF_LR_eff_to_Lq_Lr(LF=LF, LR=LR, Δ=Δ)
-            resonator = sq_ext.sq_resonator(C_R_eff=CR, L_R_eff=LR, nmax_r=nmax_r)
-            qubit = sq_ext.sq_fluxonium(C_F_eff=CF, L_F_eff=LF, EJ=EJ, nmax_f=nmax_f)
-            loop = qubit.loops[0]
-
-            φ_ext_R = (I_exp_R - I_origin_R) / I0_R
-            ωR_vs_φ_ext = np.zeros([len(φ_ext_R), 2])
-            for i, φ_ext in enumerate(φ_ext_R):
-                loop.set_flux(φ_ext)
-                H = sq_ext.hamiltonian_qubit(fluxonium=qubit, resonator=resonator, Lq=Lq, Lr=Lr, Δ=Δ)
-                ωR_vs_φ_ext[i] = sq_ext.diag(H, 3, remove_ground=True)[0][1:]
-            ωR_vs_φ_ext = np.concatenate(
-                [ωR_vs_φ_ext[0:crossing_index_1_R, 0], ωR_vs_φ_ext[crossing_index_1_R:-crossing_index_2_R, 1],
-                 ωR_vs_φ_ext[-crossing_index_2_R:, 0]])
-
-            φ_ext_F = (I_exp_F - I_origin_F) / I0_F
-            ωF_vs_φ_ext = np.zeros([len(φ_ext_F), 2])
-            for i, φ_ext in enumerate(φ_ext_F):
-                loop.set_flux(φ_ext)
-                H = sq_ext.hamiltonian_qubit(fluxonium=qubit, resonator=resonator, Lq=Lq, Lr=Lr, Δ=Δ)
-                ωF_vs_φ_ext[i] = sq_ext.diag(H, 3, remove_ground=True)[0][1:]
-            ωF_vs_φ_ext = np.concatenate([ωF_vs_φ_ext[:crossing_index_1_F, 0], ωF_vs_φ_ext[crossing_index_1_F:, 1]])
-
-            if out == 'error':
-                error = np.sum(np.abs(ωR_vs_φ_ext - ω_exp_R * 1e-9)) + np.sum(np.abs(ωF_vs_φ_ext - ω_exp_F * 1e-9))
-                print(error)
-                return error
-            elif out == 'spectrum':
-                return φ_ext_F, ωF_vs_φ_ext * 1e9, φ_ext_R, ωR_vs_φ_ext * 1e9
-        return unit_cell_single_spectrum
-
-    elif experiment_name == 'resonator_and_qubit_1_single_2':
-        def unit_cell_single_spectrum(parameters, data_set, out='error'):
-
-            CF, LF, EJ, I0_F, I_origin_F, CR, LR, Δ, I0_R, I_origin_R = parameters
-            I_exp_F, ω_exp_F, I_exp_R, ω_exp_R, crossing_index_1_F, crossing_index_1_R, crossing_index_2_R, nmax_r, nmax_f = data_set
-
-            Lq, Lr = sq_ext.LF_LR_eff_to_Lq_Lr(LF=LF, LR=LR, Δ=Δ)
-            resonator = sq_ext.sq_resonator(C_R_eff=CR, L_R_eff=LR, nmax_r=nmax_r)
-            qubit = sq_ext.sq_fluxonium(C_F_eff=CF, L_F_eff=LF, EJ=EJ, nmax_f=nmax_f)
-            loop = qubit.loops[0]
-
-            φ_ext_R = (I_exp_R - I_origin_R) / I0_R
-            ωR_vs_φ_ext = np.zeros([len(φ_ext_R), 2])
-            for i, φ_ext in enumerate(φ_ext_R):
-                loop.set_flux(φ_ext)
-                H = sq_ext.hamiltonian_qubit(fluxonium=qubit, resonator=resonator, Lq=Lq, Lr=Lr, Δ=Δ)
-                ωR_vs_φ_ext[i] = sq_ext.diag(H, 3, remove_ground=True)[0][1:]
-            ωR_vs_φ_ext = np.concatenate(
-                [ωR_vs_φ_ext[0:crossing_index_1_R, 0], ωR_vs_φ_ext[crossing_index_1_R:-crossing_index_2_R, 1],
-                 ωR_vs_φ_ext[-crossing_index_2_R:, 0]])
-
-            φ_ext_F = (I_exp_F - I_origin_F) / I0_F
-            ωF_vs_φ_ext = np.zeros(len(φ_ext_F))
-            for i, φ_ext in enumerate(φ_ext_F):
-                loop.set_flux(φ_ext)
-                H = sq_ext.hamiltonian_qubit(fluxonium=qubit, resonator=resonator, Lq=Lq, Lr=Lr, Δ=Δ)
-                ωF_vs_φ_ext[i] = sq_ext.diag(H, 2, remove_ground=True)[0][1]
-
-            if out == 'error':
-                error = np.sum(np.abs(ωR_vs_φ_ext - ω_exp_R * 1e-9)) + np.sum(np.abs(ωF_vs_φ_ext - ω_exp_F * 1e-9))
-                print(error)
-                return error
-            elif out == 'spectrum':
-                return φ_ext_F, ωF_vs_φ_ext * 1e9, φ_ext_R, ωR_vs_φ_ext * 1e9
-        return unit_cell_single_spectrum
-
     elif experiment_name == 'resonator_1' or experiment_name == 'resonator_3':
         def r_q_av_cross_spectrum(parameters, data_set, out='error'):
 
-            ω_q, μ, ω_r, g_Φ, g_q, I0, I_origin = parameters
+            I0, I_origin, ω_q, μ, ω_r, g_Φ, g_q = parameters
             I_exp, ω_exp, crossing_index_1, crossing_index_2, extra_important_indices, important_multiplier = data_set
-
             φ_ext_values = (I_exp - I_origin) / I0
+            repeated_φ_ext_indices = find_repeat_indices(φ_ext_values)
             ω_vs_φ_ext = np.zeros([len(φ_ext_values), 2])
             for i, φ_ext in enumerate(φ_ext_values):
                 H = sq_ext.hamiltonian_qubit_low_ene(ω_q, μ, ω_r, g_Φ, φ_ext, g_q)
@@ -753,6 +681,8 @@ def get_theoretical_spectrum_low_ene(experiment_name):
             if out == 'error':
                 error = 0
                 for i in range(len(ω_vs_φ_ext)):
+                    if i in repeated_φ_ext_indices:
+                        continue
                     if i in extra_important_indices:
                         multiplier = important_multiplier
                     else:
@@ -766,64 +696,21 @@ def get_theoretical_spectrum_low_ene(experiment_name):
 
         return r_q_av_cross_spectrum
 
-    elif experiment_name == 'resonator_and_qubit_1' or experiment_name == 'resonator_and_qubit_3':
-        def unit_cell_single_spectrum(parameters, data_set, out='error'):
-
-            CF, LF, EJ, I0_F, I_origin_F, C_int, CR, LR, I0_R, I_origin_R = parameters
-            I_exp_F, ω_exp_F, I_exp_R, ω_exp_R,  Δ, crossing_index_1_F, crossing_index_1_R, crossing_index_2_R, nmax_r, nmax_f = data_set
-
-            Lq, Lr = sq_ext.LF_LR_eff_to_Lq_Lr(LF=LF, LR=LR, Δ=Δ)
-            resonator = sq_ext.sq_resonator(C_R_eff=CR, L_R_eff=LR, nmax_r=nmax_r)
-            qubit = sq_ext.sq_fluxonium(C_F_eff=CF, L_F_eff=LF, EJ=EJ, nmax_f=nmax_f)
-            loop = qubit.loops[0]
-
-            φ_ext_R = (I_exp_R - I_origin_R) / I0_R
-            ωR_vs_φ_ext = np.zeros([len(φ_ext_R), 2])
-            for i, φ_ext in enumerate(φ_ext_R):
-                loop.set_flux(φ_ext)
-                H = sq_ext.hamiltonian_qubit(fluxonium=qubit, resonator=resonator, Lq=Lq, Lr=Lr, Δ=Δ, C_int=C_int)
-                ωR_vs_φ_ext[i] = sq_ext.diag(H, 3, remove_ground=True)[0][1:]
-            ωR_vs_φ_ext = np.concatenate(
-                [ωR_vs_φ_ext[0:crossing_index_1_R, 0], ωR_vs_φ_ext[crossing_index_1_R:-crossing_index_2_R, 1],
-                 ωR_vs_φ_ext[-crossing_index_2_R:, 0]])
-
-            φ_ext_F = (I_exp_F - I_origin_F) / I0_F
-            ωF_vs_φ_ext = np.zeros([len(φ_ext_F), 2])
-            for i, φ_ext in enumerate(φ_ext_F):
-                loop.set_flux(φ_ext)
-                H = sq_ext.hamiltonian_qubit(fluxonium=qubit, resonator=resonator, Lq=Lq, Lr=Lr, Δ=Δ, C_int=C_int)
-                ωF_vs_φ_ext[i] = sq_ext.diag(H, 3, remove_ground=True)[0][1:]
-            ωF_vs_φ_ext = np.concatenate([ωF_vs_φ_ext[:crossing_index_1_F, 0], ωF_vs_φ_ext[crossing_index_1_F:, 1]])
-
-            if out == 'error':
-                error = np.sum(np.abs(ωR_vs_φ_ext - ω_exp_R * 1e-9)) + np.sum(np.abs(ωF_vs_φ_ext - ω_exp_F * 1e-9))
-                print(error)
-                return error
-            elif out == 'spectrum':
-                return φ_ext_F, ωF_vs_φ_ext * 1e9, φ_ext_R, ωR_vs_φ_ext * 1e9
-        return unit_cell_single_spectrum
-
     elif experiment_name == 'qubit_1_qubit_2':
         def qubit_qubit_crossing_spectrum(parameters, data_set, out='error'):
-            C_int, φ_ext_i, φ_ext_f, LF_1 = parameters
-            CF_1, EJ_1, CF_2, LF_2, EJ_2, I_exp, ω_exp,nmax_f = data_set
+            ω_q_1, μ_1, ω_q_2, μ_2, g_q, φ_ext_i, φ_ext_f = parameters
+            I_exp, ω_exp = data_set
 
             I_exp_arr = np.concatenate((I_exp[0], I_exp[1]))
             I_exp_max = I_exp_arr.max()
             I_exp_min = I_exp_arr.min()
             Δ_φ_ext = φ_ext_f - φ_ext_i
 
-
-            qubit_1 = sq_ext.sq_fluxonium(C_F_eff=CF_1, L_F_eff=LF_1, EJ=EJ_1, nmax_f=nmax_f)
-            H_1 = qubit_1.hamiltonian()
-            Q_1 = qubit_1.charge_op(0)
-            I = qt.identity(H_1.shape[0])
-
-            qubit_2 = sq_ext.sq_fluxonium(C_F_eff=CF_2, L_F_eff=LF_2, EJ=EJ_2, nmax_f=nmax_f)
-            loop = qubit_2.loops[0]
+            H_1 = sq_ext.hamiltonian_fluxonium_low_ene(ω_q_1, μ_1, φ_ext=0.5)
 
             φ_ext_values_list = []
             ω_vs_φ_ext_list   = []
+
             for I_exp_i in I_exp:
                 I_unitary = (I_exp_i - I_exp_min) / (I_exp_max - I_exp_min)
                 φ_ext_values_list.append(I_unitary * Δ_φ_ext + φ_ext_i)
@@ -832,17 +719,18 @@ def get_theoretical_spectrum_low_ene(experiment_name):
                 ω_vs_φ_ext = np.zeros(len(φ_ext_values))
 
                 for i, φ_ext in enumerate(φ_ext_values):
-                    loop.set_flux(φ_ext)
-                    H_2 = qubit_2.hamiltonian()
-                    Q_2 = qubit_2.charge_op(0)
-                    H = qt.tensor(H_1, I) + qt.tensor(I, H_2) + C_int ** -1 * fF ** -1 * qt.tensor(Q_1, Q_2)
-                    ω_vs_φ_ext[i] = sq_ext.diag(H, k+2, remove_ground=True)[0][k+1]
+                    H_2 = sq_ext.hamiltonian_fluxonium_low_ene(ω_q_2, μ_2, φ_ext)
+                    H = sq_ext.hamiltonian_fluxonium_C_fluxonium_low_ene(H_1, H_2, g_q)
+                    ω_vs_φ_ext[i] = sq_ext.diag(H, k+2, remove_ground=True, solver='numpy', out=None)[0][k+1]
 
                 ω_vs_φ_ext_list.append(ω_vs_φ_ext)
+
             if out == 'error':
                 error = 0
                 for ω_exp_i,ω_vs_φ_ext_i  in zip(ω_exp, ω_vs_φ_ext_list):
                     error += np.sum(np.abs(ω_exp_i - ω_vs_φ_ext_i))
+
+                error/=GHz
                 print(error)
                 return error
 
@@ -911,6 +799,31 @@ def get_theoretical_spectrum_low_ene(experiment_name):
         return qubit_qubit_crossing_spectrum
 
 #%% Miscelanea
+# Combined fit function
+def combined_fit(params, func1, func2, data1, data2, lens):
+    # Extract parameters for each function
+    params1, params2 = reconstruct_params(params, lens)
+
+    # Calculate errors for each dataset
+    error1 = func1(params1, data1)
+    error2 = func2(params2, data2)
+
+    # Return the sum of errors
+    combined_error = error1 + error2
+
+    return combined_error
+
+def reconstruct_params(params, lens):
+    len1, len2, n_shared = lens
+    # Extract parameters for each function
+    params1 = np.concatenate((params[:len1],params[-n_shared:]))
+    params2 = np.concatenate((params[len1:len1+len2],params[-n_shared:]))
+
+    return params1, params2
+
+# Fit multiple datasets function
+# minimize(combined_fit, [params1, params2, params_shared], args=(func1, func2, data1, data2), bounds=[bounds1, bounds2, bounds_shared], method=method)
+
 def load_optimization_results(experiment_name):
     experiment_file = os.getcwd() + opt_dir + experiment_name + '.npz'
     data = np.load(experiment_file)

@@ -921,12 +921,19 @@ def hamiltonian_qubit_C_qubit_C_qubit_full_variables(Cc,φ_ext_1=0.5,φ_ext_2=0.
         return H
 
 #%% Low-energy hamiltonians
+def hamiltonian_fluxonium_low_ene(ω_q, μ, φ_ext):
+    σ_x, σ_y, σ_z = pauli_matrices()
+
+    H = ω_q/2 * σ_z + μ * (φ_ext-0.5) * σ_x
+
+    return H
+
 def hamiltonian_qubit_low_ene(ω_q, μ, ω_r, g_Φ, φ_ext, g_q=0):
     σ_x, σ_y, σ_z = pauli_matrices()
     a_dag   = create(3)
     a       = annihilate(3)
 
-    H_f = ω_q/2 * σ_z + μ * (φ_ext-0.5) * σ_x
+    H_f = hamiltonian_fluxonium_low_ene(ω_q, μ, φ_ext)
     H_r = ω_r * a_dag @ a
 
     I_r = qt.identity(H_r.shape[0])
@@ -936,12 +943,30 @@ def hamiltonian_qubit_low_ene(ω_q, μ, ω_r, g_Φ, φ_ext, g_q=0):
 
     return H
 
-def hamiltonian_fluxonium_low_ene(ω_q, μ, φ_ext):
+def hamiltonian_fluxonium_C_fluxonium_low_ene(H_f1, H_f2, g_q):
     σ_x, σ_y, σ_z = pauli_matrices()
 
-    H = ω_q/2 * σ_z + μ * (φ_ext-0.5) * σ_x
+    # H_f1 = hamiltonian_fluxonium_low_ene(ω_q_1, μ_1, φ_ext_1)
+    # H_f2 = hamiltonian_fluxonium_low_ene(ω_q_2, μ_2, φ_ext_2)
+
+    I = qt.identity(H_f1.shape[0])
+
+    H = np.kron(H_f1, I) + np.kron(I, H_f2) + g_q * np.kron(σ_y, σ_y)
 
     return H
+
+def hamiltonian_fluxonium_C_fluxonium_fluxonium_low_ene(H_f1, H_f2, H_f3, g_q):
+    σ_x, σ_y, σ_z = pauli_matrices()
+
+    # H_f1 = hamiltonian_fluxonium_low_ene(ω_q_1, μ_1, φ_ext_1)
+    # H_f2 = hamiltonian_fluxonium_low_ene(ω_q_2, μ_2, φ_ext_2)
+
+    I = qt.identity(H_f1.shape[0])
+
+    H = np.kron(H_f1, I) + np.kron(I, H_f2) + g_q * np.kron(σ_y, σ_y)
+
+    return H
+
 #%% Circuits vs parameters
 def KIT_qubit_vs_param(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5, nmax_r=15, nmax_f=25, model='composition'):
 
