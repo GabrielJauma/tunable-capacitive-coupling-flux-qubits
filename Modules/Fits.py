@@ -665,11 +665,13 @@ def get_theoretical_spectrum_low_ene(experiment_name):
     elif experiment_name == 'resonator_1' or experiment_name == 'resonator_3':
         def r_q_av_cross_spectrum(parameters, data_set, out='error'):
 
-            I0, I_origin, ω_q, μ, ω_r, g_Φ, g_q = parameters
+            I0, I_origin, ω_r, g_Φ, ω_q, μ, g_q = parameters
             I_exp, ω_exp, crossing_index_1, crossing_index_2, extra_important_indices, important_multiplier = data_set
+
             φ_ext_values = (I_exp - I_origin) / I0
             repeated_φ_ext_indices = find_repeat_indices(φ_ext_values)
             ω_vs_φ_ext = np.zeros([len(φ_ext_values), 2])
+
             for i, φ_ext in enumerate(φ_ext_values):
                 H = sq_ext.hamiltonian_qubit_low_ene(ω_q, μ, ω_r, g_Φ, φ_ext, g_q)
                 ω_vs_φ_ext[i] = sq_ext.diag(H, 3, remove_ground=True, solver='numpy', out=None)[0][1:]
@@ -695,6 +697,62 @@ def get_theoretical_spectrum_low_ene(experiment_name):
                 return φ_ext_values, ω_vs_φ_ext
 
         return r_q_av_cross_spectrum
+
+    elif experiment_name == 'resonator_and_qubit_1_single_1':
+        def unit_cell_single_spectrum(parameters, data_set, out='error'):
+
+            I0_F, I_origin_F, ω_q, μ, I0_R, I_origin_R, ω_r, g_Φ = parameters
+            I_exp_F, ω_exp_F, I_exp_R, ω_exp_R, crossing_index_1_R, crossing_index_2_R, extra_important_indices, important_multiplier = data_set
+
+            parameters_F = I0_F, I_origin_F, ω_q, μ
+            data_set_F = I_exp_F, ω_exp_F
+            spectrum_F = get_theoretical_spectrum_low_ene('qubit_1_single_1')
+
+            parameters_R = I0_R, I_origin_R, ω_r, g_Φ, ω_q, μ
+            data_set_R = I_exp_R, ω_exp_R, crossing_index_1_R, crossing_index_2_R, extra_important_indices, important_multiplier
+            spectrum_R = get_theoretical_spectrum_low_ene('resonator_1_single_1')
+
+            if out == 'error':
+                error_F = spectrum_F(parameters_F, data_set_F, out='error')
+                error_R = spectrum_R(parameters_R, data_set_R, out='error')
+                error = error_F + error_R
+                print(error)
+                return error
+
+            elif out == 'spectrum':
+                φ_ext_F, ωF_vs_φ_ext = spectrum_F(parameters_F, data_set_F, out='spectrum')
+                φ_ext_R, ωR_vs_φ_ext = spectrum_R(parameters_R, data_set_R, out='spectrum')
+                return φ_ext_F, ωF_vs_φ_ext, φ_ext_R, ωR_vs_φ_ext
+
+        return unit_cell_single_spectrum
+
+    elif experiment_name == 'resonator_and_qubit_1':
+        def unit_cell_single_spectrum(parameters, data_set, out='error'):
+
+            I0_F, I_origin_F, ω_q, μ, I0_R, I_origin_R, ω_r, g_Φ, g_q = parameters
+            I_exp_F, ω_exp_F, I_exp_R, ω_exp_R, crossing_index_1_R, crossing_index_2_R, extra_important_indices, important_multiplier = data_set
+
+            parameters_F = I0_F, I_origin_F, ω_q, μ
+            data_set_F = I_exp_F, ω_exp_F
+            spectrum_F = get_theoretical_spectrum_low_ene('qubit_1')
+
+            parameters_R = I0_R, I_origin_R, ω_r, g_Φ, ω_q, μ, g_q
+            data_set_R = I_exp_R, ω_exp_R, crossing_index_1_R, crossing_index_2_R, extra_important_indices, important_multiplier
+            spectrum_R = get_theoretical_spectrum_low_ene('resonator_1')
+
+            if out == 'error':
+                error_F = spectrum_F(parameters_F, data_set_F, out='error')
+                error_R = spectrum_R(parameters_R, data_set_R, out='error')
+                error = error_F + error_R
+                print(error)
+                return error
+
+            elif out == 'spectrum':
+                φ_ext_F, ωF_vs_φ_ext = spectrum_F(parameters_F, data_set_F, out='spectrum')
+                φ_ext_R, ωR_vs_φ_ext = spectrum_R(parameters_R, data_set_R, out='spectrum')
+                return φ_ext_F, ωF_vs_φ_ext, φ_ext_R, ωR_vs_φ_ext
+
+        return unit_cell_single_spectrum
 
     elif experiment_name == 'qubit_1_qubit_2':
         def qubit_qubit_crossing_spectrum(parameters, data_set, out='error'):
