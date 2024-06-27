@@ -871,6 +871,15 @@ def combined_fit(params, func1, func2, data1, data2, lens):
 
     return combined_error
 
+# Fit multiple datasets function
+# minimize(combined_fit, [params1, params2, params_shared], args=(func1, func2, data1, data2), bounds=[bounds1, bounds2, bounds_shared], method=method)
+
+def fit_multiple_models(models, shared_parameters_indices):
+
+    # model = [function, parameters, data_set]
+
+    return None
+
 def reconstruct_params(params, lens):
     len1, len2, n_shared = lens
     # Extract parameters for each function
@@ -879,8 +888,7 @@ def reconstruct_params(params, lens):
 
     return params1, params2
 
-# Fit multiple datasets function
-# minimize(combined_fit, [params1, params2, params_shared], args=(func1, func2, data1, data2), bounds=[bounds1, bounds2, bounds_shared], method=method)
+
 
 def load_optimization_results(experiment_name):
     experiment_file = os.getcwd() + opt_dir + experiment_name + '.npz'
