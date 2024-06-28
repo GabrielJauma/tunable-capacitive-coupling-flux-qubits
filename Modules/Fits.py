@@ -857,38 +857,53 @@ def get_theoretical_spectrum_low_ene(experiment_name):
         return qubit_qubit_crossing_spectrum
 
 #%% Miscelanea
-# Combined fit function
-def combined_fit(params, func1, func2, data1, data2, lens):
-    # Extract parameters for each function
-    params1, params2 = reconstruct_params(params, lens)
 
-    # Calculate errors for each dataset
-    error1 = func1(params1, data1)
-    error2 = func2(params2, data2)
+def fit_multiple_models(models, method='SLSQP'):
+    parameter_names_list, parameters_list, function_list, data_set_list, bounds_list = [ [] for _ in range(5)]
 
-    # Return the sum of errors
-    combined_error = error1 + error2
+    for parameter_names, parameters, function, data_set, bounds in models:
+        parameter_names_list   .append(parameter_names)
+        parameters_list         .append(parameters)
+        function_list           .append(function)
+        data_set_list           .append(data_set)
+        bounds_list             .append(bounds)
 
-    return combined_error
+    parameter_dict = create_dict(parameter_names_list, parameters_list)
+    bounds_dict    = create_dict(parameter_names_list, bounds_list)
 
-# Fit multiple datasets function
-# minimize(combined_fit, [params1, params2, params_shared], args=(func1, func2, data1, data2), bounds=[bounds1, bounds2, bounds_shared], method=method)
+    combined_parameters         = list(parameter_dict.values())
+    combined_parameters_keys    = list(parameter_dict.keys())
+    combined_bounds             = tuple(bounds_dict.values())
 
-def fit_multiple_models(models, shared_parameters_indices):
+    parameters_opt = minimize(combined_fit, combined_parameters, args=(combined_parameters_keys, parameter_names_list, function_list, data_set_list),
+             bounds=combined_bounds, method=method).x
 
-    # model = [function, parameters, data_set]
+    return parameters_opt
 
-    return None
+def combined_fit(combined_parameters, combined_parameters_keys, parameter_names_list, function_list, data_set_list):
 
-def reconstruct_params(params, lens):
-    len1, len2, n_shared = lens
-    # Extract parameters for each function
-    params1 = np.concatenate((params[:len1],params[-n_shared:]))
-    params2 = np.concatenate((params[len1:len1+len2],params[-n_shared:]))
+    parameters_list = reconstruct_parameters(combined_parameters, combined_parameters_keys, parameter_names_list)
 
-    return params1, params2
+    error = 0
+    for function, parameters, data_set in zip(function_list, parameters_list, data_set_list):
+        error += function(parameters, data_set)
 
+    return error
 
+def reconstruct_parameters(combined_parameters, combined_parameters_keys, parameter_names_list):
+    parameters_list = []
+    for parameter_names in parameter_names_list:
+        parameters_list.append( [combined_parameters[combined_parameters_keys.index(parameter_name)]  for parameter_name in parameter_names])
+
+    return parameters_list
+
+def create_dict(keys_list, values_list):
+    dict ={}
+    for keys, values in zip(keys_list, values_list):
+        for key, value in zip(keys, values):
+            if key not in dict:
+                dict[key] = value
+    return dict
 
 def load_optimization_results(experiment_name):
     experiment_file = os.getcwd() + opt_dir + experiment_name + '.npz'
@@ -917,7 +932,6 @@ def create_bounds(parameters, flexible_param_indices=None):
         else:
             bounds.append((lower_bound, upper_bound))
     return tuple(bounds)
-
 
 
 def normalize_values(values):
