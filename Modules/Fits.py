@@ -858,15 +858,23 @@ def get_theoretical_spectrum_low_ene(experiment_name):
 
 #%% Miscelanea
 
+def return_spectra_multiple_models(models):
+    φ_ext_and_ω_list = []
+
+    for _, parameters, function, data_set, _ in models:
+        φ_ext_and_ω_list.append(function(parameters, data_set, out='spectrum'))
+
+    return φ_ext_and_ω_list
+
 def fit_multiple_models(models, method='SLSQP'):
     parameter_names_list, parameters_list, function_list, data_set_list, bounds_list = [ [] for _ in range(5)]
 
-    for parameter_names, parameters, function, data_set, bounds in models:
+    for parameter_names, parameters, function, data_set, flexible_param_indices in models:
         parameter_names_list   .append(parameter_names)
         parameters_list         .append(parameters)
         function_list           .append(function)
         data_set_list           .append(data_set)
-        bounds_list             .append(bounds)
+        bounds_list             .append(create_bounds(parameters, flexible_param_indices))
 
     parameter_dict = create_dict(parameter_names_list, parameters_list)
     bounds_dict    = create_dict(parameter_names_list, bounds_list)
@@ -875,10 +883,15 @@ def fit_multiple_models(models, method='SLSQP'):
     combined_parameters_keys    = list(parameter_dict.keys())
     combined_bounds             = tuple(bounds_dict.values())
 
-    parameters_opt = minimize(combined_fit, combined_parameters, args=(combined_parameters_keys, parameter_names_list, function_list, data_set_list),
+    combined_parameters_opt = minimize(combined_fit, combined_parameters, args=(combined_parameters_keys, parameter_names_list, function_list, data_set_list),
              bounds=combined_bounds, method=method).x
 
-    return parameters_opt
+    parameters_opt_list = reconstruct_parameters(combined_parameters_opt, combined_parameters_keys, parameter_names_list)
+
+    for i in range(len(models)):
+        models[i][1] = parameters_opt_list[i]
+
+    return parameters_opt_list, models
 
 def combined_fit(combined_parameters, combined_parameters_keys, parameter_names_list, function_list, data_set_list):
 
