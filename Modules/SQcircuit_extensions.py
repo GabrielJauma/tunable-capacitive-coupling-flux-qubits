@@ -757,8 +757,8 @@ def hamiltonian_qubit_C_qubit_C_qubit(C_inv, circuits, Δs, nmax_r=5, nmax_f=10,
 
     Q_vec = [Q_F1, Q_R1, Q_F2, Q_R2, Q_F3, Q_R3]
     H_coupling = 0
-    for i in range(4):
-        for j in range(4):
+    for i in range(6):
+        for j in range(6):
             op_list = [I_F, I_R, I_F, I_R, I_F, I_R]
             if i == j: # we ommit the diagonal terms since we have already included the reonarmalizations (LR and LF tilde) in H_0.
                 continue
