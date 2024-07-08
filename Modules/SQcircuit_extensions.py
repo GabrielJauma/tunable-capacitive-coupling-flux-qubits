@@ -727,7 +727,7 @@ def hamiltonian_fluxonium_C_fluxonium (nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr
     else:
         return H
 
-def hamiltonian_qubit_C_qubit_C_qubit(C_inv, circuits, Δs, nmax_r=5, nmax_f=10, only_renormaliaztion=False):
+def hamiltonian_qubit_C_qubit_C_qubit(C_inv, circuits, Δs, nmax_r=5, nmax_f=10, return_H_0=False):
 
     fluxonium_1, resonator_1, fluxonium_2, resonator_2, fluxonium_3, resonator_3 = circuits
     Δ_1, Δ_2, Δ_3 = Δs
@@ -744,8 +744,6 @@ def hamiltonian_qubit_C_qubit_C_qubit(C_inv, circuits, Δs, nmax_r=5, nmax_f=10,
            + qt.tensor(I_qubit, H_qubit_2, I_qubit)
            + qt.tensor(I_qubit, I_qubit, H_qubit_3) )
 
-    if only_renormaliaztion:
-        return H_0
 
     Q_F1 = fluxonium_1.charge_op(0)
     Q_R1 = resonator_1.charge_op(0)
@@ -768,7 +766,10 @@ def hamiltonian_qubit_C_qubit_C_qubit(C_inv, circuits, Δs, nmax_r=5, nmax_f=10,
                 H_coupling += 1/2 * C_inv[i,j] * fF**-1 * qt.tensor(op_list)
     H = H_0 + H_coupling
 
-    return H
+    if return_H_0:
+        return H_0, H
+    else:
+        return H
 
 #%% Low-energy hamiltonians
 def hamiltonian_fluxonium_low_ene(ω_q, μ, φ_ext):
@@ -841,7 +842,6 @@ def H_eff_p1(H_0, H, n_eig, out='GHz', real=True, remove_ground = False, ψ_0=Fa
         ψ_0 = diag(H_0, n_eig, real=real, solver='numpy')[1]
         H_eff  = ψ_0.conj().T @ H.__array__() @ ψ_0
     else:
-        n_eig = len(ψ_0)
         H_eff = np.zeros([n_eig, n_eig])
         for i in range(n_eig):
             for j in range(n_eig):
@@ -863,11 +863,9 @@ def H_eff_p2(H_0, H, n_eig, out='GHz', real=False, remove_ground=False, solver='
     if ψ_0 is None:
         E_0, ψ_0 = diag(H_0, n_eig, real=real, solver='numpy', out=out)
     else:
-        E_0 = diag(H_0, n_eig, real=real, solver=solver, out=out)[0]
+        E_0 = diag(H, n_eig=len(ψ_0), real=False, solver='Qutip', out=out, qObj=True)[0]
 
-    E,   ψ   = diag(H  , n_eig, real=real, solver=solver, out=out)
-    H_0 = H_0.__array__()
-    H   = H  .__array__()
+    E, ψ = diag(H, n_eig=len(ψ_0), real=False, solver='Qutip', out=out, qObj=True)
     V = H - H_0
 
     if out == 'GHz':
@@ -875,17 +873,24 @@ def H_eff_p2(H_0, H, n_eig, out='GHz', real=False, remove_ground=False, solver='
         H   /= GHz * 2 * np.pi
         V   /= GHz * 2 * np.pi
 
-    H_eff_1 = ψ_0.conj().T @ H @ ψ_0
+    # H_eff_1 = ψ_0.conj().T @ H @ ψ_0
 
     H_eff_2 = np.zeros((n_eig, n_eig), dtype=complex)  # matrix to store our results.
 
     for i in range(n_eig):
         for j in range(n_eig):
-            H_eff_2[i, j] = 1 / 2 * sum(
-                          (1 / (E_0[i] - E[k]) + 1 / (E_0[j] - E[k])) *
-                           (ψ_0[:, i].T.conj() @ V @ ψ  [:, k]) *
-                           (ψ  [:, k].T.conj() @ V @ ψ_0[:, j])
-                           for k in range(n_eig))
+            try:
+                H_eff_2[i, j] = 1 / 2 * sum(
+                              (1 / (E_0[i] - E[k]) + 1 / (E_0[j] - E[k])) *
+                               (ψ_0[i].dag() * V * ψ  [k]).data[0,0] *
+                               (ψ  [k].dag() * V * ψ_0[j]).data[0,0]
+                               for k in range(n_eig))
+            except:
+                H_eff_2[i, j] = 1 / 2 * sum(
+                              (1 / (E_0[i] - E[k]) + 1 / (E_0[j] - E[k])) *
+                               (ψ_0[i].dag() * V * ψ  [k]) *
+                               (ψ  [k].dag() * V * ψ_0[j])
+                               for k in range(n_eig))
 
     # H_eff = H_eff_1 + H_eff_2
     H_eff = H_eff_2
@@ -905,13 +910,12 @@ def H_eff_SWT(H_0, H, n_eig, out='GHz', real=False, remove_ground=False, return_
     if ψ_0 is None:
         ψ_0 = diag(H_0, n_eig, real=real, solver='numpy')[1]
 
-    E, ψ = diag(H, n_eig, real=real, solver='scipy', out='Hz')
-    # E, ψ = H.eigenstates(sparse=False, eigvals=n_eig, phase_fix=0)
+    E, ψ = diag(H, n_eig=len(ψ_0), real=False, solver='Qutip', out='Hz', qObj=True)
 
     Q = np.zeros((n_eig, n_eig), dtype=complex)
     for i in range(n_eig):
         for j in range(n_eig):
-            Q[i, j] = ψ_0[:,i].conj().T @ ψ[:,j]
+            Q[i, j] = (ψ_0[i].dag() * ψ[j]).data[0,0]
 
 
     U, s, Vh = np.linalg.svd(Q)
@@ -1134,7 +1138,7 @@ def pauli_matrices():
     return σ_x ,σ_y ,σ_z
 
 #%% Generic mathematical functions
-def diag(H, n_eig=4, out='GHz', real=False, solver='scipy', remove_ground=False):
+def diag(H, n_eig=4, out='GHz', real=False, solver='scipy', remove_ground=False, qObj=False):
     H = qt.Qobj(H)
 
     if solver == 'scipy':
@@ -1146,16 +1150,19 @@ def diag(H, n_eig=4, out='GHz', real=False, solver='scipy', remove_ground=False)
         evecs  = evecs [:,:n_eig]
     elif solver == 'Qutip':
         efreqs, evecs = H.eigenstates(eigvals=n_eig, sparse=True)
-        evecs = np.array([ψ.__array__() for ψ in evecs])[:, :, 0].T
+        if not qObj:
+            evecs = np.array([ψ.__array__() for ψ in evecs])[:, :, 0].T
+        efreqs_sorted = efreqs
+        evecs_sorted = evecs
 
+    if not qObj:
+        efreqs_sorted = np.sort(efreqs.real)
+        # efreqs_sorted = efreqs_sorted - efreqs_sorted[0]
 
-    efreqs_sorted = np.sort(efreqs.real)
-    # efreqs_sorted = efreqs_sorted - efreqs_sorted[0]
-
-    sort_arg = np.argsort(efreqs)
-    if isinstance(sort_arg, int):
-        sort_arg = [sort_arg]
-    evecs_sorted = evecs[:, sort_arg]
+        sort_arg = np.argsort(efreqs)
+        if isinstance(sort_arg, int):
+            sort_arg = [sort_arg]
+        evecs_sorted = evecs[:, sort_arg]
 
     if real:
         evecs_sorted = real_eigenvectors(evecs_sorted)
