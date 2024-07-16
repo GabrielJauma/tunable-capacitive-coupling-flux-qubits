@@ -727,6 +727,46 @@ def hamiltonian_fluxonium_C_fluxonium (nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr
     else:
         return H
 
+def hamiltonian_qubit_C_qubit_circuits(C_inv, circuits, Δs, nmax_r=5, nmax_f=10, return_H_0=False):
+
+    fluxonium_1, resonator_1, fluxonium_2, resonator_2 = circuits
+    Δ_1, Δ_2 = Δs
+
+    H_qubit_1 = hamiltonian_qubit(fluxonium_1, resonator_1, Δ_1 )
+    H_qubit_2 = hamiltonian_qubit(fluxonium_2, resonator_2, Δ_2 )
+
+    I_R = qt.identity(nmax_r)
+    I_F = qt.identity(nmax_f)
+    I_qubit = qt.identity(H_qubit_1.dims[0])
+
+    H_0 = (  qt.tensor(H_qubit_1, I_qubit)
+           + qt.tensor(I_qubit, H_qubit_2) )
+
+
+    Q_F1 = fluxonium_1.charge_op(0)
+    Q_R1 = resonator_1.charge_op(0)
+    Q_F2 = fluxonium_2.charge_op(0)
+    Q_R2 = resonator_2.charge_op(0)
+
+
+    Q_vec = [Q_F1, Q_R1, Q_F2, Q_R2]
+    H_coupling = 0
+    for i in range(4):
+        for j in range(4):
+            op_list = [I_F, I_R, I_F, I_R]
+            if i == j: # we ommit the diagonal terms since we have already included the reonarmalizations (LR and LF tilde) in H_0.
+                continue
+            else:
+                op_list[i] = Q_vec[i]
+                op_list[j] = Q_vec[j]
+                H_coupling += 1/2 * C_inv[i,j] * fF**-1 * qt.tensor(op_list)
+    H = H_0 + H_coupling
+
+    if return_H_0:
+        return H_0, H
+    else:
+        return H
+
 def hamiltonian_qubit_C_qubit_C_qubit(C_inv, circuits, Δs, nmax_r=5, nmax_f=10, return_H_0=False):
 
     fluxonium_1, resonator_1, fluxonium_2, resonator_2, fluxonium_3, resonator_3 = circuits
@@ -862,10 +902,15 @@ def H_eff_p1(H_0, H, n_eig, out='GHz', real=True, remove_ground = False, ψ_0=Fa
 def H_eff_p2(H_0, H, n_eig, out='GHz', real=False, remove_ground=False, solver='scipy', ψ_0=None):
     if ψ_0 is None:
         E_0, ψ_0 = diag(H_0, n_eig, real=real, solver='numpy', out=out)
+        ψ_0 = [qt.Qobj(ψ_0[:,i]) for i in range(n_eig)]
+
+        E, ψ = diag(H, n_eig=len(ψ_0), real=False, solver='scipy', out='Hz')
+        ψ = [qt.Qobj(ψ[:, i]) for i in range(n_eig)]
+
     else:
         E_0 = diag(H, n_eig=len(ψ_0), real=False, solver='Qutip', out=out, qObj=True)[0]
+        E, ψ = diag(H, n_eig=len(ψ_0), real=False, solver='Qutip', out=out, qObj=True)
 
-    E, ψ = diag(H, n_eig=len(ψ_0), real=False, solver='Qutip', out=out, qObj=True)
     V = H - H_0
 
     if out == 'GHz':
@@ -879,18 +924,11 @@ def H_eff_p2(H_0, H, n_eig, out='GHz', real=False, remove_ground=False, solver='
 
     for i in range(n_eig):
         for j in range(n_eig):
-            try:
-                H_eff_2[i, j] = 1 / 2 * sum(
-                              (1 / (E_0[i] - E[k]) + 1 / (E_0[j] - E[k])) *
-                               (ψ_0[i].dag() * V * ψ  [k]).data[0,0] *
-                               (ψ  [k].dag() * V * ψ_0[j]).data[0,0]
-                               for k in range(n_eig))
-            except:
-                H_eff_2[i, j] = 1 / 2 * sum(
-                              (1 / (E_0[i] - E[k]) + 1 / (E_0[j] - E[k])) *
-                               (ψ_0[i].dag() * V * ψ  [k]) *
-                               (ψ  [k].dag() * V * ψ_0[j])
-                               for k in range(n_eig))
+            H_eff_2[i, j] = 1 / 2 * sum(
+                          (1 / (E_0[i] - E[k]) + 1 / (E_0[j] - E[k])) *
+                           (ψ_0[i].dag() * V * ψ  [k]).data[0,0] *
+                           (ψ  [k].dag() * V * ψ_0[j]).data[0,0]
+                           for k in range(n_eig))
 
     # H_eff = H_eff_1 + H_eff_2
     H_eff = H_eff_2
@@ -909,8 +947,12 @@ def H_eff_SWT(H_0, H, n_eig, out='GHz', real=False, remove_ground=False, return_
 
     if ψ_0 is None:
         ψ_0 = diag(H_0, n_eig, real=real, solver='numpy')[1]
+        ψ_0 = [qt.Qobj(ψ_0[:, i]) for i in range(n_eig)]
 
-    E, ψ = diag(H, n_eig=len(ψ_0), real=False, solver='Qutip', out='Hz', qObj=True)
+        E, ψ = diag(H, n_eig=len(ψ_0), real=False, solver='scipy', out='Hz')
+        ψ = [qt.Qobj(ψ[:, i]) for i in range(n_eig)]
+    else:
+        E, ψ = diag(H, n_eig=len(ψ_0), real=False, solver='Qutip', out='Hz', qObj=True)
 
     Q = np.zeros((n_eig, n_eig), dtype=complex)
     for i in range(n_eig):
