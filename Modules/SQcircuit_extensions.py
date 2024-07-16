@@ -86,63 +86,102 @@ def C_CJ_Csh_to_CF_CR_eff(C, CJ, Csh):
     return CF, CR
 
 #%% Experimental parameters
-def get_experimental_parameters(qubit_name,return_effective=True):
-    if qubit_name == 'qubit_1' or qubit_name == 'resonator_1':
+def get_experimental_parameters(qubit_name, Δ, LR, return_effective=True):
+    if qubit_name == 'qubit_1':
         # qR7
-        LF  = 22.06
-        CF  = 32.15
-        EJ  = 6.19
+        LF  = 26.5
+        CF  = 26.9
+        EJ  = 5.4
         ω_r = 6.46
-        Δ   = 0.38 * 2
-        LR  = 20.03 * 4
 
         CR = 1 / (LR * nH) / (ω_r * 2 * np.pi * GHz) ** 2 / fF
         Lq, Lr     =  LF_LR_eff_to_Lq_Lr   (LF=LF, LR=LR, Δ=Δ)
         C, CJ, Csh =  CF_CR_eff_to_C_CJ_Csh(CF=CF, CR=CR)
 
-    elif qubit_name == 'qubit_2' or qubit_name == 'resonator_2':
+    elif qubit_name == 'qubit_2':
         # bG1
-        LF  = 20.2
-        CF  = 22.7
-        EJ  = 9.6
+        LF  = 20.4
+        CF  = 22.4
+        EJ  = 9.5
         ω_r = 6.274
-        Δ   = 0.14 * 2
-        LR  = 25.26 * 4
 
         CR = 1 / (LR* nH) / (ω_r* 2 * np.pi * GHz) ** 2 / fF
         Lq, Lr     = LF_LR_eff_to_Lq_Lr   (LF=LF, LR=LR, Δ=Δ)
         C, CJ, Csh = CF_CR_eff_to_C_CJ_Csh(CF=CF, CR=CR)
 
-    elif qubit_name == 'qubit_3' or qubit_name == 'resonator_3':
+    elif qubit_name == 'qubit_3':
         # qS16
-        LF  = 31.6
-        CF  = 25.2
+        LF  = 32.2
+        CF  = 24.8
         EJ  = 5.6
         ω_r = 5.22
-        Δ   = 0.64 * 2
-        LR  = 20.66 * 4
 
         CR = 1 / (LR * nH) / (ω_r * 2 * np.pi * GHz) ** 2 / fF
         Lq, Lr     = LF_LR_eff_to_Lq_Lr   (LF=LF, LR=LR, Δ=Δ)
         C, CJ, Csh = CF_CR_eff_to_C_CJ_Csh(CF=CF, CR=CR)
 
-    if qubit_name == 'qubit_1_single_1' or qubit_name == 'resonator_1_single_1':
-        # qR7
-        LF  = 27.64
-        CF  = 24.47
-        EJ  = 5.06
-        ω_r = 6.624
-        Δ   = 0.47 * 2
-        LR  = 25.09 * 4
-
-        CR = 1 / (LR * nH) / (ω_r * 2 * np.pi * GHz) ** 2 / fF
-        Lq, Lr     =  LF_LR_eff_to_Lq_Lr   (LF=LF, LR=LR, Δ=Δ)
-        C, CJ, Csh =  CF_CR_eff_to_C_CJ_Csh(CF=CF, CR=CR)
-
     if return_effective :
         return CR, CF, LF, LR, EJ, Δ, ω_r
     else:
         return C, CJ, Csh, Lq, Lr, Δ, EJ
+
+# def get_experimental_parameters(qubit_name,return_effective=True):
+#     if qubit_name == 'qubit_1' or qubit_name == 'resonator_1':
+#         # qR7
+#         LF  = 22.06
+#         CF  = 32.15
+#         EJ  = 6.19
+#         ω_r = 6.46
+#         Δ   = 0.38 * 2
+#         LR  = 20.03 * 4
+#
+#         CR = 1 / (LR * nH) / (ω_r * 2 * np.pi * GHz) ** 2 / fF
+#         Lq, Lr     =  LF_LR_eff_to_Lq_Lr   (LF=LF, LR=LR, Δ=Δ)
+#         C, CJ, Csh =  CF_CR_eff_to_C_CJ_Csh(CF=CF, CR=CR)
+#
+#     elif qubit_name == 'qubit_2' or qubit_name == 'resonator_2':
+#         # bG1
+#         LF  = 20.2
+#         CF  = 22.7
+#         EJ  = 9.6
+#         ω_r = 6.274
+#         Δ   = 0.14 * 2
+#         LR  = 25.26 * 4
+#
+#         CR = 1 / (LR* nH) / (ω_r* 2 * np.pi * GHz) ** 2 / fF
+#         Lq, Lr     = LF_LR_eff_to_Lq_Lr   (LF=LF, LR=LR, Δ=Δ)
+#         C, CJ, Csh = CF_CR_eff_to_C_CJ_Csh(CF=CF, CR=CR)
+#
+#     elif qubit_name == 'qubit_3' or qubit_name == 'resonator_3':
+#         # qS16
+#         LF  = 31.6
+#         CF  = 25.2
+#         EJ  = 5.6
+#         ω_r = 5.22
+#         Δ   = 0.64 * 2
+#         LR  = 20.66 * 4
+#
+#         CR = 1 / (LR * nH) / (ω_r * 2 * np.pi * GHz) ** 2 / fF
+#         Lq, Lr     = LF_LR_eff_to_Lq_Lr   (LF=LF, LR=LR, Δ=Δ)
+#         C, CJ, Csh = CF_CR_eff_to_C_CJ_Csh(CF=CF, CR=CR)
+#
+#     if qubit_name == 'qubit_1_single_1' or qubit_name == 'resonator_1_single_1':
+#         # qR7
+#         LF  = 27.64
+#         CF  = 24.47
+#         EJ  = 5.06
+#         ω_r = 6.624
+#         Δ   = 0.47 * 2
+#         LR  = 25.09 * 4
+#
+#         CR = 1 / (LR * nH) / (ω_r * 2 * np.pi * GHz) ** 2 / fF
+#         Lq, Lr     =  LF_LR_eff_to_Lq_Lr   (LF=LF, LR=LR, Δ=Δ)
+#         C, CJ, Csh =  CF_CR_eff_to_C_CJ_Csh(CF=CF, CR=CR)
+#
+#     if return_effective :
+#         return CR, CF, LF, LR, EJ, Δ, ω_r
+#     else:
+#         return C, CJ, Csh, Lq, Lr, Δ, EJ
 
 
 
