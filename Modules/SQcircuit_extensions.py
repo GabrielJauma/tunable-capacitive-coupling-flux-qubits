@@ -86,45 +86,6 @@ def C_CJ_Csh_to_CF_CR_eff(C, CJ, Csh):
     return CF, CR
 
 #%% Experimental parameters
-# def get_experimental_parameters(qubit_name, Δ, LR, return_effective=True):
-#     if qubit_name == 'qubit_1':
-#         # qR7
-#         LF  = 26.5
-#         CF  = 26.9
-#         EJ  = 5.4
-#         ω_r = 6.46
-#
-#         CR = 1 / (LR * nH) / (ω_r * 2 * np.pi * GHz) ** 2 / fF
-#         Lq, Lr     =  LF_LR_eff_to_Lq_Lr   (LF=LF, LR=LR, Δ=Δ)
-#         C, CJ, Csh =  CF_CR_eff_to_C_CJ_Csh(CF=CF, CR=CR)
-#
-#     elif qubit_name == 'qubit_2':
-#         # bG1
-#         LF  = 20.4
-#         CF  = 22.4
-#         EJ  = 9.5
-#         ω_r = 6.274
-#
-#         CR = 1 / (LR* nH) / (ω_r* 2 * np.pi * GHz) ** 2 / fF
-#         Lq, Lr     = LF_LR_eff_to_Lq_Lr   (LF=LF, LR=LR, Δ=Δ)
-#         C, CJ, Csh = CF_CR_eff_to_C_CJ_Csh(CF=CF, CR=CR)
-#
-#     elif qubit_name == 'qubit_3':
-#         # qS16
-#         LF  = 32.2
-#         CF  = 24.8
-#         EJ  = 5.6
-#         ω_r = 5.22
-#
-#         CR = 1 / (LR * nH) / (ω_r * 2 * np.pi * GHz) ** 2 / fF
-#         Lq, Lr     = LF_LR_eff_to_Lq_Lr   (LF=LF, LR=LR, Δ=Δ)
-#         C, CJ, Csh = CF_CR_eff_to_C_CJ_Csh(CF=CF, CR=CR)
-#
-#     if return_effective :
-#         return CR, CF, LF, LR, EJ, Δ, ω_r
-#     else:
-#         return C, CJ, Csh, Lq, Lr, Δ, EJ
-
 def get_experimental_parameters(qubit_name,return_effective=True):
     if qubit_name == 'qubit_1' or qubit_name == 'resonator_1':
         # qR7
@@ -941,33 +902,59 @@ def H_eff_p1(H_0, H, n_eig, out='GHz', real=True, remove_ground = False, ψ_0=Fa
 def H_eff_p2(H_0, H, n_eig, out='GHz', real=False, remove_ground=False, solver='scipy', ψ_0=None):
     if ψ_0 is None:
         E_0, ψ_0 = diag(H_0, n_eig, real=real, solver='numpy', out=out)
-        ψ_0 = [qt.Qobj(ψ_0[:,i]) for i in range(n_eig)]
+        E, ψ = diag(H, n_eig, real=False, solver='scipy', out=out)
+        try:
+            H_0 = H_0.__array__()
+        except:
+            pass
+        try:
+            H = H.__array__()
+        except:
+            pass
+        V = H - H_0
 
-        E, ψ = diag(H, n_eig=len(ψ_0), real=False, solver='scipy', out=out)
-        ψ = [qt.Qobj(ψ[:, i]) for i in range(n_eig)]
+        if out == 'GHz':
+            H_0 /= GHz * 2 * np.pi
+            H /= GHz * 2 * np.pi
+            V /= GHz * 2 * np.pi
+
+        # H_eff_1 = ψ_0.conj().T @ H @ ψ_0
+
+        H_eff_2 = np.zeros((n_eig, n_eig), dtype=complex)  # matrix to store our results.
+
+        for i in range(n_eig):
+            for j in range(n_eig):
+                H_eff_2[i, j] = 1 / 2 * sum(
+                    (1 / (E_0[i] - E[k]) + 1 / (E_0[j] - E[k])) *
+                    (ψ_0[:,i].conj().T @ V @ ψ[:,k])*
+                    (ψ[:,k].conj().T @ V @ ψ_0[:,j])
+                    for k in range(n_eig))
+
 
     else:
         E_0 = diag(H, n_eig=len(ψ_0), real=False, solver='Qutip', out=out, qObj=True)[0]
         E, ψ = diag(H, n_eig=len(ψ_0), real=False, solver='Qutip', out=out, qObj=True)
 
-    V = H - H_0
+        V = H - H_0
 
-    if out == 'GHz':
-        H_0 /= GHz * 2 * np.pi
-        H   /= GHz * 2 * np.pi
-        V   /= GHz * 2 * np.pi
+        if out == 'GHz':
+            H_0 /= GHz * 2 * np.pi
+            H /= GHz * 2 * np.pi
+            V /= GHz * 2 * np.pi
 
-    # H_eff_1 = ψ_0.conj().T @ H @ ψ_0
+        # H_eff_1 = ψ_0.conj().T @ H @ ψ_0
 
-    H_eff_2 = np.zeros((n_eig, n_eig), dtype=complex)  # matrix to store our results.
+        H_eff_2 = np.zeros((n_eig, n_eig), dtype=complex)  # matrix to store our results.
 
-    for i in range(n_eig):
-        for j in range(n_eig):
-            H_eff_2[i, j] = 1 / 2 * sum(
-                          (1 / (E_0[i] - E[k]) + 1 / (E_0[j] - E[k])) *
-                           (ψ_0[i].dag() * V * ψ  [k]).data[0,0] *
-                           (ψ  [k].dag() * V * ψ_0[j]).data[0,0]
-                           for k in range(n_eig))
+        for i in range(n_eig):
+            for j in range(n_eig):
+                H_eff_2[i, j] = 1 / 2 * sum(
+                    (1 / (E_0[i] - E[k]) + 1 / (E_0[j] - E[k])) *
+                    (ψ_0[i].dag() * V * ψ[k]).data[0, 0] *
+                    (ψ[k].dag() * V * ψ_0[j]).data[0, 0]
+                    for k in range(n_eig))
+
+
 
     # H_eff = H_eff_1 + H_eff_2
     H_eff = H_eff_2
@@ -986,17 +973,19 @@ def H_eff_SWT(H_0, H, n_eig, out='GHz', real=False, remove_ground=False, return_
 
     if ψ_0 is None:
         ψ_0 = diag(H_0, n_eig, real=real, solver='numpy')[1]
-        ψ_0 = [qt.Qobj(ψ_0[:, i]) for i in range(n_eig)]
+        E, ψ = diag(H, n_eig, real=False, solver='scipy', out=out)
 
-        E, ψ = diag(H, n_eig=len(ψ_0), real=False, solver='scipy', out=out)
-        ψ = [qt.Qobj(ψ[:, i]) for i in range(n_eig)]
+        Q = np.zeros((n_eig, n_eig), dtype=complex)
+        for i in range(n_eig):
+            for j in range(n_eig):
+                Q[i, j] = ψ_0[:,i].conj().T @ ψ[:,j]
     else:
         E, ψ = diag(H, n_eig=len(ψ_0), real=False, solver='Qutip', out=out, qObj=True)
 
-    Q = np.zeros((n_eig, n_eig), dtype=complex)
-    for i in range(n_eig):
-        for j in range(n_eig):
-            Q[i, j] = (ψ_0[i].dag() * ψ[j]).data[0,0]
+        Q = np.zeros((n_eig, n_eig), dtype=complex)
+        for i in range(n_eig):
+            for j in range(n_eig):
+                Q[i, j] = (ψ_0[i].dag() * ψ[j]).data[0,0]
 
 
     U, s, Vh = np.linalg.svd(Q)
