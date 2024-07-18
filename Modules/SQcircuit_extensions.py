@@ -980,7 +980,8 @@ def H_eff_SWT(H_0, H, n_eig, out='GHz', real=False, remove_ground=False, return_
             for j in range(n_eig):
                 Q[i, j] = ψ_0[:,i].conj().T @ ψ[:,j]
     else:
-        E, ψ = diag(H, n_eig=len(ψ_0), real=False, solver='Qutip', out=out, qObj=True)
+        n_eig = len(ψ_0)
+        E, ψ = diag(H, n_eig, real=False, solver='Qutip', out=out, qObj=True)
 
         Q = np.zeros((n_eig, n_eig), dtype=complex)
         for i in range(n_eig):
@@ -1465,14 +1466,14 @@ def decomposition_in_pauli_4x4(A,  print_pretty=True):
     s = [i, σx, σy, σz]  # array containing the matrices.
     labels = ['I', 'σx', 'σy', 'σz']  # useful to print the result.
 
-    P = np.zeros((4, 4), dtype=complex)  # array to store our results.
+    P = np.zeros((4, 4), dtype=float)  # array to store our results.
     # Loop to obtain each coefficient.
     for i in range(4):
         for j in range(4):
             label = labels[i] + ' \U00002A02' + labels[j]
             S = np.kron(s[i], s[j])  # S_ij=σ_i /otimes σ_j.
             P[i, j] = 0.25 * (np.dot(S.T.conjugate(), A)).trace() # P[i,j]=(1/4)tr(S_ij^t*A)
-            if P[i, j] != 0.0 and print_pretty == True:
+            if np.abs(P[i, j])>1e-13 and print_pretty == True:
                 print(" %s\t*\t %s " % (P[i, j], label))
 
     return P
