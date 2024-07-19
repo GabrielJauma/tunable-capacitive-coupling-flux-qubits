@@ -934,6 +934,11 @@ def H_eff_p2(H_0, H, n_eig, out='GHz', real=False, remove_ground=False, solver='
     else:
         E_0 = diag(H, n_eig=len(ψ_0), real=False, solver='Qutip', out=out, qObj=True)[0]
         E, ψ = diag(H, n_eig=len(ψ_0), real=False, solver='Qutip', out=out, qObj=True)
+        subspace_indices = find_closest_indices(E_0, E, tolerance=0.1)
+        if len(subspace_indices) != len(ψ_0):
+            raise ValueError('Something is wrong with the tolerance')
+        ψ = ψ[subspace_indices]
+        n_eig = len(ψ_0)
 
         V = H - H_0
 
@@ -969,24 +974,32 @@ def H_eff_p2(H_0, H, n_eig, out='GHz', real=False, remove_ground=False, solver='
 
     return H_eff
 
+def H_eff_p2_large(ψ_0, ψ, E_0, E, V, remove_ground=False):
+    n_eig = len(ψ_0)
+    H_eff = np.zeros((n_eig, n_eig), dtype=complex)  # matrix to store our results.
+
+    for i in range(n_eig):
+        for j in range(n_eig):
+            H_eff[i, j] = 1 / 2 * sum(
+                (1 / (E_0[i] - E[k]) + 1 / (E_0[j] - E[k])) *
+                (ψ_0[i].dag() * V * ψ[k]).data[0, 0] *
+                (ψ[k].dag() * V * ψ_0[j]).data[0, 0]
+                for k in range(n_eig))
+
+    if remove_ground:
+        H_eff -= H_eff[0, 0] * np.eye(len(H_eff))
+
+    return H_eff
+
 def H_eff_SWT(H_0, H, n_eig, out='GHz', real=False, remove_ground=False, return_transformation=False,ψ_0=None ):
 
-    if ψ_0 is None:
-        ψ_0 = diag(H_0, n_eig, real=real, solver='numpy')[1]
-        E, ψ = diag(H, n_eig, real=False, solver='scipy', out=out)
+    ψ_0 = diag(H_0, n_eig, real=real, solver='numpy')[1]
+    E, ψ = diag(H, n_eig, real=False, solver='scipy', out=out)
 
-        Q = np.zeros((n_eig, n_eig), dtype=complex)
-        for i in range(n_eig):
-            for j in range(n_eig):
-                Q[i, j] = ψ_0[:,i].conj().T @ ψ[:,j]
-    else:
-        n_eig = len(ψ_0)
-        E, ψ = diag(H, n_eig, real=False, solver='Qutip', out=out, qObj=True)
-
-        Q = np.zeros((n_eig, n_eig), dtype=complex)
-        for i in range(n_eig):
-            for j in range(n_eig):
-                Q[i, j] = (ψ_0[i].dag() * ψ[j]).data[0,0]
+    Q = np.zeros((n_eig, n_eig), dtype=complex)
+    for i in range(n_eig):
+        for j in range(n_eig):
+            Q[i, j] = ψ_0[:,i].conj().T @ ψ[:,j]
 
 
     U, s, Vh = np.linalg.svd(Q)
@@ -1006,6 +1019,24 @@ def H_eff_SWT(H_0, H, n_eig, out='GHz', real=False, remove_ground=False, return_
         return H_eff, A
     else:
         return H_eff
+
+
+def H_eff_SWT_large(ψ_0, ψ, E, remove_ground=False):
+    n_eig = len(ψ_0)
+    Q = np.zeros((n_eig, n_eig), dtype=complex)
+    for i in range(n_eig):
+        for j in range(n_eig):
+            Q[i, j] = (ψ_0[i].dag() * ψ[j]).data[0,0]
+
+    U, s, Vh = np.linalg.svd(Q)
+    A = U @ Vh
+
+    H_eff = A @ np.diag(E) @ A.T.conj()
+
+    if remove_ground:
+        H_eff -= H_eff[0, 0] * np.eye(len(H_eff))
+
+    return H_eff
 
 
 #%% Optimization functions
@@ -1576,6 +1607,15 @@ def expand_list_with_array(input_list):
         expanded_list.append(new_list)
 
     return expanded_list
+
+
+def find_close_indices(E_0_ψ_0, E_0,tol=0.01):
+    result_indices = []
+    for i, value in enumerate(E_0_ψ_0):
+        # Check if any element in E_0 is within the tolerance range
+        result_indices.append(np.where(np.abs(E_0-value)<=tol)[0][0])
+
+    return result_indices
 
 #%% Truncation convergence
 def truncation_convergence(circuit, n_eig, trunc_nums=False, threshold=1e-2, refine=True, plot=True):
