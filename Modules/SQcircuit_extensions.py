@@ -1622,11 +1622,12 @@ def expand_list_with_array(input_list):
     return expanded_list
 
 
-def find_close_indices(E_0_ψ_0, E_0,tol=0.01):
+def find_close_indices(E_0_ψ_0, E_0):
     result_indices = []
-    for i, value in enumerate(E_0_ψ_0):
+    for value in E_0_ψ_0:
+
         # Check if any element in E_0 is within the tolerance range
-        result_indices.append(np.where(np.abs(E_0-value)<=tol)[0][0])
+        result_indices.append(np.where(np.abs(E_0-value)<=1e-8)[0][0])
 
     return result_indices
 
