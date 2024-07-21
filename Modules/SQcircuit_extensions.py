@@ -876,16 +876,29 @@ def KIT_qubit_vs_param(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ =
 
 #%% Transformations to obtain effective Hamiltonians
 
-def H_eff_p1(H_0, H, n_eig, out='GHz', real=True, remove_ground = False, ψ_0=False ):
+def H_eff_p1(H_0, H, n_eig, out='GHz', real=True, remove_ground = False):
 
-    if not ψ_0:
-        ψ_0 = diag(H_0, n_eig, real=real, solver='numpy')[1]
-        H_eff  = ψ_0.conj().T @ H.__array__() @ ψ_0
-    else:
-        H_eff = np.zeros([n_eig, n_eig])
-        for i in range(n_eig):
-            for j in range(n_eig):
-                H_eff[i, j] = (ψ_0[i].dag() * H * ψ_0[j]).data[0, 0]
+    ψ_0 = diag(H_0, n_eig, real=real, solver='numpy')[1]
+    H_eff  = ψ_0.conj().T @ H.__array__() @ ψ_0
+
+    if out == 'GHz':
+        H_eff /= GHz * 2 * np.pi
+
+    if remove_ground:
+        H_eff -=  H_eff[0,0]*np.eye(len(H_eff))
+
+    if real:
+        if np.allclose(np.imag(H_eff),0):
+            H_eff = np.real(H_eff)
+
+    return H_eff
+
+def H_eff_p1_large(ψ_0, H, out='GHz', real=True, remove_ground = False):
+    n_eig = len(ψ_0)
+    H_eff = np.zeros([n_eig, n_eig])
+    for i in range(n_eig):
+        for j in range(n_eig):
+            H_eff[i, j] = (ψ_0[i].dag() * H * ψ_0[j]).data[0, 0]
 
     if out == 'GHz':
         H_eff /= GHz * 2 * np.pi
