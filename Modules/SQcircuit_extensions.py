@@ -1107,8 +1107,8 @@ def sq_get_energy_indices(qubit, fluxonium, resonator, n_eig=3):
             N_fluxonium[k], N_resonator[k] = [-123, -123]
     return N_fluxonium, N_resonator
 
-def sq_get_energy_indices_hamiltonian(H_qubit, H_fluxonium, H_resonator, n_eig=3):
-    E_qubit     = diag(H_qubit    , n_eig=n_eig, remove_ground=True)[0]
+def sq_get_energy_indices_hamiltonian(H_qubit, H_fluxonium, H_resonator, n_eig=2):
+    E_qubit     = diag(H_qubit    , n_eig=n_eig+4, remove_ground=True)[0]
     E_fluxonium = diag(H_fluxonium, n_eig=n_eig, remove_ground=True)[0]
     E_resonator = diag(H_resonator, n_eig=n_eig, remove_ground=True)[0]
 
