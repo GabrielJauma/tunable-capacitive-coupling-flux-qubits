@@ -1078,18 +1078,39 @@ def find_resonance(H_target, input_circuit):
 
     return optimal_φ_ext
 #%% Sorting and labeling functions
-def sq_get_energy_indices(qubit, fluxonium, resonator, n_eig=3):
-    try:
-        E_qubit = qubit.efreqs - qubit.efreqs[0]
-        E_fluxonium = fluxonium.efreqs - fluxonium.efreqs[0]
-        E_resonator = resonator.efreqs - resonator.efreqs[0]
-    except:
-        qubit    .diag(n_eig+2)
-        fluxonium.diag(n_eig)
-        resonator.diag(n_eig)
-        E_qubit      = qubit.efreqs    - qubit.efreqs[0]
-        E_fluxonium = fluxonium.efreqs - fluxonium.efreqs[0]
-        E_resonator = resonator.efreqs - resonator.efreqs[0]
+# def sq_get_energy_indices(qubit, fluxonium, resonator, n_eig=3):
+#     try:
+#         E_qubit = qubit.efreqs - qubit.efreqs[0]
+#         E_fluxonium = fluxonium.efreqs - fluxonium.efreqs[0]
+#         E_resonator = resonator.efreqs - resonator.efreqs[0]
+#     except:
+#         qubit    .diag(n_eig+2)
+#         fluxonium.diag(n_eig)
+#         resonator.diag(n_eig)
+#         E_qubit      = qubit.efreqs    - qubit.efreqs[0]
+#         E_fluxonium = fluxonium.efreqs - fluxonium.efreqs[0]
+#         E_resonator = resonator.efreqs - resonator.efreqs[0]
+#
+#     n_eig = len(E_qubit)
+#
+#     N_fluxonium = np.zeros(n_eig, dtype='int')
+#     N_resonator = np.zeros(n_eig, dtype='int')
+#
+#     E_matrix = E_fluxonium[:, np.newaxis] + E_resonator
+#
+#     tol = E_qubit[1]-E_qubit[0]
+#     for k in range(n_eig):
+#         ΔE_matrix = np.abs(E_matrix - E_qubit[k])
+#         if ΔE_matrix.min() < tol:
+#             N_fluxonium[k], N_resonator[k] = np.unravel_index(ΔE_matrix.argmin(), ΔE_matrix.shape)
+#         else:
+#             N_fluxonium[k], N_resonator[k] = [-123, -123]
+#     return N_fluxonium, N_resonator
+
+def sq_get_energy_indices_hamiltonian(H_qubit, H_fluxonium, H_resonator, n_eig=2):
+    E_qubit     = diag(H_qubit    , n_eig=n_eig+4, remove_ground=True)[0]
+    E_fluxonium = diag(H_fluxonium, n_eig=n_eig, remove_ground=True)[0]
+    E_resonator = diag(H_resonator, n_eig=n_eig, remove_ground=True)[0]
 
     n_eig = len(E_qubit)
 
@@ -1107,21 +1128,17 @@ def sq_get_energy_indices(qubit, fluxonium, resonator, n_eig=3):
             N_fluxonium[k], N_resonator[k] = [-123, -123]
     return N_fluxonium, N_resonator
 
-def sq_get_energy_indices_hamiltonian(H_qubit, H_fluxonium, H_resonator, n_eig=2):
-    E_qubit     = diag(H_qubit    , n_eig=n_eig+4, remove_ground=True)[0]
-    E_fluxonium = diag(H_fluxonium, n_eig=n_eig, remove_ground=True)[0]
-    E_resonator = diag(H_resonator, n_eig=n_eig, remove_ground=True)[0]
-
-    n_eig = len(E_qubit)
+def sq_get_energy_indices(E_composite, E_1, E_2):
+    n_eig = len(E_composite)
 
     N_fluxonium = np.zeros(n_eig, dtype='int')
     N_resonator = np.zeros(n_eig, dtype='int')
 
-    E_matrix = E_fluxonium[:, np.newaxis] + E_resonator
+    E_matrix = E_1[:, np.newaxis] + E_2
 
-    tol = E_qubit[1]-E_qubit[0]
+    tol = E_composite[1]-E_composite[0]
     for k in range(n_eig):
-        ΔE_matrix = np.abs(E_matrix - E_qubit[k])
+        ΔE_matrix = np.abs(E_matrix - E_composite[k])
         if ΔE_matrix.min() < tol:
             N_fluxonium[k], N_resonator[k] = np.unravel_index(ΔE_matrix.argmin(), ΔE_matrix.shape)
         else:
