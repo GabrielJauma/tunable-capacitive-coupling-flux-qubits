@@ -1034,7 +1034,7 @@ def H_eff_SWT(H_0, H, n_eig, out='GHz', real=False, remove_ground=False, return_
         return H_eff
 
 
-def H_eff_SWT_large(ψ_0, ψ, E, remove_ground=False):
+def H_eff_SWT_large(ψ_0, ψ, E, remove_ground=False, return_Q=False):
     n_eig = len(ψ_0)
     Q = np.zeros((n_eig, n_eig), dtype=complex)
     for i in range(n_eig):
@@ -1049,7 +1049,10 @@ def H_eff_SWT_large(ψ_0, ψ, E, remove_ground=False):
     if remove_ground:
         H_eff -= H_eff[0, 0] * np.eye(len(H_eff))
 
-    return H_eff
+    if return_Q:
+        return H_eff, Q
+    else:
+        return H_eff
 
 
 #%% Optimization functions
