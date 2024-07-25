@@ -895,7 +895,7 @@ def H_eff_p1(H_0, H, n_eig, out='GHz', real=True, remove_ground = False):
 
 def H_eff_p1_large(ψ_0, H, out='GHz', real=True, remove_ground = False):
     n_eig = len(ψ_0)
-    H_eff = np.zeros([n_eig, n_eig])
+    H_eff = np.zeros([n_eig, n_eig], dtype='complex')
     for i in range(n_eig):
         for j in range(n_eig):
             H_eff[i, j] = (ψ_0[i].dag() * H * ψ_0[j]).data[0, 0]
