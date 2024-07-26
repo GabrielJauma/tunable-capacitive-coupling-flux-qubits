@@ -1234,6 +1234,23 @@ def get_subspace(H, E, threshold):
 
     return H_subspace
 
+def get_ψ_basis(basis_states, H_comp, E_A, E_B, nmax_A, nmax_B, n_eig_comp=4):
+    # states = [(0,0),(0,1)]
+    # H_comp must be of dimension H_A *otimes* H_B
+    E_comp, ψ_comp = diag(H_comp, n_eig_comp, solver='numpy')
+
+    Nf, Nr = sq_get_energy_indices(E_comp, E_A, E_B)
+    index_0 = np.intersect1d(np.where(Nf == basis_states[0][0]), np.where(Nr == basis_states[0][0])).tolist()[0]
+    index_1 = np.intersect1d(np.where(Nf == basis_states[1][0]), np.where(Nr == basis_states[1][1])).tolist()[0]
+
+    ψ_0 = qt.Qobj(ψ_comp[:, index_0])
+    ψ_1 = qt.Qobj(ψ_comp[:, index_1])
+
+    ψ_0.dims = [[nmax_A, nmax_B], [1, 1]]
+    ψ_1.dims = [[nmax_A, nmax_B], [1, 1]]
+
+    return ψ_0, ψ_1
+
 #%% Operators
 def internal_coupling_fluxonium_resonator(fluxonium, resonator, Δ, Lq = 25, Lr = 10):
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
