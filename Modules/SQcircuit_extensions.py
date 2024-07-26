@@ -1249,7 +1249,7 @@ def get_ψ_basis(basis_states, H_comp, E_A, E_B, nmax_A, nmax_B, n_eig_comp=4):
     ψ_0.dims = [[nmax_A, nmax_B], [1, 1]]
     ψ_1.dims = [[nmax_A, nmax_B], [1, 1]]
 
-    return ψ_0, ψ_1
+    return ψ_0, ψ_1, index_0, index_1
 
 #%% Operators
 def internal_coupling_fluxonium_resonator(fluxonium, resonator, Δ, Lq = 25, Lr = 10):
