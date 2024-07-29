@@ -1251,6 +1251,80 @@ def get_ψ_basis(basis_states, H_comp, E_A, E_B, nmax_A, nmax_B, n_eig_comp=4):
 
     return ψ_0, ψ_1, index_0, index_1
 
+
+
+def compute_combined_eigenstates_2_body(energies, eigenstates):
+
+    eigvals_A, eigvals_B = energies
+    eigvecs_A, eigvecs_B = eigenstates
+
+    # List to store the combined eigenstates and eigenvalues
+    combined_eigenstates = []
+    combined_eigenvalues = []
+    for i, eigvec_A in enumerate(eigvecs_A):
+        for j, eigvec_B in enumerate(eigvecs_B):
+            # Tensor product of eigenstates
+            combined_state = qt.tensor(eigvec_A, eigvec_B)
+            combined_eigenstates.append(combined_state)
+            # Sum of eigenvalues
+            combined_energy = eigvals_A[i] + eigvals_B[j]
+            combined_eigenvalues.append(combined_energy)
+
+    # Create a list of tuples (energy, state)
+    combined = list(zip(combined_eigenvalues, combined_eigenstates))
+
+    # Sort by energy
+    combined.sort(key=lambda x: x[0])
+
+    # Unzip into sorted eigenvalues and eigenstates
+    sorted_eigenvalues, sorted_eigenstates = zip(*combined)
+
+    # Convert the sorted eigenstates back to Qobj list if needed
+    sorted_eigenstates = [qt.Qobj(state) for state in sorted_eigenstates]
+
+    return sorted_eigenvalues, sorted_eigenstates
+
+
+def compute_combined_eigenstates_3_body(energies, eigenstates, nmax_A, nmax_B):
+    eigvals_A, eigvals_B, eigvals_C = energies
+    eigvecs_A, eigvecs_B, eigvecs_C = eigenstates
+
+    # List to store the combined eigenstates and eigenvalues
+    combined_eigenstates = []
+    combined_eigenvalues = []
+    for i, eigval_A in enumerate(eigvals_A):
+        for j, eigval_B in enumerate(eigvals_B):
+            for k, eigval_C in enumerate(eigvals_C):
+                # Tensor product of eigenstates
+                ψ_A = qt.Qobj(eigvecs_A[:,i])
+                ψ_B = qt.Qobj(eigvecs_B[:,j])
+                ψ_C = qt.Qobj(eigvecs_C[:,k])
+
+                ψ_A.dims = [[nmax_A, nmax_B], [1, 1]]
+                ψ_B.dims = [[nmax_A, nmax_B], [1, 1]]
+                ψ_C.dims = [[nmax_A, nmax_B], [1, 1]]
+
+                combined_state = qt.tensor(ψ_A,ψ_B,ψ_C)
+                combined_eigenstates.append(combined_state)
+                # Sum of eigenvalues
+                combined_energy = eigval_A + eigval_B + eigval_C
+                combined_eigenvalues.append(combined_energy)
+
+    # Create a list of tuples (energy, state)
+    combined = list(zip(combined_eigenvalues, combined_eigenstates))
+
+    # Sort by energy
+    combined.sort(key=lambda x: x[0])
+
+    # Unzip into sorted eigenvalues and eigenstates
+    sorted_eigenvalues, sorted_eigenstates = zip(*combined)
+
+    # Convert the sorted eigenstates back to Qobj list if needed
+    sorted_eigenstates = [qt.Qobj(state) for state in sorted_eigenstates]
+
+    return sorted_eigenvalues, sorted_eigenstates
+
+
 #%% Operators
 def internal_coupling_fluxonium_resonator(fluxonium, resonator, Δ, Lq = 25, Lr = 10):
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
