@@ -6,7 +6,7 @@ from scipy.optimize import minimize
 import qutip as qt
 
 data_dir = r'/data'
-opt_dir = r'/opt_results/'
+# opt_dir = r'/opt_results/'
 
 #%% Constants
 GHz = 1e9
@@ -620,6 +620,7 @@ def get_theoretical_spectrum_low_ene(experiment_name):
             if out == 'error':
                 error = np.sum(np.abs(ω_vs_φ_ext - ω_exp))
                 error /= GHz
+                error/=len(φ_ext_values)
                 print(error)
                 return error
 
@@ -627,7 +628,7 @@ def get_theoretical_spectrum_low_ene(experiment_name):
                 return φ_ext_values, ω_vs_φ_ext
         return qubit_spectrum
 
-    elif experiment_name == 'resonator_1_single_1' or experiment_name == 'resonator_2':
+    elif experiment_name == 'resonator_1_single_1' or experiment_name == 'resonator_1' or experiment_name == 'resonator_2' or experiment_name == 'resonator_3':
         # Resonator 2 also here because the symmetry of the coupling capacitance neglects the inner capacitive coupling
         def r_q_av_cross_single_spectrum(parameters, data_set, out='error'):
 
@@ -656,47 +657,48 @@ def get_theoretical_spectrum_low_ene(experiment_name):
                         multiplier = 1
                     error += np.abs(ω_vs_φ_ext[i] - ω_exp[i]) * multiplier
                 error /= GHz
+                error/=len(φ_ext_values)
                 print(error)
                 return error
             elif out == 'spectrum':
                 return φ_ext_values, ω_vs_φ_ext
         return r_q_av_cross_single_spectrum
 
-    elif experiment_name == 'resonator_1' or experiment_name == 'resonator_3':
-        def r_q_av_cross_spectrum(parameters, data_set, out='error'):
-
-            I0, I_origin, ω_r, g_Φ, ω_q, μ, g_q = parameters
-            I_exp, ω_exp, crossing_index_1, crossing_index_2, extra_important_indices, important_multiplier = data_set
-
-            φ_ext_values = (I_exp - I_origin) / I0
-            repeated_φ_ext_indices = find_repeat_indices(φ_ext_values)
-            ω_vs_φ_ext = np.zeros([len(φ_ext_values), 2])
-
-            for i, φ_ext in enumerate(φ_ext_values):
-                H = sq_ext.hamiltonian_qubit_low_ene(ω_q, μ, ω_r, g_Φ, φ_ext, g_q)
-                ω_vs_φ_ext[i] = sq_ext.diag(H, 3, remove_ground=True, solver='numpy', out=None)[0][1:]
-
-            ω_vs_φ_ext = np.concatenate(
-                [ω_vs_φ_ext[0:crossing_index_1, 0], ω_vs_φ_ext[crossing_index_1:-crossing_index_2, 1],
-                 ω_vs_φ_ext[-crossing_index_2:, 0]])
-
-            if out == 'error':
-                error = 0
-                for i in range(len(ω_vs_φ_ext)):
-                    if i in repeated_φ_ext_indices:
-                        continue
-                    if i in extra_important_indices:
-                        multiplier = important_multiplier
-                    else:
-                        multiplier = 1
-                    error += np.abs(ω_vs_φ_ext[i] - ω_exp[i]) * multiplier
-                error /= GHz
-                print(error)
-                return error
-            elif out == 'spectrum':
-                return φ_ext_values, ω_vs_φ_ext
-
-        return r_q_av_cross_spectrum
+    # elif experiment_name == 'resonator_1' or experiment_name == 'resonator_3':
+    #     def r_q_av_cross_spectrum(parameters, data_set, out='error'):
+    #
+    #         I0, I_origin, ω_r, g_Φ, ω_q, μ, g_q = parameters
+    #         I_exp, ω_exp, crossing_index_1, crossing_index_2, extra_important_indices, important_multiplier = data_set
+    #
+    #         φ_ext_values = (I_exp - I_origin) / I0
+    #         repeated_φ_ext_indices = find_repeat_indices(φ_ext_values)
+    #         ω_vs_φ_ext = np.zeros([len(φ_ext_values), 2])
+    #
+    #         for i, φ_ext in enumerate(φ_ext_values):
+    #             H = sq_ext.hamiltonian_qubit_low_ene(ω_q, μ, ω_r, g_Φ, φ_ext, g_q)
+    #             ω_vs_φ_ext[i] = sq_ext.diag(H, 3, remove_ground=True, solver='numpy', out=None)[0][1:]
+    #
+    #         ω_vs_φ_ext = np.concatenate(
+    #             [ω_vs_φ_ext[0:crossing_index_1, 0], ω_vs_φ_ext[crossing_index_1:-crossing_index_2, 1],
+    #              ω_vs_φ_ext[-crossing_index_2:, 0]])
+    #
+    #         if out == 'error':
+    #             error = 0
+    #             for i in range(len(ω_vs_φ_ext)):
+    #                 if i in repeated_φ_ext_indices:
+    #                     continue
+    #                 if i in extra_important_indices:
+    #                     multiplier = important_multiplier
+    #                 else:
+    #                     multiplier = 1
+    #                 error += np.abs(ω_vs_φ_ext[i] - ω_exp[i]) * multiplier
+    #             error /= GHz
+    #             print(error)
+    #             return error
+    #         elif out == 'spectrum':
+    #             return φ_ext_values, ω_vs_φ_ext
+    #
+    #     return r_q_av_cross_spectrum
 
     elif experiment_name == 'resonator_and_qubit_1_single_1':
         def unit_cell_single_spectrum(parameters, data_set, out='error'):
@@ -789,6 +791,7 @@ def get_theoretical_spectrum_low_ene(experiment_name):
                     error += np.sum(np.abs(ω_exp_i - ω_vs_φ_ext_i))
 
                 error/=GHz
+                error /= len(φ_ext_values)
                 print(error)
                 return error
 
@@ -860,14 +863,16 @@ def get_theoretical_spectrum_low_ene(experiment_name):
 
 def return_spectra_multiple_models(models):
     φ_ext_and_ω_list = []
+    ω_exp_list = []
 
     for _, parameters, function, data_set, _ in models:
         φ_ext_and_ω_list.append(function(parameters, data_set, out='spectrum'))
+        ω_exp_list.append(data_set[1])
 
-    return φ_ext_and_ω_list
+    return φ_ext_and_ω_list, ω_exp_list
 
 def fit_multiple_models(models, method='SLSQP'):
-    parameter_names_list, parameters_list, function_list, data_set_list, bounds_list = [ [] for _ in range(5)]
+    parameter_names_list, parameters_list, function_list, data_set_list, bounds_list = [[] for _ in range(5)]
 
     for parameter_names, parameters, function, data_set, flexible_param_indices in models:
         parameter_names_list   .append(parameter_names)
@@ -918,7 +923,7 @@ def create_dict(keys_list, values_list):
                 dict[key] = value
     return dict
 
-def load_optimization_results(experiment_name):
+def load_optimization_results(experiment_name, opt_dir):
     experiment_file = os.getcwd() + opt_dir + experiment_name + '.npz'
     data = np.load(experiment_file)
 
@@ -928,7 +933,7 @@ def load_optimization_results(experiment_name):
 
     return parameters_opt, parameters_guess, bounds
 
-def create_bounds(parameters, flexible_param_indices=None):
+def create_bounds(parameters, flexible_param_indices=[], blocked_indices=[]):
     if flexible_param_indices is None:
         flexible_param_indices = []
     bounds = []
@@ -936,6 +941,9 @@ def create_bounds(parameters, flexible_param_indices=None):
         if i in flexible_param_indices:
             lower_bound = param * 0.1
             upper_bound = param * 10
+        elif i in blocked_indices:
+            lower_bound = param
+            upper_bound = param
         else:
             lower_bound = param * 0.8
             upper_bound = param * 1.2

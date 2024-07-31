@@ -584,6 +584,16 @@ def C_mat_qubit_C_qubit_C_qubit(CC, CF1, CR1, CF2, CR2, CF3, CR3):
 
     return C0_mat + CC_mat
 
+def C_mat_fluxonium_C_fluxonium_C_fluxonium(CC, CF1, CF2, CF3):
+
+    C0_mat = np.diag([CF1, CF2, CF3])
+
+    CC_mat = CC * np.array([[     1/4,     1/4,        0,  ],
+                            [     1/4,     1/2,      1/4,  ],
+                            [       0,     1/4,      1/4,  ]])
+
+    return C0_mat + CC_mat
+
 #%% Hamiltonians made by composing small circuits made with sqcircuits
 def hamiltonian_qubit(fluxonium = None, resonator=None, Δ=0.1, C=15, CJ=3, Csh=15, Lq=25, Lr=10, EJ=10, φ_ext=0.5, nmax_r=15, nmax_f=25, C_int=None, return_Ψ_nonint=False, n_eig_Ψ_nonint=4):
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
@@ -767,6 +777,45 @@ def hamiltonian_qubit_C_qubit_circuits(C_inv, circuits, Δs, nmax_r=5, nmax_f=10
     else:
         return H
 
+
+def hamiltonian_fluxonium_C_fluxonium_C_fluxonium(C_inv, circuits, nmax_f=10, return_H_0=False):
+
+    fluxonium_1, fluxonium_2, fluxonium_3 = circuits
+
+    H_1 = fluxonium_1.hamiltonian()
+    H_2 = fluxonium_2.hamiltonian()
+    H_3 = fluxonium_3.hamiltonian()
+
+    I = qt.identity(nmax_f)
+
+    H_0 = (  qt.tensor(H_1, I, I)
+           + qt.tensor(I, H_2, I)
+           + qt.tensor(I, I, H_3) )
+
+
+    Q_F1 = fluxonium_1.charge_op(0)
+    Q_F2 = fluxonium_2.charge_op(0)
+    Q_F3 = fluxonium_3.charge_op(0)
+
+
+    Q_vec = [Q_F1, Q_F2, Q_F3]
+    H_coupling = 0
+    for i in range(len(Q_vec)):
+        for j in range(len(Q_vec)):
+            op_list = [I, I, I]
+            if i == j: # we ommit the diagonal terms since we have already included the reonarmalizations (LR and LF tilde) in H_0.
+                continue
+            else:
+                op_list[i] = Q_vec[i]
+                op_list[j] = Q_vec[j]
+                H_coupling += 1/2 * C_inv[i,j] * fF**-1 * qt.tensor(op_list)
+    H = H_0 + H_coupling
+
+    if return_H_0:
+        return H_0, H
+    else:
+        return H
+
 def hamiltonian_qubit_C_qubit_C_qubit(C_inv, circuits, Δs, nmax_r=5, nmax_f=10, return_H_0=False):
 
     fluxonium_1, resonator_1, fluxonium_2, resonator_2, fluxonium_3, resonator_3 = circuits
@@ -831,6 +880,21 @@ def hamiltonian_qubit_low_ene(ω_q, μ, ω_r, g_Φ, φ_ext, g_q=0):
     I_f = qt.identity(H_f.shape[0])
 
     H = np.kron(H_f, I_r) + np.kron(I_f, H_r) + g_Φ * np.kron(σ_x, a_dag + a) + g_q * np.kron(σ_y, 1j*(a_dag - a))
+
+    return H
+
+def hamiltonian_qubit_low_ene_mod_phase(ω_q, μ, ω_r, g, φ_ext, θ=0):
+    σ_x, σ_y, σ_z = pauli_matrices()
+    a_dag   = create(3)
+    a       = annihilate(3)
+
+    H_f = hamiltonian_fluxonium_low_ene(ω_q, μ, φ_ext)
+    H_r = ω_r * a_dag @ a
+
+    I_r = qt.identity(H_r.shape[0])
+    I_f = qt.identity(H_f.shape[0])
+
+    H = np.kron(H_f, I_r) + np.kron(I_f, H_r) + g * (np.cos(θ) * np.kron(σ_x, a_dag + a) + np.sin(θ) * np.kron(σ_y, 1j*(a_dag - a)))
 
     return H
 
@@ -1285,7 +1349,7 @@ def compute_combined_eigenstates_2_body(energies, eigenstates):
     return sorted_eigenvalues, sorted_eigenstates
 
 
-def compute_combined_eigenstates_3_body(energies, eigenstates, nmax_A, nmax_B):
+def compute_combined_eigenstates_3_body(energies, eigenstates, nmax_f, nmax_r):
     eigvals_A, eigvals_B, eigvals_C = energies
     eigvecs_A, eigvecs_B, eigvecs_C = eigenstates
 
@@ -1300,9 +1364,9 @@ def compute_combined_eigenstates_3_body(energies, eigenstates, nmax_A, nmax_B):
                 ψ_B = qt.Qobj(eigvecs_B[:,j])
                 ψ_C = qt.Qobj(eigvecs_C[:,k])
 
-                ψ_A.dims = [[nmax_A, nmax_B], [1, 1]]
-                ψ_B.dims = [[nmax_A, nmax_B], [1, 1]]
-                ψ_C.dims = [[nmax_A, nmax_B], [1, 1]]
+                ψ_A.dims = [[nmax_f, nmax_r], [1, 1]]
+                ψ_B.dims = [[nmax_f, nmax_r], [1, 1]]
+                ψ_C.dims = [[nmax_f, nmax_r], [1, 1]]
 
                 combined_state = qt.tensor(ψ_A,ψ_B,ψ_C)
                 combined_eigenstates.append(combined_state)
@@ -1323,6 +1387,32 @@ def compute_combined_eigenstates_3_body(energies, eigenstates, nmax_A, nmax_B):
     sorted_eigenstates = [qt.Qobj(state) for state in sorted_eigenstates]
 
     return sorted_eigenvalues, sorted_eigenstates
+
+
+from itertools import product
+
+
+def combine_eigenvalues(energy_matrix):
+    # Get the shape of the input matrix
+    n_systems, n_eig = energy_matrix.shape
+
+    # Generate all possible combinations of indices
+    index_combinations = list(product(range(n_eig), repeat=n_systems))
+
+    # Compute the sum of eigenvalues for each combination
+    energy_combinations = []
+    for indices in index_combinations:
+        energy_sum = sum(energy_matrix[i, idx] for i, idx in enumerate(indices))
+        energy_combinations.append(energy_sum)
+
+    # Combine energies and indices and sort them
+    combined = sorted(zip(energy_combinations, index_combinations))
+
+    # Separate the sorted energies and indices
+    sorted_energies = [x[0] for x in combined]
+    sorted_indices = [list(x[1]) for x in combined]
+
+    return np.array(sorted_energies), np.array(sorted_indices)
 
 
 #%% Operators
