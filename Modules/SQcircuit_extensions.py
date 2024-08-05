@@ -594,6 +594,18 @@ def C_mat_fluxonium_C_fluxonium_C_fluxonium(CC, CF1, CF2, CF3):
 
     return C0_mat + CC_mat
 
+def C_mat_from_C_int(C_diag, C_int_diag, C_int):
+    CF_1, CR_1, CF_2, CR_2, CF_3, CR_3 = C_diag
+    C_int_11, C_int_22, C_int_33 = C_int_diag
+    C_int_12, C_int_23, C_int_13 = C_int
+    C_inv = np.array([[CF_1 ** -1, C_int_11 ** -1, C_int_12 ** -1, C_int_12 ** -1, C_int_13 ** -1, C_int_13 ** -1],
+                      [C_int_11 ** -1, CR_1 ** -1, C_int_12 ** -1, C_int_12 ** -1, C_int_13 ** -1, C_int_13 ** -1],
+                      [C_int_12 ** -1, C_int_12 ** -1, CF_2 ** -1, 0, C_int_23 ** -1, C_int_23 ** -1],
+                      [C_int_12 ** -1, C_int_12 ** -1, 0, CR_2 ** -1, C_int_23 ** -1, C_int_23 ** -1],
+                      [C_int_13 ** -1, C_int_13 ** -1, C_int_23 ** -1, C_int_23 ** -1, CF_3 ** -1, C_int_33 ** -1],
+                      [C_int_13 ** -1, C_int_13 ** -1, C_int_23 ** -1, C_int_23 ** -1, C_int_33 ** -1, CR_3 ** -1]])
+    return C_inv
+
 #%% Hamiltonians made by composing small circuits made with sqcircuits
 def hamiltonian_qubit(fluxonium = None, resonator=None, Δ=0.1, C=15, CJ=3, Csh=15, Lq=25, Lr=10, EJ=10, φ_ext=0.5, nmax_r=15, nmax_f=25, C_int=None, return_Ψ_nonint=False, n_eig_Ψ_nonint=4):
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
@@ -860,6 +872,19 @@ def hamiltonian_qubit_C_qubit_C_qubit(C_inv, circuits, Δs, nmax_r=5, nmax_f=10,
     else:
         return H
 
+def hamiltonian_qubit_C_qubit_C_qubit_H_Q_Cint(H_list, Q_list, C_int_list):
+    H_1, H_2, H_3 = H_list
+    Q_1, Q_2, Q_3 = Q_list
+    I = qt.identity(H_1.dims[0])
+    C_int_12, C_int_23, C_int_13 = C_int_list
+
+    H = (qt.tensor(H_1, I, I) + qt.tensor(I, H_2, I) + qt.tensor(I, I, H_3) +
+         C_int_12 ** -1 * fF ** -1 * qt.tensor(Q_1, Q_2, I) +
+         C_int_23 ** -1 * fF ** -1 * qt.tensor(I, Q_2, Q_3) +
+         C_int_13 ** -1 * fF ** -1 * qt.tensor(Q_1, I, Q_3))
+
+    return H
+
 #%% Low-energy hamiltonians
 def hamiltonian_fluxonium_low_ene(ω_q, μ, φ_ext):
     σ_x, σ_y, σ_z = pauli_matrices()
@@ -910,15 +935,17 @@ def hamiltonian_fluxonium_C_fluxonium_low_ene(H_f1, H_f2, g_q):
 
     return H
 
-def hamiltonian_fluxonium_C_fluxonium_fluxonium_low_ene(H_f1, H_f2, H_f3, g_q):
+def hamiltonian_fluxonium_C_fluxonium_C_fluxonium_low_ene(H_list, g_list):
     σ_x, σ_y, σ_z = pauli_matrices()
 
-    # H_f1 = hamiltonian_fluxonium_low_ene(ω_q_1, μ_1, φ_ext_1)
-    # H_f2 = hamiltonian_fluxonium_low_ene(ω_q_2, μ_2, φ_ext_2)
+    H_1, H_2, H_3 = H_list
+    I = qt.identity(H_1.dims[0])
+    g_12, g_23, g_13 = g_list
 
-    I = qt.identity(H_f1.shape[0])
-
-    H = np.kron(H_f1, I) + np.kron(I, H_f2) + g_q * np.kron(σ_y, σ_y)
+    H = (qt.tensor(H_1, I, I) + qt.tensor(I, H_2, I) + qt.tensor(I, I, H_3) +
+         g_12 * qt.tensor(σ_y, σ_y, I) +
+         g_23 * qt.tensor(I, σ_y, σ_y) +
+         g_13 * qt.tensor(σ_y, I, σ_y))
 
     return H
 
