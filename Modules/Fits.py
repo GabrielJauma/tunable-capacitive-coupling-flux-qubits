@@ -858,33 +858,22 @@ def get_theoretical_spectrum_low_ene(experiment_name):
 
     elif experiment_name == 'qubit_1_qubit_2_qubit_3':
         def qubit_qubit_crossing_spectrum(parameters, data_set, out='error'):
-            C_int_12, C_int_23, C_int_13, LF_1, CF_1, EJ_1, CF_2, LF_2, EJ_2, CF_3, LF_3, EJ_3 = parameters
-            I_exp, ω_exp, φ_ext_i, φ_ext_f, nmax_f = data_set
-            Δ_φ_ext = φ_ext_f - φ_ext_i
+            ω_q1, μ_q1, ω_q2, μ_q2, ω_q3, μ_q3, g_q1q2, g_q2q3, g_q1q3, φ_ext_i, φ_ext_f = parameters
+            I_exp, ω_exp = data_set
+
             I_exp_arr = np.concatenate((I_exp[0], I_exp[1], I_exp[2]))
             I_exp_max = I_exp_arr.max()
             I_exp_min = I_exp_arr.min()
+            Δ_φ_ext = φ_ext_f - φ_ext_i
 
-            # Create qubit 1 at frustration
-            qubit_1 = sq_ext.sq_fluxonium(C_F_eff=CF_1, L_F_eff=LF_1, EJ=EJ_1, nmax_f=nmax_f)
-            H_1 = qubit_1.hamiltonian()
-            Q_1 = qubit_1.charge_op(0)
-            I = qt.identity(H_1.shape[0])
+            H_1 = sq_ext.hamiltonian_fluxonium_low_ene(ω_q1, μ_q1, φ_ext=0.5)
 
-            # Move the qubit_2 to resonance with qubit_1
-            qubit_2 = sq_ext.sq_fluxonium(C_F_eff=CF_2, L_F_eff=LF_2, EJ=EJ_2, nmax_f=nmax_f)
-            φ_ext_resonance = sq_ext.find_resonance(H_1, qubit_2)
-            loop_2 = qubit_2.loops[0]
-            loop_2.set_flux(φ_ext_resonance)
-            H_2 = qubit_2.hamiltonian()
-            Q_2 = qubit_2.charge_op(0)
-
-            # Create qubit 3, the sweep in external flux will be with it
-            qubit_3 = sq_ext.sq_fluxonium(C_F_eff=CF_3, L_F_eff=LF_3, EJ=EJ_3, nmax_f=nmax_f)
-            loop_3 = qubit_3.loops[0]
+            φ_ext_resonance_q1q2 = sq_ext.find_resonance_low_energy(H_1, sq_ext.hamiltonian_fluxonium_low_ene, [ω_q2, μ_q2])
+            H_2 = sq_ext.hamiltonian_fluxonium_low_ene(ω_q2, μ_q2, φ_ext_resonance_q1q2)
 
             φ_ext_values_list = []
             ω_vs_φ_ext_list   = []
+
             for I_exp_i in I_exp:
                 I_unitary = (I_exp_i - I_exp_min) / (I_exp_max - I_exp_min)
                 φ_ext_values_list.append(I_unitary * Δ_φ_ext + φ_ext_i)
@@ -893,14 +882,11 @@ def get_theoretical_spectrum_low_ene(experiment_name):
                 ω_vs_φ_ext = np.zeros(len(φ_ext_values))
 
                 for i, φ_ext in enumerate(φ_ext_values):
-                    loop_3.set_flux(φ_ext)
-                    H_3 = qubit_3.hamiltonian()
-                    Q_3 = qubit_3.charge_op(0)
-                    H = (qt.tensor(H_1, I, I) + qt.tensor(I, H_2, I) + qt.tensor(I, I, H_3) +
-                         C_int_12 ** -1 * fF ** -1 * qt.tensor(Q_1, Q_2, I) +
-                         C_int_23 ** -1 * fF ** -1 * qt.tensor(I, Q_2, Q_3) +
-                         C_int_13 ** -1 * fF ** -1 * qt.tensor(Q_1, I, Q_3))
-                    ω_vs_φ_ext[i] = sq_ext.diag(H, k+2, remove_ground=True)[0][k+1]
+                    H_3 = sq_ext.hamiltonian_fluxonium_low_ene(ω_q3, μ_q3, φ_ext)
+                    H_list = [H_1, H_2, H_3]
+                    g_list = [g_q1q2, g_q2q3, g_q1q3]
+                    H = sq_ext.hamiltonian_fluxonium_C_fluxonium_C_fluxonium_low_ene(H_list, g_list)
+                    ω_vs_φ_ext[i] = sq_ext.diag(H, k+2, remove_ground=True, solver='numpy', out=None)[0][k+1]
 
                 ω_vs_φ_ext_list.append(ω_vs_φ_ext)
 
@@ -908,12 +894,14 @@ def get_theoretical_spectrum_low_ene(experiment_name):
                 error = 0
                 for ω_exp_i,ω_vs_φ_ext_i  in zip(ω_exp, ω_vs_φ_ext_list):
                     error += np.sum(np.abs(ω_exp_i - ω_vs_φ_ext_i))
+
+                error/=GHz
+                error /= len(φ_ext_values)
                 print(error)
                 return error
 
             elif out == 'spectrum':
                 return φ_ext_values_list, ω_vs_φ_ext_list
-
         return qubit_qubit_crossing_spectrum
 
 #%% Miscelanea
@@ -985,8 +973,12 @@ def load_optimization_results(experiment_name, opt_dir):
     data = np.load(experiment_file)
 
     parameters_opt   = data['parameters_opt']
-    parameters_guess = data['parameters_guess']
-    bounds           = (data['bounds'])
+    try:
+        parameters_guess = data['parameters_guess']
+        bounds           = (data['bounds'])
+    except:
+        parameters_guess = None
+        bounds = None
 
     return parameters_opt, parameters_guess, bounds
 

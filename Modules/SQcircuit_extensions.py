@@ -594,16 +594,21 @@ def C_mat_fluxonium_C_fluxonium_C_fluxonium(CC, CF1, CF2, CF3):
 
     return C0_mat + CC_mat
 
-def C_mat_from_C_int(C_diag, C_int_diag, C_int):
+def C_mat_from_C_int(C_diag, C_int_diag, C_int, only_qubit_modes=True):
     CF_1, CR_1, CF_2, CR_2, CF_3, CR_3 = C_diag
     C_int_11, C_int_22, C_int_33 = C_int_diag
     C_int_12, C_int_23, C_int_13 = C_int
-    C_inv = np.array([[CF_1 ** -1, C_int_11 ** -1, C_int_12 ** -1, C_int_12 ** -1, C_int_13 ** -1, C_int_13 ** -1],
-                      [C_int_11 ** -1, CR_1 ** -1, C_int_12 ** -1, C_int_12 ** -1, C_int_13 ** -1, C_int_13 ** -1],
-                      [C_int_12 ** -1, C_int_12 ** -1, CF_2 ** -1, 0, C_int_23 ** -1, C_int_23 ** -1],
-                      [C_int_12 ** -1, C_int_12 ** -1, 0, CR_2 ** -1, C_int_23 ** -1, C_int_23 ** -1],
-                      [C_int_13 ** -1, C_int_13 ** -1, C_int_23 ** -1, C_int_23 ** -1, CF_3 ** -1, C_int_33 ** -1],
-                      [C_int_13 ** -1, C_int_13 ** -1, C_int_23 ** -1, C_int_23 ** -1, C_int_33 ** -1, CR_3 ** -1]])
+    if not only_qubit_modes:
+        C_inv = np.array([[CF_1 ** -1, C_int_11 ** -1, C_int_12 ** -1, C_int_12 ** -1, C_int_13 ** -1, C_int_13 ** -1],
+                          [C_int_11 ** -1, CR_1 ** -1, C_int_12 ** -1, C_int_12 ** -1, C_int_13 ** -1, C_int_13 ** -1],
+                          [C_int_12 ** -1, C_int_12 ** -1, CF_2 ** -1, 0, C_int_23 ** -1, C_int_23 ** -1],
+                          [C_int_12 ** -1, C_int_12 ** -1, 0, CR_2 ** -1, C_int_23 ** -1, C_int_23 ** -1],
+                          [C_int_13 ** -1, C_int_13 ** -1, C_int_23 ** -1, C_int_23 ** -1, CF_3 ** -1, C_int_33 ** -1],
+                          [C_int_13 ** -1, C_int_13 ** -1, C_int_23 ** -1, C_int_23 ** -1, C_int_33 ** -1, CR_3 ** -1]])
+    else:
+        C_inv = np.array([[CF_1 ** -1       ,C_int_12 ** -1, C_int_13 ** -1 ],
+                          [C_int_12 ** -1   ,CF_2 ** -1    , C_int_23 ** -1 ],
+                          [C_int_13 ** -1   ,C_int_23 ** -1, CF_3 ** -1     ]])
     return C_inv
 
 #%% Hamiltonians made by composing small circuits made with sqcircuits
@@ -936,16 +941,28 @@ def hamiltonian_fluxonium_C_fluxonium_low_ene(H_f1, H_f2, g_q):
     return H
 
 def hamiltonian_fluxonium_C_fluxonium_C_fluxonium_low_ene(H_list, g_list):
+    H_1, H_2, H_3 = H_list
+    g_12, g_23, g_13 = g_list
     σ_x, σ_y, σ_z = pauli_matrices()
 
-    H_1, H_2, H_3 = H_list
-    I = qt.identity(H_1.dims[0])
-    g_12, g_23, g_13 = g_list
+    # σ_x, σ_y, σ_z = qt.sigmax(), qt.sigmay(), qt.sigmaz()
 
-    H = (qt.tensor(H_1, I, I) + qt.tensor(I, H_2, I) + qt.tensor(I, I, H_3) +
-         g_12 * qt.tensor(σ_y, σ_y, I) +
-         g_23 * qt.tensor(I, σ_y, σ_y) +
-         g_13 * qt.tensor(σ_y, I, σ_y))
+    # H_1 = qt.Qobj(H_1)
+    # H_2 = qt.Qobj(H_2)
+    # H_3 = qt.Qobj(H_3)
+    # I = qt.identity(H_1.dims[0])
+
+    I = np.eye(H_1.shape[0])
+
+    # H = (qt.tensor(H_1, I, I) + qt.tensor(I, H_2, I) + qt.tensor(I, I, H_3) +
+    #      g_12 * qt.tensor(σ_y, σ_y, I) +
+    #      g_23 * qt.tensor(I, σ_y, σ_y) +
+    #      g_13 * qt.tensor(σ_y, I, σ_y))
+
+    H = (np.kron(np.kron(H_1, I), I) + np.kron(np.kron(I, H_2), I) + np.kron(np.kron(I, I), H_3) +
+         g_12 * np.kron(np.kron(σ_y, σ_y), I) +
+         g_23 * np.kron(np.kron(I, σ_y), σ_y) +
+         g_13 * np.kron(np.kron(σ_y, I), σ_y))
 
     return H
 
@@ -1160,6 +1177,29 @@ def find_resonance(H_target, input_circuit):
         # Diagonalize the input circuit Hamiltonian
         E_input = input_circuit.diag(n_eig=2)[0]
         ω_input = E_input[1] - E_input[0]
+
+        # Return the absolute difference between ω_target and ω_input
+        return np.abs(ω_target - ω_input)
+
+    # Step 3: Use an optimization method to find the optimal φ_ext
+    result = sp.optimize.minimize_scalar(objective, bounds=(0.5, 1), method='bounded')
+
+    # Return the optimal φ_ext and the corresponding gap
+    optimal_φ_ext = result.x
+
+    return optimal_φ_ext
+
+def find_resonance_low_energy(H_target, H_input_function, inpout_args):
+    # Step 1: Calculate the target gap ω_target
+    ω_target = diag(H_target, n_eig=2, remove_ground=True, solver='numpy')[0][1]
+
+    # Step 2: Define the objective function to minimize the difference between ω_target and ω_input
+    def objective(φ_ext):
+        # Set the external flux of the input circuit
+        H_input = H_input_function(*inpout_args, φ_ext=φ_ext)
+
+        # Diagonalize the input circuit Hamiltonian
+        ω_input = diag(H_input, n_eig=2, remove_ground=True, solver='numpy')[0][1]
 
         # Return the absolute difference between ω_target and ω_input
         return np.abs(ω_target - ω_input)
