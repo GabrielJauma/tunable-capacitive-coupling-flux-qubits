@@ -689,7 +689,7 @@ def get_theoretical_spectrum_low_ene(experiment_name):
         # Resonator 2 also here because the symmetry of the coupling capacitance neglects the inner capacitive coupling
         def r_q_av_cross_single_spectrum(parameters, data_set, out='error'):
 
-            I0, I_origin, ω_r, g_Φ, ω_q, μ = parameters
+            I0, I_origin, ω_r, g_Φ, ω_q, μ, shift_ω = parameters
             I_exp, ω_exp, crossing_index_1, crossing_index_2, extra_important_indices, important_multiplier = data_set
 
             φ_ext_values = (I_exp - I_origin) / I0
@@ -698,6 +698,7 @@ def get_theoretical_spectrum_low_ene(experiment_name):
             for i, φ_ext in enumerate(φ_ext_values):
                 H = sq_ext.hamiltonian_qubit_low_ene(ω_q, μ, ω_r, g_Φ, φ_ext)
                 ω_vs_φ_ext[i] = sq_ext.diag(H, 3, remove_ground=True, solver='numpy', out = 'None')[0][1:]
+                ω_vs_φ_ext[i] += shift_ω
 
             ω_vs_φ_ext = np.concatenate(
                 [ω_vs_φ_ext[0:crossing_index_1, 0], ω_vs_φ_ext[crossing_index_1:-crossing_index_2, 1],
@@ -813,9 +814,53 @@ def get_theoretical_spectrum_low_ene(experiment_name):
 
         return unit_cell_single_spectrum
 
+    # elif experiment_name == 'qubit_1_qubit_2':
+    #     def qubit_qubit_crossing_spectrum(parameters, data_set, out='error'):
+    #         ω_q_1, μ_1, ω_q_2, μ_2, g_q, φ_ext_i, φ_ext_f, shift_ω = parameters
+    #         I_exp, ω_exp = data_set
+    #
+    #         I_exp_arr = np.concatenate((I_exp[0], I_exp[1]))
+    #         I_exp_max = I_exp_arr.max()
+    #         I_exp_min = I_exp_arr.min()
+    #         Δ_φ_ext = φ_ext_f - φ_ext_i
+    #
+    #         H_1 = sq_ext.hamiltonian_fluxonium_low_ene(ω_q_1, μ_1, φ_ext=0.5)
+    #
+    #         φ_ext_values_list = []
+    #         ω_vs_φ_ext_list   = []
+    #
+    #         for I_exp_i in I_exp:
+    #             I_unitary = (I_exp_i - I_exp_min) / (I_exp_max - I_exp_min)
+    #             φ_ext_values_list.append(I_unitary * Δ_φ_ext + φ_ext_i)
+    #
+    #         for k, φ_ext_values in enumerate(φ_ext_values_list):
+    #             ω_vs_φ_ext = np.zeros(len(φ_ext_values))
+    #
+    #             for i, φ_ext in enumerate(φ_ext_values):
+    #                 H_2 = sq_ext.hamiltonian_fluxonium_low_ene(ω_q_2, μ_2, φ_ext)
+    #                 H = sq_ext.hamiltonian_fluxonium_C_fluxonium_low_ene(H_1, H_2, g_q)
+    #                 ω_vs_φ_ext[i] = sq_ext.diag(H, k+2, remove_ground=True, solver='numpy', out=None)[0][k+1]
+    #                 ω_vs_φ_ext[i] += shift_ω
+    #
+    #             ω_vs_φ_ext_list.append(ω_vs_φ_ext)
+    #
+    #         if out == 'error':
+    #             error = 0
+    #             for ω_exp_i,ω_vs_φ_ext_i  in zip(ω_exp, ω_vs_φ_ext_list):
+    #                 error += np.sum(np.abs(ω_exp_i - ω_vs_φ_ext_i))
+    #
+    #             error/=GHz
+    #             error /= len(φ_ext_values)
+    #             print(error)
+    #             return error
+    #
+    #         elif out == 'spectrum':
+    #             return φ_ext_values_list, ω_vs_φ_ext_list
+    #     return qubit_qubit_crossing_spectrum
+
     elif experiment_name == 'qubit_1_qubit_2':
         def qubit_qubit_crossing_spectrum(parameters, data_set, out='error'):
-            ω_q_1, μ_1, ω_q_2, μ_2, g_q, φ_ext_i, φ_ext_f = parameters
+            ω_q1, μ_q1, ω_q2, μ_q2, ω_q3, μ_q3, g_q1q2, g_q2q3, g_q1q3, φ_ext_i, φ_ext_f, shift_ω = parameters
             I_exp, ω_exp = data_set
 
             I_exp_arr = np.concatenate((I_exp[0], I_exp[1]))
@@ -823,7 +868,8 @@ def get_theoretical_spectrum_low_ene(experiment_name):
             I_exp_min = I_exp_arr.min()
             Δ_φ_ext = φ_ext_f - φ_ext_i
 
-            H_1 = sq_ext.hamiltonian_fluxonium_low_ene(ω_q_1, μ_1, φ_ext=0.5)
+            H_1 = sq_ext.hamiltonian_fluxonium_low_ene(ω_q1, μ_q1, φ_ext=0.5)
+            H_3 = sq_ext.hamiltonian_fluxonium_low_ene(ω_q3, μ_q3, φ_ext=0.5)
 
             φ_ext_values_list = []
             ω_vs_φ_ext_list   = []
@@ -836,9 +882,12 @@ def get_theoretical_spectrum_low_ene(experiment_name):
                 ω_vs_φ_ext = np.zeros(len(φ_ext_values))
 
                 for i, φ_ext in enumerate(φ_ext_values):
-                    H_2 = sq_ext.hamiltonian_fluxonium_low_ene(ω_q_2, μ_2, φ_ext)
-                    H = sq_ext.hamiltonian_fluxonium_C_fluxonium_low_ene(H_1, H_2, g_q)
-                    ω_vs_φ_ext[i] = sq_ext.diag(H, k+2, remove_ground=True, solver='numpy', out=None)[0][k+1]
+                    H_2 = sq_ext.hamiltonian_fluxonium_low_ene(ω_q2, μ_q2, φ_ext)
+                    H_list = [H_1, H_2, H_3]
+                    g_list = [g_q1q2, g_q2q3, g_q1q3]
+                    H = sq_ext.hamiltonian_fluxonium_C_fluxonium_C_fluxonium_low_ene(H_list, g_list)
+                    ω_vs_φ_ext[i] = sq_ext.diag(H, k+3, remove_ground=True, solver='numpy', out=None)[0][k+2]
+                    ω_vs_φ_ext[i] += shift_ω
 
                 ω_vs_φ_ext_list.append(ω_vs_φ_ext)
 
@@ -858,7 +907,7 @@ def get_theoretical_spectrum_low_ene(experiment_name):
 
     elif experiment_name == 'qubit_1_qubit_2_qubit_3':
         def qubit_qubit_crossing_spectrum(parameters, data_set, out='error'):
-            ω_q1, μ_q1, ω_q2, μ_q2, ω_q3, μ_q3, g_q1q2, g_q2q3, g_q1q3, φ_ext_i, φ_ext_f = parameters
+            ω_q1, μ_q1, ω_q2, μ_q2, ω_q3, μ_q3, g_q1q2, g_q2q3, g_q1q3, φ_ext_i, φ_ext_f, shift_ω = parameters
             I_exp, ω_exp = data_set
 
             I_exp_arr = np.concatenate((I_exp[0], I_exp[1], I_exp[2]))
@@ -887,6 +936,7 @@ def get_theoretical_spectrum_low_ene(experiment_name):
                     g_list = [g_q1q2, g_q2q3, g_q1q3]
                     H = sq_ext.hamiltonian_fluxonium_C_fluxonium_C_fluxonium_low_ene(H_list, g_list)
                     ω_vs_φ_ext[i] = sq_ext.diag(H, k+2, remove_ground=True, solver='numpy', out=None)[0][k+1]
+                    ω_vs_φ_ext[i] += shift_ω
 
                 ω_vs_φ_ext_list.append(ω_vs_φ_ext)
 
