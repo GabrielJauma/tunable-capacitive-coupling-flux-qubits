@@ -594,7 +594,7 @@ def C_mat_fluxonium_C_fluxonium_C_fluxonium(CC, CF1, CF2, CF3):
 
     return C0_mat + CC_mat
 
-def C_mat_from_C_int(C_diag, C_int_diag, C_int, only_qubit_modes=True):
+def C_mat_from_C_int(C_diag, C_int_diag, C_int, only_qubit_modes=False):
     CF_1, CR_1, CF_2, CR_2, CF_3, CR_3 = C_diag
     C_int_11, C_int_22, C_int_33 = C_int_diag
     C_int_12, C_int_23, C_int_13 = C_int
