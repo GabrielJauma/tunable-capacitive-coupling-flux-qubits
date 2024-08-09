@@ -1189,9 +1189,9 @@ def find_resonance(H_target, input_circuit):
 
     return optimal_φ_ext
 
-def find_resonance_low_energy(H_target, H_input_function, inpout_args):
+def find_resonance_low_energy(H_target, H_input_function, inpout_args, solver='numpy'):
     # Step 1: Calculate the target gap ω_target
-    ω_target = diag(H_target, n_eig=2, remove_ground=True, solver='numpy')[0][1]
+    ω_target = diag(H_target, n_eig=2, remove_ground=True, solver=solver)[0][1]
 
     # Step 2: Define the objective function to minimize the difference between ω_target and ω_input
     def objective(φ_ext):
@@ -1199,7 +1199,7 @@ def find_resonance_low_energy(H_target, H_input_function, inpout_args):
         H_input = H_input_function(*inpout_args, φ_ext=φ_ext)
 
         # Diagonalize the input circuit Hamiltonian
-        ω_input = diag(H_input, n_eig=2, remove_ground=True, solver='numpy')[0][1]
+        ω_input = diag(H_input, n_eig=2, remove_ground=True, solver=solver)[0][1]
 
         # Return the absolute difference between ω_target and ω_input
         return np.abs(ω_target - ω_input)
@@ -1211,6 +1211,7 @@ def find_resonance_low_energy(H_target, H_input_function, inpout_args):
     optimal_φ_ext = result.x
 
     return optimal_φ_ext
+
 #%% Sorting and labeling functions
 # def sq_get_energy_indices(qubit, fluxonium, resonator, n_eig=3):
 #     try:
