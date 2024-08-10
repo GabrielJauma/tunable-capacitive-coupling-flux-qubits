@@ -620,6 +620,9 @@ def hamiltonian_qubit(fluxonium = None, resonator=None, Δ=0.1, C=15, CJ=3, Csh=
     if resonator is None:
         resonator = sq_resonator(C=C, CJ=CJ, Csh=Csh, Lq=Lq, Lr=Lr, Δ=Δ, EJ=EJ, φ_ext=φ_ext, nmax_r=nmax_r, nmax_f=nmax_f)
 
+    if φ_ext != 0.5:
+        fluxonium.loops[0].set_flux(φ_ext)
+
     H_f = fluxonium.hamiltonian()
     H_r = resonator.hamiltonian()
 
@@ -835,8 +838,9 @@ def hamiltonian_fluxonium_C_fluxonium_C_fluxonium(C_inv, circuits, nmax_f=10, re
 
 def hamiltonian_qubit_C_qubit_C_qubit(C_inv, circuits, Δs, nmax_r=5, nmax_f=10, return_H_0=False):
 
-    fluxonium_1, resonator_1, fluxonium_2, resonator_2, fluxonium_3, resonator_3 = circuits
     Δ_1, Δ_2, Δ_3 = Δs
+
+    fluxonium_1, resonator_1, fluxonium_2, resonator_2, fluxonium_3, resonator_3 = circuits
 
     H_qubit_1 = hamiltonian_qubit(fluxonium_1, resonator_1, Δ_1 )
     H_qubit_2 = hamiltonian_qubit(fluxonium_2, resonator_2, Δ_2 )
