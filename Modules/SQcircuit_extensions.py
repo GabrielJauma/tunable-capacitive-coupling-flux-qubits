@@ -944,31 +944,40 @@ def hamiltonian_fluxonium_C_fluxonium_low_ene(H_f1, H_f2, g_q):
 
     return H
 
-def hamiltonian_fluxonium_C_fluxonium_C_fluxonium_low_ene(H_list, g_list):
+def hamiltonian_fluxonium_C_fluxonium_C_fluxonium_low_ene(H_list, g_list, return_H_0=False):
     H_1, H_2, H_3 = H_list
     g_12, g_23, g_13 = g_list
     σ_x, σ_y, σ_z = pauli_matrices()
 
-    # σ_x, σ_y, σ_z = qt.sigmax(), qt.sigmay(), qt.sigmaz()
-
-    # H_1 = qt.Qobj(H_1)
-    # H_2 = qt.Qobj(H_2)
-    # H_3 = qt.Qobj(H_3)
-    # I = qt.identity(H_1.dims[0])
-
     I = np.eye(H_1.shape[0])
+    H_0 = np.kron(np.kron(H_1, I), I) + np.kron(np.kron(I, H_2), I) + np.kron(np.kron(I, I), H_3)
 
-    # H = (qt.tensor(H_1, I, I) + qt.tensor(I, H_2, I) + qt.tensor(I, I, H_3) +
-    #      g_12 * qt.tensor(σ_y, σ_y, I) +
-    #      g_23 * qt.tensor(I, σ_y, σ_y) +
-    #      g_13 * qt.tensor(σ_y, I, σ_y))
+    H_int = (g_12 * np.kron(np.kron(σ_y, σ_y), I) +
+            g_23 * np.kron(np.kron(I, σ_y), σ_y) +
+            g_13 * np.kron(np.kron(σ_y, I), σ_y))
 
-    H = (np.kron(np.kron(H_1, I), I) + np.kron(np.kron(I, H_2), I) + np.kron(np.kron(I, I), H_3) +
-         g_12 * np.kron(np.kron(σ_y, σ_y), I) +
-         g_23 * np.kron(np.kron(I, σ_y), σ_y) +
-         g_13 * np.kron(np.kron(σ_y, I), σ_y))
+    H = H_0 + H_int
 
-    return H
+    if return_H_0:
+        return H_0, H
+    else:
+        return H
+
+
+# def hamiltonian_qubit_C_qubit_C_qubit_low_ene(H_list, g_list):
+#     H_1, H_2, H_3 = H_list
+#     g_12, g_23, g_13 = g_list
+#     σ_x, σ_y, σ_z = pauli_matrices()
+#
+#     I = np.eye(H_1.shape[0])
+#
+#     H = (np.kron(np.kron(H_1, I), I) + np.kron(np.kron(I, H_2), I) + np.kron(np.kron(I, I), H_3) +
+#          g_12 * np.kron(np.kron(σ_y, σ_y), I) +
+#          g_23 * np.kron(np.kron(I, σ_y), σ_y) +
+#          g_13 * np.kron(np.kron(σ_y, I), σ_y))
+#
+#     return H
+
 
 #%% Circuits vs parameters
 def KIT_qubit_vs_param(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5, nmax_r=15, nmax_f=25, model='composition'):
