@@ -1019,7 +1019,10 @@ def H_eff_p1_large(ψ_0, H, out='GHz', real=True, remove_ground = False):
     H_eff = np.zeros([n_eig, n_eig], dtype='complex')
     for i in range(n_eig):
         for j in range(n_eig):
-            H_eff[i, j] = (ψ_0[i].dag() * H * ψ_0[j]).data[0, 0]
+            try:
+                H_eff[i, j] = (ψ_0[i].dag() * H * ψ_0[j]).data[0, 0]
+            except:
+                H_eff[i, j] = (ψ_0[i].dag() * H * ψ_0[j])[0, 0]
 
     if out == 'GHz':
         H_eff /= GHz * 2 * np.pi
@@ -1128,7 +1131,10 @@ def H_eff_p2_large(ψ_0, ψ, E_0, E, V, remove_ground=False):
 def H_eff_SWT(H_0, H, n_eig, out='GHz', real=False, remove_ground=False, return_transformation=False,ψ_0=None ):
 
     ψ_0 = diag(H_0, n_eig, real=real, solver='numpy')[1]
-    E, ψ = diag(H, n_eig, real=False, solver='scipy', out=out)
+    try:
+        E, ψ = diag(H, n_eig, real=False, solver='scipy', out=out)
+    except:
+        E, ψ = diag(H, n_eig, real=False, solver='numpy', out=out)
 
     Q = np.zeros((n_eig, n_eig), dtype=complex)
     for i in range(n_eig):
@@ -1160,7 +1166,10 @@ def H_eff_SWT_large(ψ_0, ψ, E, remove_ground=False, return_Q=False):
     Q = np.zeros((n_eig, n_eig), dtype=complex)
     for i in range(n_eig):
         for j in range(n_eig):
-            Q[i, j] = (ψ_0[i].dag() * ψ[j]).data[0,0]
+            try:
+                Q[i, j] = (ψ_0[i].dag() * ψ[j]).data[0,0]
+            except:
+                Q[i, j] = (ψ_0[i].dag() * ψ[j])[0]
 
     U, s, Vh = np.linalg.svd(Q)
     A = U @ Vh
