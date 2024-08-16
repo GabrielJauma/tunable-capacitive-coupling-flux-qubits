@@ -1111,17 +1111,18 @@ def H_eff_p2(H_0, H, n_eig, out='GHz', real=False, remove_ground=False, solver='
 
     return H_eff
 
-def H_eff_p2_large(ψ_0, ψ, E_0, E, V, remove_ground=False):
-    n_eig = len(ψ_0)
-    H_eff = np.zeros((n_eig, n_eig), dtype=complex)  # matrix to store our results.
+def H_eff_p2_large(ψ_0_low, ψ_0_high, E_0_low, E_0_high, V, remove_ground=False):
+    n_eig_low  = len(ψ_0_low)
+    n_eig_high = len(ψ_0_high)
+    H_eff = np.zeros((n_eig_low, n_eig_low), dtype=complex)  # matrix to store our results.
 
-    for i in range(n_eig):
-        for j in range(n_eig):
+    for i in range(n_eig_low):
+        for j in range(n_eig_low):
             H_eff[i, j] = 1 / 2 * sum(
-                (1 / (E_0[i] - E[k]) + 1 / (E_0[j] - E[k])) *
-                (ψ_0[i].dag() * V * ψ[k]).data[0, 0] *
-                (ψ[k].dag() * V * ψ_0[j]).data[0, 0]
-                for k in range(n_eig))
+                (1 / (E_0_low[i] - E_0_high[k]) + 1 / (E_0_low[j] - E_0_high[k])) *
+                (ψ_0_low[i].dag() * V * ψ_0_high[k]).data[0, 0] /2/np.pi/GHz *
+                (ψ_0_high[k].dag() * V * ψ_0_low[j]).data[0, 0] /2/np.pi/GHz
+                for k in range(n_eig_high))
 
     if remove_ground:
         H_eff -= H_eff[0, 0] * np.eye(len(H_eff))
