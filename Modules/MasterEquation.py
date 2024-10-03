@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.linalg import expm
+import Modules.SQcircuit_extensions as sq_ext
 
 
 class LindbladSolver:
@@ -74,5 +75,94 @@ class LindbladSolver:
 
 
 #%%
+
+import numpy as np
+from scipy.linalg import expm
+
+
+def simulate_protocol1(t_points, t0, J, gamma1, gamma2, gamma_deph1, gamma_deph2, delta):
+    # Pauli matrices
+    sigma_x, sigma_y, sigma_z = sq_ext.pauli_matrices()
+    sigma_plus, sigma_minus = sq_ext.annihilate(2), sq_ext.create(2)
+    I = np.eye(2, dtype=complex)
+
+    sigma1_p = np.kron(sigma_plus, I)
+    sigma1_m = np.kron(sigma_minus, I)
+    sigma1_z = np.kron(sigma_z, I)
+
+    # Operators for qubit 2
+    sigma2_p = np.kron(I, sigma_plus)
+    sigma2_m = np.kron(I, sigma_minus)
+    sigma2_z = np.kron(I, sigma_z)
+
+    # Hadamard gate
+    Hadamard = np.array([[1, 1],
+                         [1, -1]], dtype=complex) / np.sqrt(2)
+
+    # Operators acting on qubits
+    Hadamard1 = np.kron(Hadamard, I)
+
+    # Effective Hamiltonian
+    H_eff = J * (sigma1_p @ sigma2_m + sigma1_m @ sigma2_p) + (delta / 2) * (sigma1_z + sigma2_z)
+
+    D = []
+
+    # Detuning for qubit 1
+    if gamma1 > 0:
+        A1 = np.sqrt(gamma1) * sigma1_m
+        B1 = sigma1_p / np.sqrt(gamma1)
+        D1 = [gamma1, A1, B1]
+        D.append(D1)
+
+    # Detuning for qubit 1
+    if gamma2 > 0:
+        A2 = np.sqrt(gamma2) * sigma2_m
+        B2 = sigma2_p / np.sqrt(gamma2)
+        D2 = [gamma2, A2, B2]
+        D.append(D2)
+
+    # Dephasing for qubit 1
+    if gamma_deph1 > 0:
+        A_deph1 = sigma1_z
+        B_deph1 = sigma1_z
+        D_deph1 = [gamma_deph1, A_deph1, B_deph1]
+        D.append(D_deph1)
+
+    # Dephasing for qubit 2
+    if gamma_deph2 > 0:
+        A_deph2 = sigma2_z
+        B_deph2 = sigma2_z
+        D_deph2 = [gamma_deph2, A_deph2, B_deph2]
+        D.append(D_deph2)
+
+    # Initial state for Protocol 1: Hadamard applied to qubit 1 of |00⟩
+    # Computational basis state |00⟩⟨00|
+    P00 = np.kron(np.outer([1, 0], [1, 0]), np.outer([1, 0], [1, 0]))
+
+    # Protocol 1 initial state
+    rho_0_protocol1 = Hadamard1 @ P00 @ Hadamard1.conj().T
+
+    # Create an instance of LindbladSolver
+    solver = LindbladSolver(H_eff=H_eff, D=D, rho_0=rho_0_protocol1, t_points=t_points+t0)
+
+    # Evolve the system
+    solver.evolve()
+
+    # Apply Hadamard to qubit 1 after evolution
+    solver.apply_unitary_to_all(Hadamard1)
+
+    # Observable: σ₁⁺σ₁⁻ (population of qubit 1)
+    sigma1_p_proj = sigma1_p @ sigma1_m
+
+    observables = {
+        'pop1': sigma1_p_proj
+    }
+
+    solver.set_observables(observables)
+    solver.compute_expectation_values(use_transformed=True)
+
+    # Return the expectation values
+    return solver.expectation_values['pop1']
+
 
 
