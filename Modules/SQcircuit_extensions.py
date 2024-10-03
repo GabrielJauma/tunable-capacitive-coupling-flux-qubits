@@ -1530,15 +1530,15 @@ def resonator_N_operator(resonator, Z_r, clean=True):
 
 # Resonator operators
 def create(n):
-    return np.diag(np.sqrt(np.arange(1, n)), -1)
+    return np.diag(np.sqrt(np.arange(1, n, dtype='complex')), -1)
 
 def annihilate(n):
-    return np.diag(np.sqrt(np.arange(1, n)), 1)
+    return np.diag(np.sqrt(np.arange(1, n, dtype='complex')), 1)
 
 def pauli_matrices():
-    σ_x = np.array([[0, 1], [1, 0]])
-    σ_y = np.array([[0, -1], [1, 0]]) * 1j
-    σ_z = np.array([[1, 0], [0, -1]])
+    σ_x = np.array([[0, 1], [1, 0]], dtype='complex')
+    σ_y = np.array([[0, -1], [1, 0]], dtype='complex') * 1j
+    σ_z = np.array([[1, 0], [0, -1]], dtype='complex')
 
     return σ_x ,σ_y ,σ_z
 
