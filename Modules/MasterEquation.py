@@ -80,7 +80,7 @@ import numpy as np
 from scipy.linalg import expm
 
 
-def simulate_protocol1(t_points, t0, J, gamma1, gamma2, gamma_deph1, gamma_deph2, delta):
+def simulate_protocol1(t_points, t0, J, gamma1, gamma2, gamma_deph1, gamma_deph2, delta1, delta2):
     # Pauli matrices
     sigma_x, sigma_y, sigma_z = sq_ext.pauli_matrices()
     sigma_plus, sigma_minus = sq_ext.annihilate(2), sq_ext.create(2)
@@ -103,7 +103,8 @@ def simulate_protocol1(t_points, t0, J, gamma1, gamma2, gamma_deph1, gamma_deph2
     Hadamard1 = np.kron(Hadamard, I)
 
     # Effective Hamiltonian
-    H_eff = J * (sigma1_p @ sigma2_m + sigma1_m @ sigma2_p) + (delta / 2) * (sigma1_z + sigma2_z)
+    # H_eff = J * (sigma1_p @ sigma2_m + sigma1_m @ sigma2_p) + (delta / 2) * (sigma1_z + sigma2_z)
+    H_eff = J * (sigma1_p @ sigma2_m + sigma1_m @ sigma2_p) + (delta1 / 2) * sigma1_z  + (delta2 / 2) * sigma2_z
 
     D = []
 
