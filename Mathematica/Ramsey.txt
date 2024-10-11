@@ -1,0 +1,228 @@
+We have an effective Hamiltonian
+Subscript[H, eff]=Subscript[J, x] Subsuperscript[\[Sigma], 1, x] Subsuperscript[\[Sigma], 2, x]+Subscript[J, y] Subsuperscript[\[Sigma], 1, y] Subsuperscript[\[Sigma], 2, y]+Subscript[J, z] Subsuperscript[\[Sigma], 1, z] Subsuperscript[\[Sigma], 2, z]+\[CapitalDelta]/2 (\!\(
+\*SubsuperscriptBox[\(\[Sigma]\), \(1\), \(z\)] + 
+\*SubsuperscriptBox[\(\[Sigma]\), \(2\), \(z\)]\))
+We are going to rewrite this as
+Subscript[H, eff]=Subscript[J, \[Perpendicular]](e^(I\[Phi]/2) Subsuperscript[\[Sigma], 1, +] Subsuperscript[\[Sigma], 2, -]+e^(I\[Phi]/2) Subsuperscript[\[Sigma], 1, -] Subsuperscript[\[Sigma], 2, +])+Subscript[J, z] Subsuperscript[\[Sigma], 1, z] Subsuperscript[\[Sigma], 2, z]+\[CapitalDelta]/2 (\!\(
+\*SubsuperscriptBox[\(\[Sigma]\), \(1\), \(z\)] + 
+\*SubsuperscriptBox[\(\[Sigma]\), \(2\), \(z\)]\))
+Up to a constant, in the two-qubit subspace, this matrix is
+Heff=(\[CapitalDelta]+Subscript[J, z]	0	0	0
+0	-Subscript[J, z]	Subscript[J, \[Perpendicular]] e^(I\[Phi]/2)	0
+0	Subscript[J, \[Perpendicular]] e^(-(I\[Phi]/2))	-Subscript[J, z]	0
+0	0	0	-\[CapitalDelta]+Subscript[J, z]
+
+)
+In[1]:= Clear[Heff];
+Heff={{\[CapitalDelta]+Jz, 0, 0, 0},
+{0, -Jz, J E^(I \[Phi]/2),0},
+{0,J E^(-I \[Phi]/2),-Jz,0},
+{0,0,0,-\[CapitalDelta]+Jz}};
+MatrixForm[Heff]
+Out[3]//MatrixForm= (Jz+\[CapitalDelta]	0	0	0
+0	-Jz	E^((I \[Phi])/2) J	0
+0	E^(-((I \[Phi])/2)) J	-Jz	0
+0	0	0	Jz-\[CapitalDelta]
+
+)
+Ramsey interferometry
+Let us assume a qubit oscillates with a Hamiltonian
+Subscript[H, eff]=\[CapitalDelta]/2 \[Sigma]^z
+In[4]:= \[Psi]0={0,1};
+UH={{1,1},{-1,1}}/Sqrt[2];
+\[Psi]1=UH . \[Psi]0;
+\[Psi]2=MatrixExp[-I \[CapitalDelta] {{1,0},{0,-1}}t].\[Psi]1;
+\[Psi]3=UH . \[Psi]2;
+P0 = ComplexExpand[\[Psi]3[[1]]\[Conjugate]\[Psi]3[[1]]]
+Out[9]= Cos[t \[CapitalDelta]]^2
+In[10]:= Cos[t \[CapitalDelta]]^2
+Out[10]= Cos[t \[CapitalDelta]]^2
+\[Pi]/2 pulses
+When doing a rotation, the qubit is rapidly driven with an oscillation pulse
+Subscript[H, eff]=\[CapitalDelta]/2 \[Sigma]^z+\[CapitalOmega] cos(\[CapitalDelta] t)\[Sigma]^x
+In the interaction picture with \[Sigma]^z
+|\[Psi](t)\[RightAngleBracket]=exp(-I \[CapitalDelta]\[Sigma]^z t/2)|\[Chi](t)\[RightAngleBracket]
+I d\[Chi]/dt=(Subscript[H, eff]-\[CapitalDelta]/2 \[Sigma]^z)\[Chi]=\[CapitalOmega]/2 (E^-I\[CapitalDelta]t+E^+i\[CapitalDelta]t)(E^(-I \[CapitalDelta] t) \[Sigma]^-+E^(I \[CapitalDelta] t) \[Sigma]^+)\[Chi]\[TildeEqual]\[CapitalOmega]/2 \[Sigma]^x \[Chi]
+\[Psi](t)=exp(-I \[CapitalDelta] \[Sigma]^z t/2)exp(-I \[Phi] \[Sigma]^x)\[Psi](0)
+Interaction picture with \[Sigma]^z
+Subscript[H, eff]=(Subscript[J, \[Perpendicular]] E^(I \[Phi]/2) Subsuperscript[\[Sigma], 1, +] Subsuperscript[\[Sigma], 2, -]+H.c.)+Subscript[J, z] Subsuperscript[\[Sigma], 1, z] Subsuperscript[\[Sigma], 2, z]+\[Delta]/2 (\!\(
+\*SubsuperscriptBox[\(\[Sigma]\), \(1\), \(z\)] + 
+\*SubsuperscriptBox[\(\[Sigma]\), \(2\), \(z\)]\))
+In[11]:= Clear[Heff];
+Heff={{Jz+\[Delta], 0, 0, 0},
+{0, -Jz, J E^(I \[Phi]/2),0},
+{0,J E^(-I \[Phi]/2),-Jz,0},
+{0,0,0,Jz-\[Delta]}};
+MatrixForm[Heff]
+Out[13]//MatrixForm= (Jz+\[Delta]	0	0	0
+0	-Jz	E^((I \[Phi])/2) J	0
+0	E^(-((I \[Phi])/2)) J	-Jz	0
+0	0	0	Jz-\[Delta]
+
+)
+Protocol 1
+We start with a |00\[RightAngleBracket] state and apply a \[Pi]/2 pulse or Hadamard gate to the first qubit
+|Subscript[\[Xi], 1]\[RightAngleBracket]=H |00\[RightAngleBracket]=1/Sqrt[2] (|00\[RightAngleBracket]+|10\[RightAngleBracket])
+Let us model those operations and states
+In[14]:= Clear[UH,\[Psi]00,\[Xi]1];
+UH=KroneckerProduct[{{1,1},{-1,1}}/Sqrt[2],IdentityMatrix[2]];
+P0=KroneckerProduct[{{0,0},{0,1}},IdentityMatrix[2]];
+\[Psi]00={0,0,0,1};
+\[Xi]1=UH . \[Psi]00
+Out[18]= {0,1/Sqrt[2],0,1/Sqrt[2]}
+We now evolve with Heff for a time T, and apply the Hadamard gate once more, obtaining the state \[Xi]f[t]
+In[19]:= Clear[\[Xi]f];
+\[Xi]f[t_]=FullSimplify[UH.MatrixExp[-I Heff t].UH . \[Psi]00]
+Out[20]= {-(1/2) I E^(I Jz t-(I \[Phi])/2) Sin[J t],1/4 (E^(-I (J-Jz) t)+E^(I (J+Jz) t)+2 E^(-I t (Jz-\[Delta]))),-(1/2) I E^(I Jz t-(I \[Phi])/2) Sin[J t],1/4 (-E^(-I (J-Jz) t)-E^(I (J+Jz) t)+2 E^(-I t (Jz-\[Delta])))}
+If we look at the probability of recovering \[Psi]00, this is
+In[21]:= Clear[P1];
+P1[t_]=FullSimplify[ComplexExpand[\[Xi]f[t]\[Conjugate]. P0 . \[Xi]f[t]]]
+Out[22]= 1/4 (2-Cos[t (J+2 Jz-\[Delta])]-Cos[t (J-2 Jz+\[Delta])])
+In[23]:= P1[t]/.{J->0,Jz->0}
+Out[23]= 1/4 (2-2 Cos[t \[Delta]])
+Protocol 2
+Let's try the same with the two-qubit state. We first excite the second qubit, with a flip operator
+In[24]:= Clear[UX2];
+UX2=KroneckerProduct[IdentityMatrix[2], {{0,1},{1,0}}]
+Out[25]= {{0,1,0,0},{1,0,0,0},{0,0,0,1},{0,0,1,0}}
+In[26]:= Clear[\[Psi]01];
+\[Psi]01 = UX2 . \[Psi]00
+Out[27]= {0,0,1,0}
+When we excite the first qubit, we now obtain the complementary state
+In[28]:= \[Chi]1=UH . \[Psi]01
+Out[28]= {1/Sqrt[2],0,1/Sqrt[2],0}
+By completing the Ramsey interferometry, we obtain oscillations in the probability
+In[29]:= \[Chi]f[t_]=FullSimplify[UH . MatrixExp[-I Heff t] . UH . \[Psi]01]
+Out[29]= {1/4 (E^(-I (J-Jz) t)+E^(I (J+Jz) t)+2 E^(-I t (Jz+\[Delta]))),-(1/2) I E^(1/2 I (2 Jz t+\[Phi])) Sin[J t],1/4 (E^(-I (J-Jz) t)+E^(I (J+Jz) t)-2 E^(-I t (Jz+\[Delta]))),1/2 I E^(1/2 I (2 Jz t+\[Phi])) Sin[J t]}
+In[30]:= P2[t_]=FullSimplify[ComplexExpand[\[Chi]f[t]\[Conjugate] . P0 . \[Chi]f[t]]]
+Out[30]= 1/4 (2-Cos[t (-J+2 Jz+\[Delta])]-Cos[t (J+2 Jz+\[Delta])])
+In[31]:= Plot[{P2[t]/.{\[Phi]->0,J->2,Jz->0.0,\[Delta]->4}},{t,0,4\[Pi]}]
+Out[31]= 
+In[32]:= G\[Omega]=FullSimplify[Integrate[1/4 (2-Cos[t (-J+2 (Jz+\[Delta]))]-Cos[t (J+2 (Jz+\[Delta]))])Exp[-\[Gamma] t]Exp[-I \[Omega] t],{t,0,\[Infinity]},Assumptions->{\[Gamma]>0,\[Omega]\[Element]Reals,\[Delta]\[Element]Reals,J \[Element]Reals, Jz \[Element] Reals}]]
+Out[32]= -(1/(4 (1+(J-2 (Jz+\[Delta]))^2/(\[Gamma]+I \[Omega])^2) (\[Gamma]+I \[Omega])))-1/(4 (1+(J+2 (Jz+\[Delta]))^2/(\[Gamma]+I \[Omega])^2) (\[Gamma]+I \[Omega]))+1/(2 \[Gamma]+2 I \[Omega])
+In[33]:= F\[Omega]=FullSimplify[ComplexExpand[G\[Omega]\[Conjugate] G\[Omega]],Assumptions->{\[Gamma]>0,\[Delta]\[Element]Reals,}]
+Out[33]= (J^8-2 J^6 (-\[Gamma]^2+8 (Jz+\[Delta])^2+\[Omega]^2)-8 J^2 (Jz+\[Delta])^2 (32 Jz^4+4 Jz^2 \[Gamma]^2-\[Gamma]^4+128 Jz^3 \[Delta]+8 Jz \[Gamma]^2 \[Delta]+192 Jz^2 \[Delta]^2+4 \[Gamma]^2 \[Delta]^2+128 Jz \[Delta]^3+32 \[Delta]^4-2 (\[Gamma]^2+2 (Jz+\[Delta])^2) \[Omega]^2-\[Omega]^4)+16 (Jz+\[Delta])^4 ((\[Gamma]^2+4 (Jz+\[Delta])^2)^2-2 (2 Jz-\[Gamma]+2 \[Delta]) (2 Jz+\[Gamma]+2 \[Delta]) \[Omega]^2+\[Omega]^4)+J^4 (96 Jz^4-8 Jz^2 \[Gamma]^2+\[Gamma]^4+384 Jz^3 \[Delta]-16 Jz \[Gamma]^2 \[Delta]+576 Jz^2 \[Delta]^2-8 \[Gamma]^2 \[Delta]^2+384 Jz \[Delta]^3+96 \[Delta]^4+2 (\[Gamma]^2+4 (Jz+\[Delta])^2) \[Omega]^2+\[Omega]^4))/(4 (\[Gamma]^2+\[Omega]^2) ((\[Gamma]^2+(J-2 (Jz+\[Delta]))^2)^2-2 (J-2 Jz-\[Gamma]-2 \[Delta]) (J-2 Jz+\[Gamma]-2 \[Delta]) \[Omega]^2+\[Omega]^4) ((\[Gamma]^2+(J+2 (Jz+\[Delta]))^2)^2-2 (J+2 Jz-\[Gamma]+2 \[Delta]) (J+2 Jz+\[Gamma]+2 \[Delta]) \[Omega]^2+\[Omega]^4))
+In[34]:= Plot[F\[Omega]/.{J->2,Jz->0.00,\[Gamma]->0.12,\[Delta]->4/3600},{\[Omega],-3,3},PlotRange->Full]
+Out[34]= 
+In[35]:= $Assumptions={J\[Element]Reals,Jz\[Element]Reals,\[Phi]\[Element]Reals,t>0}
+Out[35]= {J\[Element]\[DoubleStruckCapitalR],Jz\[Element]\[DoubleStruckCapitalR],\[Phi]\[Element]\[DoubleStruckCapitalR],t>0}
+In[36]:= Block[{\[CapitalDelta]=40,J=1,Jz=0.05,\[Phi]=0,\[Gamma]=0.1,\[Delta]=4},
+Plot[{Exp[-\[Gamma] t]P1[t],Exp[-\[Gamma] t]P2[t]},{t,0,3/\[Gamma]},PlotRange->Full]]
+Out[36]= 
+In[37]:= Block[{\[CapitalDelta]=40,J=1,Jz=0.05,\[Phi]=0,\[Delta]=4},
+Plot[{P1[t],P2[t]},{t,0,2\[Pi]}]]
+Out[37]= 
+Density matrix and master equation
+In the experimental setup there is a lot of decay and qubit 3 is worse than qubit 2. This means that the whole system cannot be modeled by these simple interference patters and we cannot just impose an overall exponential---indeed, when population moves from 1 to 3 it has a stronger probability of decay, leading to faster losses.
+The effective model for the master equation is
+\!\(
+\*SubscriptBox[\(\[PartialD]\), \(t\)]\[Rho]\)=-I [Subscript[H, eff],\[Rho]]+L[\[Rho]]=:Subscript[L, tot][\[Rho]]
+with the dissipator
+L[\[Rho]]=\[Sum] Subscript[\[Gamma], i]/2 (2Subsuperscript[\[Sigma], i, -] Subsuperscript[\[Rho]\[Sigma], i, +]-{\!\(
+\*SubsuperscriptBox[\(\[Sigma]\), \(i\), \(+\)] 
+\*SubsuperscriptBox[\(\[Sigma]\), \(i\), \(-\)]\),\[Rho]})
+We can solve this problem numerically with the help of Mathematica. First of all, we define a function that returns a matrix of symbols associated to the 4x4 components of the density matrix.
+In[38]:= $Assumptions={J>=0,\[Delta]>=0,\[Gamma]1>=0,\[Gamma]2>=0}
+Out[38]= {J>=0,\[Delta]>=0,\[Gamma]1>=0,\[Gamma]2>=0}
+In[39]:= Clear[\[Rho]];
+Clear[\[Rho]00,\[Rho]01,\[Rho]10,\[Rho]11];
+\[Rho][t_]=Table[Symbol["\[Rho]"<>ToString[i]<>ToString[j]][t],{i,1,4},{j,1,4}]
+Out[41]= {{\[Rho]11[t],\[Rho]12[t],\[Rho]13[t],\[Rho]14[t]},{\[Rho]21[t],\[Rho]22[t],\[Rho]23[t],\[Rho]24[t]},{\[Rho]31[t],\[Rho]32[t],\[Rho]33[t],\[Rho]34[t]},{\[Rho]41[t],\[Rho]42[t],\[Rho]43[t],\[Rho]44[t]}}
+To define the dynamics, we need operators acting on each of the qubits individually.
+In[42]:= \[Sigma]m={{0,0},{1,0}};
+\[Sigma]p=\[Sigma]m\[ConjugateTranspose];
+\[Sigma]z=\[Sigma]p.\[Sigma]m-\[Sigma]m.\[Sigma]p;
+\[Sigma]1m = KroneckerProduct[\[Sigma]m,IdentityMatrix[2]];
+\[Sigma]2m = KroneckerProduct[IdentityMatrix[2],\[Sigma]m];
+\[Sigma]1p = \[Sigma]1m\[ConjugateTranspose];
+\[Sigma]2p =\[Sigma]2m\[ConjugateTranspose];
+\[Sigma]1z=KroneckerProduct[{{1,0},{0,-1}},IdentityMatrix[2]];
+\[Sigma]2z=KroneckerProduct[IdentityMatrix[2],{{1,0},{0,-1}}];
+To test the solutions, we need to define different initial states. The following are diagonal states:
+In[51]:= P00 =KroneckerProduct[\[Sigma]m.\[Sigma]p,\[Sigma]m.\[Sigma]p];
+P01=KroneckerProduct[\[Sigma]m.\[Sigma]p,\[Sigma]p.\[Sigma]m];
+P10=KroneckerProduct[\[Sigma]p.\[Sigma]m,\[Sigma]m.\[Sigma]p];
+P11=KroneckerProduct[\[Sigma]p.\[Sigma]m,\[Sigma]p.\[Sigma]m];
+We can also use superposition states, with the help of Hadamard:
+In[55]:= Hadamard={{1,1},{-1,1}}/Sqrt[2];
+Hadamard1= KroneckerProduct[Hadamard,IdentityMatrix[2]];
+Hadamard2= KroneckerProduct[IdentityMatrix[2],Hadamard];
+PX0=Hadamard1.P00.Hadamard1\[ConjugateTranspose];
+PX1=Hadamard1.P01.Hadamard1\[ConjugateTranspose];
+P0X=Hadamard1.P00.Hadamard1\[ConjugateTranspose];
+P1X=Hadamard1.P10.Hadamard1\[ConjugateTranspose];
+With the operators, it becomes easier to define the effective Hamiltonian
+In[62]:= Heff=J(\[Sigma]1p . \[Sigma]2m + \[Sigma]1m . \[Sigma]2p)+\[Delta]/2 (\[Sigma]1z+\[Sigma]2z);
+Heff//MatrixForm
+Out[63]//MatrixForm= (\[Delta]	0	0	0
+0	0	J	0
+0	J	0	0
+0	0	0	-\[Delta]
+
+)
+and also the dissipation term.
+In[64]:= L[\[Rho]_]=\[Gamma]1/2 (2\[Sigma]1m.\[Rho].\[Sigma]1p-\[Sigma]1p.\[Sigma]1m.\[Rho]-\[Rho].\[Sigma]1p.\[Sigma]1m)+\[Gamma]2/2 (2\[Sigma]2m.\[Rho].\[Sigma]2p-\[Sigma]2p.\[Sigma]2m.\[Rho]-\[Rho].\[Sigma]2p.\[Sigma]2m);
+Together, they create the total Lindbladian.
+In[65]:= Ltot[\[Rho]_]=-I (Heff . \[Rho] - \[Rho] . Heff) + L[\[Rho]];
+Let us define a function that, given an initial state, \[Rho]0, solves the dynamics.
+In[66]:= Clear[MESol];
+MESol[\[Rho]0_]:=Module[
+{ (* Equations for the dynamics and the initial state *)
+equations=Flatten[\[Rho]'[t]]==Flatten[Ltot[\[Rho][t]]]//Thread,
+initial=Flatten[\[Rho][0]]==Flatten[\[Rho]0] //Thread,
+unknowns=Flatten[\[Rho][t]]
+},
+Module[{Solution=FullSimplify[DSolve[{equations,initial},unknowns,t]]},
+\[Rho][t]/.Solution[[1]]]]
+We can also define observables in terms of these solutions. For instance, the Subscript[\[Sigma], z] expected values over the first and second qubits or the probabilities of excitation
+In[68]:= Clear[MESolZ1,MESolZ2,MESolP1,MESolP2];
+MESolZ1[\[Rho]0_]:=FullSimplify[Tr[\[Sigma]1z.MESol[\[Rho]0]],{J>0,\[Delta]\[Element]Reals,\[Gamma]1>=0,\[Gamma]2>=0}];
+MESolZ2[\[Rho]0_]:=FullSimplify[Tr[\[Sigma]2z.MESol[\[Rho]0]],{J>0,\[Delta]\[Element]Reals,\[Gamma]1>=0,\[Gamma]2>=0}];
+MESolP1[\[Rho]0_]:=FullSimplify[Tr[(\[Sigma]1p.\[Sigma]1m).MESol[\[Rho]0]],{J>0,\[Delta]\[Element]Reals,\[Gamma]1>=0,\[Gamma]2>=0}];
+MESolP2[\[Rho]0_]:=FullSimplify[Tr[(\[Sigma]2p.\[Sigma]2m).MESol[\[Rho]0]],{J>0,\[Delta]\[Element]Reals,\[Gamma]1>=0,\[Gamma]2>=0}];
+The |00\[RightAngleBracket] state does not evolve under this model:
+In[73]:= MESol[P00]//MatrixForm
+Out[73]//MatrixForm= (0	0	0	0
+0	0	0	0
+0	0	0	0
+0	0	0	1
+
+)
+If we have no disipation, the |01\[RightAngleBracket] state oscillates, as reflected in the value of Subscript[\[Sigma], z]
+In[74]:= Block[{\[Gamma]1=0,\[Gamma]2=0},
+MESolZ2[P01]]
+Out[74]= Cos[2 J t]
+When there is dissipation, this depends on whether the dissipations are identical or not. In the first case, we have the function we were fitting:
+In[75]:= Block[{\[Gamma]2=\[Gamma]1},
+Expand[MESolZ2[P01]]]
+Out[75]= -1+2 E^(-t \[Gamma]1) Cos[J t]^2
+In the second case, it's more complicated. For instance, the population in the second qubit is
+In[76]:= MESolP2[P10]
+Out[76]= (16 E^(-(1/2) t (\[Gamma]1+\[Gamma]2)) J^2 Sinh[1/4 t Sqrt[-16 J^2+(\[Gamma]1-\[Gamma]2)^2]]^2)/(-16 J^2+(\[Gamma]1-\[Gamma]2)^2)
+And in the first qubit
+In[77]:= MESolP1[P10]
+Out[77]= (1/(2 (-16 J^2+(\[Gamma]1-\[Gamma]2)^2)))E^(-(1/2) t (\[Gamma]1+Sqrt[-16 J^2+(\[Gamma]1-\[Gamma]2)^2]+\[Gamma]2)) (-8 (1+E^(1/2 t Sqrt[-16 J^2+(\[Gamma]1-\[Gamma]2)^2]))^2 J^2+(\[Gamma]1-\[Gamma]2) ((1+E^(t Sqrt[-16 J^2+(\[Gamma]1-\[Gamma]2)^2])) \[Gamma]1+Sqrt[-16 J^2+(\[Gamma]1-\[Gamma]2)^2]-\[Gamma]2-E^(t Sqrt[-16 J^2+(\[Gamma]1-\[Gamma]2)^2]) (Sqrt[-16 J^2+(\[Gamma]1-\[Gamma]2)^2]+\[Gamma]2)))
+In[78]:= Clear[Protocol1P];
+Protocol1P=Tr[Hadamard1\[ConjugateTranspose].(\[Sigma]1p.\[Sigma]1m).Hadamard1.MESol[PX0]];
+In[80]:= aux=Limit[Protocol1P,\[Gamma]2->\[Gamma]1,Direction->"FromAbove"];
+During evaluation of In[80]:= Limit::alimv: Warning: Assumptions that involve the limit variable are ignored.
+In[81]:= aux2=Block[{\[Gamma]2=\[Gamma]1},Tr[Hadamard1\[ConjugateTranspose].(\[Sigma]1p.\[Sigma]1m).Hadamard1.MESol[PX0]]];
+In[82]:= FullSimplify[aux2]
+Out[82]= 1/8 E^(-(1/2) t (2 I J+\[Gamma]1+2 I \[Delta])) (1+E^(2 I J t)+4 E^(1/2 t (2 I J+\[Gamma]1+2 I \[Delta]))+E^(2 I t \[Delta])+E^(2 I t (J+\[Delta])))
+In[83]:= FullSimplify[aux-aux2]
+Out[83]= 0
+In[84]:= Clear[Protocol2P];
+Protocol2P=Tr[Hadamard1\[ConjugateTranspose].(\[Sigma]1p.\[Sigma]1m).Hadamard1.MESol[PX1]];
+In[86]:= aux=Limit[Protocol2P,\[Gamma]2->\[Gamma]1,Direction->"FromAbove"];
+During evaluation of In[86]:= Limit::alimv: Warning: Assumptions that involve the limit variable are ignored.
+In[87]:= aux2=Block[{\[Gamma]2=\[Gamma]1},Tr[Hadamard1\[ConjugateTranspose].(\[Sigma]1p.\[Sigma]1m).Hadamard1.MESol[PX1]]];
+In[88]:= FullSimplify[aux2]
+Out[88]= (1/(8 (4 J^2+\[Gamma]1^2)))E^(-(1/2) I t (2 J-3 I \[Gamma]1+2 \[Delta])) (4 (1+E^(2 I J t)+E^(2 I t \[Delta])+E^(2 I t (J+\[Delta]))+4 E^(I J t+(3 t \[Gamma]1)/2+I t \[Delta])) J^2-2 I (-1+E^(2 I J t)) (1+E^(t \[Gamma]1)) (1+E^(2 I t \[Delta])) J \[Gamma]1+E^(t \[Gamma]1) (1+E^(2 I J t)+4 E^(1/2 t (2 I J+\[Gamma]1+2 I \[Delta]))+E^(2 I t \[Delta])+E^(2 I t (J+\[Delta]))) \[Gamma]1^2)
+In[89]:= FullSimplify[aux-aux2]
+Out[89]= 0
+In[90]:= Block[{\[Gamma]2=10,\[Gamma]1=0.1,J=1,\[Delta]=4},
+Plot[Protocol1P,{t,0,5}]]
+Out[90]= 
+In[91]:= Block[{\[Gamma]2=10,\[Gamma]1=0.1,J=2,\[Delta]=4},
+Plot[Protocol1P,{t,0,10}]]
+Out[91]= 
