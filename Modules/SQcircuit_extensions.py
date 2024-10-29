@@ -66,11 +66,12 @@ def LF_LR_eff_to_Lq_Lr(LF, LR, Δ):
     Lr = (LR- LF) * ( np.sqrt(LF*LR) + np.sqrt(16*Δ**2+LF*LR) ) / (8*np.sqrt(LF*LR))
     return Lq, Lr
 
-def Lq_Lr_to_LF_LR_eff(Lq, Lr, Δ):
+def Lq_Lr_to_LF_LR_LC_eff(Lq, Lr, Δ):
     l2 = Lq*(Lq+4*Lr) - 4*Δ**2
     LF = l2 / (Lq+4*Lr)
     LR = l2 / Lq
-    return LF, LR
+    LC = l2 / ( 2*Δ )
+    return LF, LR, LC
 
 def CF_CR_eff_to_C_CJ_Csh(CF, CR):
     # This conversion does not fully define CJ and Csh, only their sum, but it is irreleventa so I split it equally
@@ -612,7 +613,7 @@ def C_mat_from_C_int(C_diag, C_int_diag, C_int, only_qubit_modes=False):
     return C_inv
 
 #%% Hamiltonians made by composing small circuits made with sqcircuits
-def hamiltonian_qubit(fluxonium = None, resonator=None, Δ=0.1, C=15, CJ=3, Csh=15, Lq=25, Lr=10, EJ=10, φ_ext=0.5, nmax_r=15, nmax_f=25, C_int=None, return_Ψ_nonint=False, n_eig_Ψ_nonint=4):
+def hamiltonian_qubit(fluxonium = None, resonator=None, Δ=0.1, C=15, CJ=3, Csh=15, Lq=25, Lr=10, EJ=10, φ_ext=0.5, nmax_r=15, nmax_f=25, C_int=None, return_Ψ_nonint=False, n_eig_Ψ_nonint=4, return_H_0=False):
     l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
 
     if fluxonium is None:
@@ -639,17 +640,22 @@ def hamiltonian_qubit(fluxonium = None, resonator=None, Δ=0.1, C=15, CJ=3, Csh=
     Φ_r = resonator.flux_op(0)
     g_Φ = 2 * Δ / (l * nH)
 
+    H_0 = qt.tensor(H_f, I_r) + qt.tensor(I_f, H_r)
+
     if C_int is None:
-        H = qt.tensor(H_f, I_r) + qt.tensor(I_f, H_r) + g_Φ * qt.tensor(Φ_f, Φ_r)
+        H = H_0 + g_Φ * qt.tensor(Φ_f, Φ_r)
     else:
         Q_f = fluxonium.charge_op(0)
         Q_r = resonator.charge_op(0)
-        H = qt.tensor(H_f, I_r) + qt.tensor(I_f, H_r) + g_Φ * qt.tensor(Φ_f, Φ_r) +  C_int**-1 * fF**-1 * qt.tensor(Q_f,Q_r)
+        H = H_0 + g_Φ * qt.tensor(Φ_f, Φ_r) +  C_int**-1 * fF**-1 * qt.tensor(Q_f,Q_r)
 
     if return_Ψ_nonint:
         return H, Ψ_0, E_0
     else:
-        return H
+        if return_H_0:
+            return H_0, H
+        else:
+            return H
 
 def hamiltonian_qubit_C_qubit(CC, CR, CF, LF, LR, EJ, Δ, φ_ext, CR_prime, CF_prime, LF_prime, LR_prime, EJ_prime, Δ_prime, φ_ext_prime,
                               nmax_r=5, nmax_f=15, return_Ψ_nonint=False, n_eig_Ψ_nonint=4, only_inner = True, compensate_extra_cap=False, only_renormalization=False):
