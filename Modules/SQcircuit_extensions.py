@@ -1135,6 +1135,26 @@ def H_eff_p2_large(ψ_0_low, ψ_0_high, E_0_low, E_0_high, V, remove_ground=Fals
 
     return H_eff
 
+def H_eff_p2_decomposed(ψ_0_low, ψ_0_high, E_0_low, E_0_high, V, remove_ground=False):
+    n_eig_low  = len(ψ_0_low)
+    n_eig_high = len(ψ_0_high)
+    H_eff = np.zeros((n_eig_low, n_eig_low), dtype=complex)  # matrix to store our results.
+    H_eff_decomp = np.zeros((n_eig_low, n_eig_low, n_eig_high), dtype=complex)  # matrix to store our results.
+
+    for i in range(n_eig_low):
+        for j in range(n_eig_low):
+            for k in range(n_eig_high):
+                H_eff_decomp[i, j, k] = 1 / 2 * \
+                    (1 / (E_0_low[i] - E_0_high[k]) + 1 / (E_0_low[j] - E_0_high[k])) * \
+                    (ψ_0_low[i].dag() * V * ψ_0_high[k]).data[0, 0] /2/np.pi/GHz * \
+                    (ψ_0_high[k].dag() * V * ψ_0_low[j]).data[0, 0] /2/np.pi/GHz
+                H_eff[i,j] += H_eff_decomp[i, j, k]
+
+    if remove_ground:
+        H_eff -= H_eff[0, 0] * np.eye(len(H_eff))
+
+    return H_eff, H_eff_decomp
+
 def H_eff_SWT(H_0, H, n_eig, out='GHz', real=False, remove_ground=False, return_transformation=False,ψ_0=None ):
 
     ψ_0 = diag(H_0, n_eig, real=real, solver='numpy')[1]
@@ -1694,6 +1714,40 @@ def plot_H_eff_vs_param(H_eff_vs_params, H_eff_0, param_values, param_name, N_f,
     fig.tight_layout()
     fig.show()
     return fig, ax1, ax2
+
+
+def plot_second_order_contributions(H_eff, H_eff_decomp, labels_low, labels_high, figsize = np.array([6, 5]) * 1.3, threshold=1e-10):
+    # Filter nonzero elements in H_eff and generate labels for them
+    nonzero_indices = np.where(np.abs(H_eff) > threshold)
+    H_eff_nonzero = H_eff[nonzero_indices]
+    labels = [f"{labels_low[i]},{labels_low[j]}" for i, j in zip(*nonzero_indices)]
+
+    # Start plotting
+    plt.figure(figsize=figsize, dpi=150)
+    plt.plot(range(len(H_eff_nonzero)), H_eff_nonzero, 'ok', markersize=10, markerfacecolor='None')
+
+    # Plot nonzero elements in H_eff_decomp corresponding to H_eff nonzero locations
+    num_k = H_eff_decomp.shape[2]
+    colors = plt.cm.tab10(np.linspace(0, 1, num_k))  # Unique color for each k value
+
+    for k in range(num_k):
+        H_eff_decomp_nonzero_k = []
+        for i, j in zip(*nonzero_indices):
+            if np.abs(H_eff_decomp[i, j, k]) > threshold:  # Only include values above the threshold
+                H_eff_decomp_nonzero_k.append(H_eff_decomp[i, j, k])
+            else:
+                H_eff_decomp_nonzero_k.append(np.nan)  # Use NaN to skip plotting
+        plt.plot(H_eff_decomp_nonzero_k, '*', color=colors[k], label=f"{labels_high[k]}")
+
+    # Set x-axis ticks with labels for the nonzero matrix elements
+    plt.xticks(ticks=range(len(H_eff_nonzero)), labels=labels, rotation=45, ha="right")
+    plt.xlabel("Low energy states")
+    plt.title(r"$ \langle i | H_{eff}^{p2} | j \rangle $")
+    plt.grid(True)
+
+    plt.legend(title="High energy mediators", loc=2, ncol=2)
+    plt.tight_layout()
+    plt.show()
 
 #%% Generic labeling and sorting functions
 def print_charge_transformation(circuit):
