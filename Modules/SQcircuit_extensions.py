@@ -1432,8 +1432,6 @@ def get_ψ_basis(basis_states, H_comp, E_A, E_B, nmax_A, nmax_B, n_eig_comp=4):
 
     return ψ_0, ψ_1, index_0, index_1
 
-
-
 def compute_combined_eigenstates_2_body(energies, eigenstates):
 
     eigvals_A, eigvals_B = energies
@@ -1531,6 +1529,30 @@ def combine_eigenvalues(energy_matrix):
 
     return np.array(sorted_energies), np.array(sorted_indices)
 
+def generate_mediating_states(N_elements, basis_states, max_excitations_mediating_states):
+    """
+    Generate all possible mediating states for a quantum system.
+
+    Parameters:
+    - N_elements (int): Number of elements in the quantum system.
+    - basis_states (list of tuples): The low-energy basis states to exclude.
+    - max_excitations_mediating_states (int): Maximum total excitations allowed in mediating states.
+
+    Returns:
+    - mediating_states (list of tuples): The list of mediating states as tuples.
+    """
+    # Generate all possible combinations of excitations for each element
+    ranges = [range(0, max_excitations_mediating_states + 1)] * N_elements
+    all_states = list(product(*ranges))
+
+    # Filter states where the total excitations are within the allowed maximum
+    all_states = [state for state in all_states if sum(state) <= max_excitations_mediating_states]
+
+    # Exclude the basis states
+    basis_states_set = set(basis_states)
+    mediating_states = [state for state in all_states if state not in basis_states_set]
+
+    return mediating_states
 
 #%% Operators
 def internal_coupling_fluxonium_resonator(fluxonium, resonator, Δ, Lq = 25, Lr = 10):
@@ -1716,8 +1738,10 @@ def plot_H_eff_vs_param(H_eff_vs_params, H_eff_0, param_values, param_name, N_f,
     return fig, ax1, ax2
 
 
-def plot_second_order_contributions(H_eff, H_eff_decomp, labels_low, labels_high, figsize = np.array([6, 5]) * 1.3, threshold=1e-10):
+def plot_second_order_contributions(H_eff_decomp, labels_low, labels_high, figsize = np.array([6, 5]) * 1.3, threshold=1e-10):
     # Filter nonzero elements in H_eff and generate labels for them
+
+    H_eff = np.sum(H_eff_decomp, -1)
     nonzero_indices = np.where(np.abs(H_eff) > threshold)
     H_eff_nonzero = H_eff[nonzero_indices]
     labels = [f"{labels_low[i]},{labels_low[j]}" for i, j in zip(*nonzero_indices)]
@@ -1727,17 +1751,13 @@ def plot_second_order_contributions(H_eff, H_eff_decomp, labels_low, labels_high
     plt.plot(range(len(H_eff_nonzero)), H_eff_nonzero, 'ok', markersize=10, markerfacecolor='None')
 
     # Plot nonzero elements in H_eff_decomp corresponding to H_eff nonzero locations
-    num_k = H_eff_decomp.shape[2]
-    colors = plt.cm.tab10(np.linspace(0, 1, num_k))  # Unique color for each k value
+    num_k = H_eff_decomp.shape[-1]
+    colors = plt.cm.tab20(np.linspace(0, 1, num_k))  # Unique color for each k value
 
     for k in range(num_k):
-        H_eff_decomp_nonzero_k = []
-        for i, j in zip(*nonzero_indices):
+        for x_pos, (i, j) in enumerate(zip(*nonzero_indices)):
             if np.abs(H_eff_decomp[i, j, k]) > threshold:  # Only include values above the threshold
-                H_eff_decomp_nonzero_k.append(H_eff_decomp[i, j, k])
-            else:
-                H_eff_decomp_nonzero_k.append(np.nan)  # Use NaN to skip plotting
-        plt.plot(H_eff_decomp_nonzero_k, '*', color=colors[k], label=f"{labels_high[k]}")
+                plt.plot(x_pos,H_eff_decomp[i, j, k], '*', color=colors[k], label=f"{labels_high[k]}")
 
     # Set x-axis ticks with labels for the nonzero matrix elements
     plt.xticks(ticks=range(len(H_eff_nonzero)), labels=labels, rotation=45, ha="right")
