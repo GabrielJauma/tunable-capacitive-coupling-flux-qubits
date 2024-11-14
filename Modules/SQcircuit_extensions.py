@@ -1882,7 +1882,7 @@ def decomposition_in_pauli_4x4(A,  print_pretty=True):
     s = [i, σx, σy, σz]  # array containing the matrices.
     labels = ['I', 'σx', 'σy', 'σz']  # useful to print the result.
 
-    P = np.zeros((4, 4), dtype=float)  # array to store our results.
+    P = np.zeros((4, 4), dtype=complex)  # array to store our results.
     # Loop to obtain each coefficient.
     for i in range(4):
         for j in range(4):
