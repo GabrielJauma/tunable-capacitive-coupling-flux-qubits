@@ -298,9 +298,9 @@ def sq_qubit_C_qubit(CC, C, CJ, Csh, Lq, Lr, Δ, EJ, C_prime, CJ_prime, Csh_prim
     # Check where are the resonator modes and assign then their corresponding trunc num
     # This shit does not really work...
     CF, CR = C_CJ_Csh_to_CF_CR_eff(C=C, CJ=CJ, Csh=Csh)
-    LF, LR = Lq_Lr_to_LF_LR_eff(Lq=Lq, Lr=Lr, Δ=Δ)
+    LF, LR, LC = Lq_Lr_to_LF_LR_LC_eff(Lq=Lq, Lr=Lr, Δ=Δ)
     CF_prime, CR_prime = C_CJ_Csh_to_CF_CR_eff(C=C_prime, CJ=CJ_prime, Csh=Csh_prime)
-    LF_prime, LR_prime = Lq_Lr_to_LF_LR_eff(Lq=Lq_prime, Lr=Lr_prime, Δ=Δ_prime)
+    LF_prime, LR_prime, LC_prime = Lq_Lr_to_LF_LR_LC_eff(Lq=Lq_prime, Lr=Lr_prime, Δ=Δ_prime)
 
     C0_mat = np.array([[CF, 0, 0, 0],
                        [0, CR, 0, 0],
@@ -613,16 +613,7 @@ def C_mat_from_C_int(C_diag, C_int_diag, C_int, only_qubit_modes=False):
     return C_inv
 
 #%% Hamiltonians made by composing small circuits made with sqcircuits
-def hamiltonian_qubit(fluxonium = None, resonator=None, Δ=0.1, C=15, CJ=3, Csh=15, Lq=25, Lr=10, EJ=10, φ_ext=0.5, nmax_r=15, nmax_f=25, C_int=None, return_Ψ_nonint=False, n_eig_Ψ_nonint=4, return_H_0=False):
-    l = Lq * (Lq + 4 * Lr) - 4 * Δ ** 2
-
-    if fluxonium is None:
-        fluxonium = sq_fluxonium(C=C, CJ=CJ, Csh=Csh, Lq=Lq, Lr=Lr, Δ=Δ, EJ=EJ, φ_ext=φ_ext, nmax_r=nmax_r, nmax_f=nmax_f)
-    if resonator is None:
-        resonator = sq_resonator(C=C, CJ=CJ, Csh=Csh, Lq=Lq, Lr=Lr, Δ=Δ, EJ=EJ, φ_ext=φ_ext, nmax_r=nmax_r, nmax_f=nmax_f)
-
-    if φ_ext != 0.5:
-        fluxonium.loops[0].set_flux(φ_ext)
+def hamiltonian_qubit(fluxonium, resonator, LC, C_int=None, return_Ψ_nonint=False, n_eig_Ψ_nonint=4, return_H_0=False):
 
     H_f = fluxonium.hamiltonian()
     H_r = resonator.hamiltonian()
@@ -638,7 +629,7 @@ def hamiltonian_qubit(fluxonium = None, resonator=None, Δ=0.1, C=15, CJ=3, Csh=
 
     Φ_f = fluxonium.flux_op(0)
     Φ_r = resonator.flux_op(0)
-    g_Φ = 2 * Δ / (l * nH)
+    g_Φ = 1 / (LC * nH)
 
     H_0 = qt.tensor(H_f, I_r) + qt.tensor(I_f, H_r)
 
@@ -647,7 +638,8 @@ def hamiltonian_qubit(fluxonium = None, resonator=None, Δ=0.1, C=15, CJ=3, Csh=
     else:
         Q_f = fluxonium.charge_op(0)
         Q_r = resonator.charge_op(0)
-        H = H_0 + g_Φ * qt.tensor(Φ_f, Φ_r) +  C_int**-1 * fF**-1 * qt.tensor(Q_f,Q_r)
+        g_Q = 1 / (C_int * fF)
+        H = H_0 + g_Φ * qt.tensor(Φ_f, Φ_r) +  g_Q * qt.tensor(Q_f,Q_r)
 
     if return_Ψ_nonint:
         return H, Ψ_0, E_0
@@ -657,54 +649,26 @@ def hamiltonian_qubit(fluxonium = None, resonator=None, Δ=0.1, C=15, CJ=3, Csh=
         else:
             return H
 
-def hamiltonian_qubit_C_qubit(CC, CR, CF, LF, LR, EJ, Δ, φ_ext, CR_prime, CF_prime, LF_prime, LR_prime, EJ_prime, Δ_prime, φ_ext_prime,
-                              nmax_r=5, nmax_f=15, return_Ψ_nonint=False, n_eig_Ψ_nonint=4, only_inner = True, compensate_extra_cap=False, only_renormalization=False):
+def hamiltonian_fluxonium_C_fluxonium(C_inv, circuits, nmax_f=10, return_H_0=False):
 
-    C_mat = C_mat_qubit_C_qubit(CC, CR, CF, CR_prime, CF_prime, only_inner, compensate_extra_cap, only_renormalization)
-    C_inv = np.linalg.inv(C_mat)
+    fluxonium_1, fluxonium_2 = circuits
 
-    CF_tilde = C_inv[0, 0] ** -1
-    CR_tilde = C_inv[1, 1] ** -1
-    CF_prime_tilde = C_inv[2, 2] ** -1
-    CR_prime_tilde = C_inv[3, 3] ** -1
-    fluxonium       = sq_fluxonium(C_F_eff=CF_tilde,       L_F_eff=LF,       Δ=Δ,       EJ=EJ,       nmax_f=nmax_f, φ_ext=φ_ext)
-    resonator       = sq_resonator(C_R_eff=CR_tilde,       L_R_eff=LR,       Δ=Δ,       EJ=EJ,       nmax_r=nmax_r)
-    fluxonium_prime = sq_fluxonium(C_F_eff=CF_prime_tilde, L_F_eff=LF_prime, Δ=Δ_prime, EJ=EJ_prime, nmax_f=nmax_f, φ_ext=φ_ext_prime)
-    resonator_prime = sq_resonator(C_R_eff=CR_prime_tilde, L_R_eff=LR_prime, Δ=Δ_prime, EJ=EJ_prime, nmax_r=nmax_r)
+    H_1 = fluxonium_1.hamiltonian()
+    H_2 = fluxonium_2.hamiltonian()
 
+    I = qt.identity(nmax_f)
 
-    Lq,       Lr        = LF_LR_eff_to_Lq_Lr(LF=LF, LR=LR, Δ=Δ)
-    Lq_prime, Lr_prime  = LF_LR_eff_to_Lq_Lr(LF=LF_prime, LR=LR_prime, Δ=Δ_prime)
+    H_0 = (  qt.tensor(H_1, I)
+           + qt.tensor(I, H_2))
 
-    if return_Ψ_nonint:
-        H_uc, Ψ_q_0, E_q_0 = hamiltonian_qubit(fluxonium, resonator, Lq=Lq, Lr=Lr, Δ=Δ, return_Ψ_nonint=return_Ψ_nonint)
-        H_uc_prime, Ψ_q_0_prime, E_q_0_prime = hamiltonian_qubit(fluxonium_prime, resonator_prime, Lq=Lq_prime, Lr=Lr_prime, Δ=Δ_prime, return_Ψ_nonint=return_Ψ_nonint)
-        Nq_Nq = generate_and_prioritize_energies([E_q_0, E_q_0_prime], n_eig_Ψ_nonint)[1]
-        Ψ_0 = [qt.tensor([Ψ_q_0[Nq_Nq_i[0]], Ψ_q_0_prime[Nq_Nq_i[1]] ]) for Nq_Nq_i in Nq_Nq]
-    else:
-        H_uc = hamiltonian_qubit(fluxonium, resonator, Lq=Lq, Lr=Lr, Δ=Δ)
-        H_uc_prime = hamiltonian_qubit(fluxonium_prime, resonator_prime, Lq=Lq_prime, Lr=Lr_prime, Δ=Δ_prime)
+    Q_F1 = fluxonium_1.charge_op(0)
+    Q_F2 = fluxonium_2.charge_op(0)
 
-    I_uc = qt.identity(H_uc.dims[0])
-    I_F  = qt.identity(nmax_f)
-    I_R  = qt.identity(nmax_r)
-    H_0 = qt.tensor(H_uc, I_uc) + qt.tensor(I_uc, H_uc_prime)
-
-    if CC == 0:
-        if return_Ψ_nonint:
-            return H_0, Ψ_0
-        else:
-            return H_0
-
-    Q_F       = fluxonium.charge_op(0)
-    Q_R       = resonator.charge_op(0)
-    Q_F_prime = fluxonium_prime.charge_op(0)
-    Q_R_prime = resonator_prime.charge_op(0)
-    Q_vec = [Q_F, Q_R, Q_F_prime, Q_R_prime]
+    Q_vec = [Q_F1, Q_F2]
     H_coupling = 0
-    for i in range(4):
-        for j in range(4):
-            op_list = [I_F, I_R, I_F, I_R]
+    for i in range(len(Q_vec)):
+        for j in range(len(Q_vec)):
+            op_list = [I, I]
             if i == j: # we ommit the diagonal terms since we have already included the reonarmalizations (LR and LF tilde) in H_0.
                 continue
             else:
@@ -713,63 +677,18 @@ def hamiltonian_qubit_C_qubit(CC, CR, CF, LF, LR, EJ, Δ, φ_ext, CR_prime, CF_p
                 H_coupling += 1/2 * C_inv[i,j] * fF**-1 * qt.tensor(op_list)
     H = H_0 + H_coupling
 
-    if return_Ψ_nonint:
-        return H, Ψ_0
+    if return_H_0:
+        return H_0, H
     else:
         return H
 
-def hamiltonian_fluxonium_C_fluxonium (nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, return_Ψ_nonint=False, n_eig_Ψ_nonint=4):
-    fF = 1e-15
-    C_C = Cc
-    C_F = C / 2 + Csh + CJ
-
-    C_mat = np.array([ [ C_F + C_C / 2,   -C_C / 2],
-                       [ -C_C / 2,  C_F + C_C / 2]])
-
-    C_inv = np.linalg.inv(C_mat)
-    C_F_tilde = C_inv[1, 1] ** -1
-    if Cc == 0:
-        pass
-    else:
-        C_FF = C_inv[0, 1] ** -1
-
-    fluxonium = sq_fluxonium(Lq=Lq, Lr=Lr, Δ=Δ, EJ=EJ, φ_ext=φ_ext, nmax_f=nmax_f, C_F_eff=C_F_tilde)
-
-    if return_Ψ_nonint:
-        H_qubit = fluxonium.hamiltonian()
-        fluxonium.diag(2)
-        Ψ_f = diag(H_qubit,2, solver='numpy')[1]
-        Ψ_0 = [qt.tensor(qt.Qobj(Ψ_f[:,0]),qt.Qobj(Ψ_f[:,0])),qt.tensor(qt.Qobj(Ψ_f[:,0]),qt.Qobj(Ψ_f[:,1])),qt.tensor(qt.Qobj(Ψ_f[:,1]),qt.Qobj(Ψ_f[:,0])),qt.tensor(qt.Qobj(Ψ_f[:,1]),qt.Qobj(Ψ_f[:,1]))]
-    else:
-        H_qubit = fluxonium.hamiltonian()
-
-    I_qubit = qt.identity(H_qubit.dims[0])
-
-    q_f = fluxonium.charge_op(0)
-
-    H_0 = qt.tensor(H_qubit, I_qubit) + qt.tensor(I_qubit, H_qubit)
-    if Cc == 0:
-        if return_Ψ_nonint:
-            return H_0, Ψ_0
-        else:
-            return H_0
-
-    H_coupling =  1 / (C_FF * fF) * qt.tensor(q_f, q_f)
-
-    H = H_0 + H_coupling
-
-    if return_Ψ_nonint:
-        return H, Ψ_0
-    else:
-        return H
-
-def hamiltonian_qubit_C_qubit_circuits(C_inv, circuits, Δs, nmax_r=5, nmax_f=10, return_H_0=False):
+def hamiltonian_qubit_C_qubit(C_inv, circuits, LCs, nmax_r=5, nmax_f=10, return_H_0=False):
 
     fluxonium_1, resonator_1, fluxonium_2, resonator_2 = circuits
-    Δ_1, Δ_2 = Δs
+    LC_1, LC_2 = LCs
 
-    H_qubit_1 = hamiltonian_qubit(fluxonium_1, resonator_1, Δ_1 )
-    H_qubit_2 = hamiltonian_qubit(fluxonium_2, resonator_2, Δ_2 )
+    H_qubit_1 = hamiltonian_qubit(fluxonium_1, resonator_1, LC_1 )
+    H_qubit_2 = hamiltonian_qubit(fluxonium_2, resonator_2, LC_2 )
 
     I_R = qt.identity(nmax_r)
     I_F = qt.identity(nmax_f)
@@ -778,12 +697,10 @@ def hamiltonian_qubit_C_qubit_circuits(C_inv, circuits, Δs, nmax_r=5, nmax_f=10
     H_0 = (  qt.tensor(H_qubit_1, I_qubit)
            + qt.tensor(I_qubit, H_qubit_2) )
 
-
     Q_F1 = fluxonium_1.charge_op(0)
     Q_R1 = resonator_1.charge_op(0)
     Q_F2 = fluxonium_2.charge_op(0)
     Q_R2 = resonator_2.charge_op(0)
-
 
     Q_vec = [Q_F1, Q_R1, Q_F2, Q_R2]
     H_coupling = 0
@@ -802,7 +719,6 @@ def hamiltonian_qubit_C_qubit_circuits(C_inv, circuits, Δs, nmax_r=5, nmax_f=10
         return H_0, H
     else:
         return H
-
 
 def hamiltonian_fluxonium_C_fluxonium_C_fluxonium(C_inv, circuits, nmax_f=10, return_H_0=False):
 
@@ -968,21 +884,6 @@ def hamiltonian_fluxonium_C_fluxonium_C_fluxonium_low_ene(H_list, g_list, return
         return H_0, H
     else:
         return H
-
-
-# def hamiltonian_qubit_C_qubit_C_qubit_low_ene(H_list, g_list):
-#     H_1, H_2, H_3 = H_list
-#     g_12, g_23, g_13 = g_list
-#     σ_x, σ_y, σ_z = pauli_matrices()
-#
-#     I = np.eye(H_1.shape[0])
-#
-#     H = (np.kron(np.kron(H_1, I), I) + np.kron(np.kron(I, H_2), I) + np.kron(np.kron(I, I), H_3) +
-#          g_12 * np.kron(np.kron(σ_y, σ_y), I) +
-#          g_23 * np.kron(np.kron(I, σ_y), σ_y) +
-#          g_13 * np.kron(np.kron(σ_y, I), σ_y))
-#
-#     return H
 
 
 #%% Circuits vs parameters
@@ -1262,34 +1163,6 @@ def find_resonance_low_energy(H_target, H_input_function, inpout_args, solver='n
     return optimal_φ_ext
 
 #%% Sorting and labeling functions
-# def sq_get_energy_indices(qubit, fluxonium, resonator, n_eig=3):
-#     try:
-#         E_qubit = qubit.efreqs - qubit.efreqs[0]
-#         E_fluxonium = fluxonium.efreqs - fluxonium.efreqs[0]
-#         E_resonator = resonator.efreqs - resonator.efreqs[0]
-#     except:
-#         qubit    .diag(n_eig+2)
-#         fluxonium.diag(n_eig)
-#         resonator.diag(n_eig)
-#         E_qubit      = qubit.efreqs    - qubit.efreqs[0]
-#         E_fluxonium = fluxonium.efreqs - fluxonium.efreqs[0]
-#         E_resonator = resonator.efreqs - resonator.efreqs[0]
-#
-#     n_eig = len(E_qubit)
-#
-#     N_fluxonium = np.zeros(n_eig, dtype='int')
-#     N_resonator = np.zeros(n_eig, dtype='int')
-#
-#     E_matrix = E_fluxonium[:, np.newaxis] + E_resonator
-#
-#     tol = E_qubit[1]-E_qubit[0]
-#     for k in range(n_eig):
-#         ΔE_matrix = np.abs(E_matrix - E_qubit[k])
-#         if ΔE_matrix.min() < tol:
-#             N_fluxonium[k], N_resonator[k] = np.unravel_index(ΔE_matrix.argmin(), ΔE_matrix.shape)
-#         else:
-#             N_fluxonium[k], N_resonator[k] = [-123, -123]
-#     return N_fluxonium, N_resonator
 
 def sq_get_energy_indices_hamiltonian(H_qubit, H_fluxonium, H_resonator, n_eig=2):
     E_qubit     = diag(H_qubit    , n_eig=n_eig+4, remove_ground=True)[0]
@@ -2071,6 +1944,66 @@ def truncation_convergence(circuit, n_eig, trunc_nums=False, threshold=1e-2, ref
     return circuit
 
 #%% Elephants' graveyard
+
+#
+# def hamiltonian_qubit_C_qubit(CC, CR, CF, LF, LR,LC, EJ, Δ, φ_ext, CR_prime, CF_prime, LF_prime, LR_prime,LC_prime, EJ_prime, Δ_prime, φ_ext_prime,
+#                               nmax_r=5, nmax_f=15, return_Ψ_nonint=False, n_eig_Ψ_nonint=4, only_inner = True, compensate_extra_cap=False, only_renormalization=False):
+#
+#     C_mat = C_mat_qubit_C_qubit(CC, CR, CF, CR_prime, CF_prime, only_inner, compensate_extra_cap, only_renormalization)
+#     C_inv = np.linalg.inv(C_mat)
+#
+#     CF_tilde = C_inv[0, 0] ** -1
+#     CR_tilde = C_inv[1, 1] ** -1
+#     CF_prime_tilde = C_inv[2, 2] ** -1
+#     CR_prime_tilde = C_inv[3, 3] ** -1
+#     fluxonium       = sq_fluxonium(C_F_eff=CF_tilde,       L_F_eff=LF,       Δ=Δ,       EJ=EJ,       nmax_f=nmax_f, φ_ext=φ_ext)
+#     resonator       = sq_resonator(C_R_eff=CR_tilde,       L_R_eff=LR,       Δ=Δ,       EJ=EJ,       nmax_r=nmax_r)
+#     fluxonium_prime = sq_fluxonium(C_F_eff=CF_prime_tilde, L_F_eff=LF_prime, Δ=Δ_prime, EJ=EJ_prime, nmax_f=nmax_f, φ_ext=φ_ext_prime)
+#     resonator_prime = sq_resonator(C_R_eff=CR_prime_tilde, L_R_eff=LR_prime, Δ=Δ_prime, EJ=EJ_prime, nmax_r=nmax_r)
+#
+#
+#     Lq,       Lr        = LF_LR_eff_to_Lq_Lr(LF=LF, LR=LR, Δ=Δ)
+#     if return_Ψ_nonint:
+#         H_uc, Ψ_q_0, E_q_0 = hamiltonian_qubit(fluxonium, resonator, LC, return_Ψ_nonint=return_Ψ_nonint)
+#         H_uc_prime, Ψ_q_0_prime, E_q_0_prime = hamiltonian_qubit(fluxonium_prime, resonator_prime, LC_prime, return_Ψ_nonint=return_Ψ_nonint)
+#         Nq_Nq = generate_and_prioritize_energies([E_q_0, E_q_0_prime], n_eig_Ψ_nonint)[1]
+#         Ψ_0 = [qt.tensor([Ψ_q_0[Nq_Nq_i[0]], Ψ_q_0_prime[Nq_Nq_i[1]] ]) for Nq_Nq_i in Nq_Nq]
+#     else:
+#         H_uc = hamiltonian_qubit(fluxonium, resonator, LC)
+#         H_uc_prime = hamiltonian_qubit(fluxonium_prime, resonator_prime, LC_prime)
+#
+#     I_uc = qt.identity(H_uc.dims[0])
+#     I_F  = qt.identity(nmax_f)
+#     I_R  = qt.identity(nmax_r)
+#     H_0 = qt.tensor(H_uc, I_uc) + qt.tensor(I_uc, H_uc_prime)
+#
+#     if CC == 0:
+#         if return_Ψ_nonint:
+#             return H_0, Ψ_0
+#         else:
+#             return H_0
+#
+#     Q_F       = fluxonium.charge_op(0)
+#     Q_R       = resonator.charge_op(0)
+#     Q_F_prime = fluxonium_prime.charge_op(0)
+#     Q_R_prime = resonator_prime.charge_op(0)
+#     Q_vec = [Q_F, Q_R, Q_F_prime, Q_R_prime]
+#     H_coupling = 0
+#     for i in range(4):
+#         for j in range(4):
+#             op_list = [I_F, I_R, I_F, I_R]
+#             if i == j: # we ommit the diagonal terms since we have already included the reonarmalizations (LR and LF tilde) in H_0.
+#                 continue
+#             else:
+#                 op_list[i] = Q_vec[i]
+#                 op_list[j] = Q_vec[j]
+#                 H_coupling += 1/2 * C_inv[i,j] * fF**-1 * qt.tensor(op_list)
+#     H = H_0 + H_coupling
+#
+#     if return_Ψ_nonint:
+#         return H, Ψ_0
+#     else:
+#         return H
 
 #
 # def hamiltonian_qubit_C_qubit_C_qubit(nmax_r, nmax_f, Cc, C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, periodic=True, only_outer=False, return_Ψ_nonint=False, n_eig_Ψ_nonint=4):
