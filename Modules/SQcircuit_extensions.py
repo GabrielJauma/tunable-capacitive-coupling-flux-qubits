@@ -1,6 +1,7 @@
 import SQcircuit as sq
 import Modules.figures as figs
 import numpy as np
+from scipy.linalg import eigvalsh, kron
 import matplotlib.pyplot as plt
 import scipy as sp
 import qutip as qt
@@ -87,6 +88,7 @@ def C_CJ_Csh_to_CF_CR_eff(C, CJ, Csh):
     return CF, CR
 
 #%% Experimental parameters
+
 def get_experimental_parameters(qubit_name,return_effective=True):
     if qubit_name == 'qubit_1' or qubit_name == 'resonator_1':
         # qR7
@@ -144,8 +146,6 @@ def get_experimental_parameters(qubit_name,return_effective=True):
         return CR, CF, LF, LR, EJ, Δ, ω_r
     else:
         return C, CJ, Csh, Lq, Lr, Δ, EJ
-
-
 
 #%% Basic circuits made with SQcircuits
 def sq_fluxonium(C=15, CJ=3, Csh=15, Lq=25, Lr=10, Δ=0.1, EJ=10.0, φ_ext=0.5, nmax_r=15, nmax_f=25, C_F_eff=False, L_F_eff=False, E_L=False, E_C=False):
@@ -943,81 +943,6 @@ def H_eff_p1_large(ψ_0, H, out='GHz', real=True, remove_ground = False):
 
     return H_eff
 
-def H_eff_p2(H_0, H, n_eig, out='GHz', real=False, remove_ground=False, solver='scipy', ψ_0=None):
-    if ψ_0 is None:
-        E_0, ψ_0 = diag(H_0, n_eig, real=real, solver='numpy', out=out)
-        E, ψ = diag(H, n_eig, real=False, solver='scipy', out=out)
-        try:
-            H_0 = H_0.__array__()
-        except:
-            pass
-        try:
-            H = H.__array__()
-        except:
-            pass
-        V = H - H_0
-
-        if out == 'GHz':
-            H_0 /= GHz * 2 * np.pi
-            H /= GHz * 2 * np.pi
-            V /= GHz * 2 * np.pi
-
-        # H_eff_1 = ψ_0.conj().T @ H @ ψ_0
-
-        H_eff_2 = np.zeros((n_eig, n_eig), dtype=complex)  # matrix to store our results.
-
-        for i in range(n_eig):
-            for j in range(n_eig):
-                H_eff_2[i, j] = 1 / 2 * sum(
-                    (1 / (E_0[i] - E[k]) + 1 / (E_0[j] - E[k])) *
-                    (ψ_0[:,i].conj().T @ V @ ψ[:,k])*
-                    (ψ[:,k].conj().T @ V @ ψ_0[:,j])
-                    for k in range(n_eig))
-
-
-    else:
-        E_0 = diag(H, n_eig=len(ψ_0), real=False, solver='Qutip', out=out, qObj=True)[0]
-        E, ψ = diag(H, n_eig=len(ψ_0), real=False, solver='Qutip', out=out, qObj=True)
-        subspace_indices = find_closest_indices(E_0, E, tolerance=0.1)
-        if len(subspace_indices) != len(ψ_0):
-            raise ValueError('Something is wrong with the tolerance')
-        ψ = ψ[subspace_indices]
-        n_eig = len(ψ_0)
-
-        V = H - H_0
-
-        if out == 'GHz':
-            H_0 /= GHz * 2 * np.pi
-            H /= GHz * 2 * np.pi
-            V /= GHz * 2 * np.pi
-
-        # H_eff_1 = ψ_0.conj().T @ H @ ψ_0
-
-        H_eff_2 = np.zeros((n_eig, n_eig), dtype=complex)  # matrix to store our results.
-
-        for i in range(n_eig):
-            for j in range(n_eig):
-                H_eff_2[i, j] = 1 / 2 * sum(
-                    (1 / (E_0[i] - E[k]) + 1 / (E_0[j] - E[k])) *
-                    (ψ_0[i].dag() * V * ψ[k]).data[0, 0] *
-                    (ψ[k].dag() * V * ψ_0[j]).data[0, 0]
-                    for k in range(n_eig))
-
-
-
-    # H_eff = H_eff_1 + H_eff_2
-    H_eff = H_eff_2
-
-
-    if remove_ground:
-        H_eff -= H_eff[0, 0] * np.eye(len(H_eff))
-
-    if real:
-        if np.allclose(np.imag(H_eff), 0):
-            H_eff = np.real(H_eff)
-
-    return H_eff
-
 def H_eff_p2_large(ψ_0_low, ψ_0_high, E_0_low, E_0_high, V, remove_ground=False):
     n_eig_low  = len(ψ_0_low)
     n_eig_high = len(ψ_0_high)
@@ -1638,7 +1563,7 @@ def plot_second_order_contributions(H_eff_decomp, labels_low, labels_high, figsi
     plt.title(r"$ \langle i | H_{eff}^{p2} | j \rangle $")
     plt.grid(True)
 
-    plt.legend(title="High energy mediators", loc=2, ncol=2)
+    plt.legend(title="High energy mediators",ncol=2)
     plt.tight_layout()
     plt.show()
 
@@ -1738,7 +1663,7 @@ def decomposition_in_pauli_2x2(A, print=False):
 
     return P
 
-def decomposition_in_pauli_4x4(A,  print_pretty=True):
+def decomposition_in_pauli_4x4(A,  print_pretty=True, test_decomposition=False):
     '''Performs Pauli decomposition of a 4x4 matrix.
 
     Input:
@@ -1763,7 +1688,33 @@ def decomposition_in_pauli_4x4(A,  print_pretty=True):
             S = np.kron(s[i], s[j])  # S_ij=σ_i /otimes σ_j.
             P[i, j] = 0.25 * (np.dot(S.T.conjugate(), A)).trace() # P[i,j]=(1/4)tr(S_ij^t*A)
             if np.abs(P[i, j])>1e-13 and print_pretty == True:
-                print(" %s\t*\t %s " % (P[i, j], label))
+                print(" %.4f\t*\t %s " % (P[i, j], label))
+
+    if test_decomposition:
+        # **Test**: Reconstruct the Hamiltonian and compare spectra
+        H_reconstructed = np.zeros_like(A, dtype=complex)
+        for i in range(4):
+            for j in range(4):
+                c = P[i, j]
+                if np.abs(c) > 1e-13:
+                    S = kron(s[i], s[j])
+                    H_reconstructed += c * S
+
+        # Diagonalize both the original and reconstructed Hamiltonians
+        eigenvalues_original = eigvalsh(A)
+        eigenvalues_reconstructed = eigvalsh(H_reconstructed)
+
+        # Print and compare the eigenvalues
+        print("\nEigenvalues of the original Hamiltonian:")
+        print(np.round(eigenvalues_original, 5))
+
+        print("\nEigenvalues of the reconstructed Hamiltonian:")
+        print(np.round(eigenvalues_reconstructed, 5))
+
+        if np.allclose(eigenvalues_original, eigenvalues_reconstructed, atol=1e-6):
+            print("\nThe spectra match! The reconstruction is successful.")
+        else:
+            print("\nThe spectra do not match. There might be an error in the decomposition.")
 
     return P
 
@@ -1783,16 +1734,9 @@ def decomposition_in_pauli_4x4_qubit_resonator(A,  print_pretty=True):
     σz = np.array([[1, 0], [0, -1]])
     s = [i, σx, σy, σz]  # array containing the matrices.
 
-    def create(n):
-        return np.diag(np.sqrt(np.arange(1, n)), -1)
-
-    def annihilate(n):
-        return np.diag(np.sqrt(np.arange(1, n)), 1)
-    n = 2
-
-    a = create(n)
-    a_dagger = annihilate(n)
-    r = [i, a_dagger+a, 1j*(a_dagger-a), a*a_dagger ]
+    a = create(2)
+    a_dagger = annihilate(2)
+    r = [i, a_dagger+a, 1j*(a_dagger-a), a_dagger@a]
 
     labels = ['I', 'σx', 'σy', 'σz']  # useful to print the result.
     labels_r = ['I', 'a_d+a', 'i(a_d-a)', 'a_d a']  # useful to print the result.
@@ -1804,12 +1748,82 @@ def decomposition_in_pauli_4x4_qubit_resonator(A,  print_pretty=True):
             label = labels[i] + ' \U00002A02' + labels_r[j]
             S = np.kron(s[i], r[j])  # S_ij=σ_i /otimes σ_j.
             P[i, j] = 0.25 * (np.dot(S.T.conjugate(), A)).trace() # P[i,j]=(1/4)tr(S_ij^t*A)
-            if P[i, j] != 0.0 and print_pretty == True:
-                print(" %s\t*\t %s " % (P[i, j], label))
+            if np.abs(P[i, j])>1e-13 and print_pretty == True:
+                print(" %.4f\t*\t %s " % (P[i, j], label))
+
+    return P
+def decomposition_in_pauli_2xN_qubit_resonator(A, print_pretty=True):
+    from scipy.linalg import eigvalsh, kron
+    '''Performs Pauli decomposition of a 2xN Hamiltonian matrix representing a qubit-resonator system.
+
+    Input:
+    A = Hamiltonian matrix to decompose (size 2N x 2N).
+    print_pretty = Boolean flag to print the decomposition.
+
+    Output:
+    P = Dictionary of coefficients P[(i,j)] such that A = Σ P[i,j] σ_i ⊗ O_j where i = 0..3,
+        and O_j are cavity operators.
+    '''
+
+    # Define Pauli matrices
+    I_qubit = np.eye(2, dtype=complex)
+    σx = np.array([[0, 1], [1, 0]], dtype=complex)
+    σy = np.array([[0, -1j], [1j, 0]], dtype=complex)
+    σz = np.array([[1, 0], [0, -1]], dtype=complex)
+    s = [I_qubit, σx, σy, σz]  # array containing the Pauli matrices
+    labels_qubit = ['I', 'σx', 'σy', 'σz']  # labels for printing
+
+    N = np.shape(A)[0]//2
+    # Truncate the cavity space and define cavity operators
+    I_cavity = np.eye(N, dtype=complex)
+    a = np.diag(np.sqrt(np.arange(1, N)), 1)  # Annihilation operator
+    a_dagger = a.conj().T  # Creation operator
+    number = a_dagger @ a  # Number operator
+    x = a + a_dagger  # Position operator
+    p = 1j * (a_dagger - a)  # Momentum operator
+
+    # Define basis operators for the cavity
+    r = [I_cavity,  x, p, number, I_cavity-2*number]
+    labels_cavity = ['I','a†+a', 'i(a†-a)', 'a†a','I-2N']  # labels for printing
+
+    operator_indices = [(0,0),(3,0),(0,3),(1,1),(2,2),(3,3)]
+    P = {}  # Dictionary to store the coefficients
+
+    # Loop to compute each coefficient
+    for i,j in operator_indices:
+            label = labels_qubit[i] + ' ⊗ ' + labels_cavity[j]
+            S = kron(s[i], r[j])  # Tensor product σ_i ⊗ O_j
+            numerator = np.trace(S.conj().T @ A)
+            denominator = np.trace(S.conj().T @ S)
+            c = numerator / denominator if denominator != 0 else 0
+            P[(i, j)] = c
+            if np.abs(c) > 1e-13 and print_pretty:
+                print(f"{c.real:.4f}\t*\t{label}")
+
+    # **Test**: Reconstruct the Hamiltonian and compare spectra
+    H_reconstructed = np.zeros_like(A, dtype=complex)
+    for (i, j), c in P.items():
+        S = kron(s[i], r[j])
+        H_reconstructed += c * S
+
+    # Diagonalize both the original and reconstructed Hamiltonians
+    eigenvalues_original = eigvalsh(A)
+    eigenvalues_reconstructed = eigvalsh(H_reconstructed)
+
+    # Print and compare the eigenvalues
+    print("\nEigenvalues of the original Hamiltonian:")
+    print(np.round(eigenvalues_original, 5))
+
+    print("\nEigenvalues of the reconstructed Hamiltonian:")
+    print(np.round(eigenvalues_reconstructed, 5))
+
+    if np.allclose(eigenvalues_original, eigenvalues_reconstructed, atol=1e-6):
+        print("\nThe spectra match! The reconstruction is successful.")
+    else:
+        print("\nThe spectra do not match. There might be an error in the decomposition.")
 
     return P
 
-import numpy as np
 
 def decomposition_in_pauli_8x8(A, rd, print=True):
     '''Performs Pauli decomposition of an 8x8 matrix.
@@ -1874,6 +1888,24 @@ def find_close_indices(E_0_ψ_0, E_0):
         # Check if any element in E_0 is within the tolerance range
         result_indices.append(np.where(np.abs(E_0-value)<=1e-8)[0][0])
 
+    return result_indices
+
+def find_close_indices_unique(E_0_ψ_0, E_0, tolerance=1e-8):
+    result_indices = []
+    used_indices = set()
+    for value in E_0_ψ_0:
+        # Find all indices where energies match within the tolerance
+        matching_indices = np.where(np.abs(E_0 - value) <= tolerance)[0]
+        # Iterate through matching indices and pick the first one not used yet
+        for idx in matching_indices:
+            if idx not in used_indices:
+                result_indices.append(idx)
+                used_indices.add(idx)
+                break
+        else:
+            # If all matching indices are used, handle appropriately
+            # For this example, we'll raise an error
+            raise ValueError("Not enough unique matching indices found.")
     return result_indices
 
 #%% Truncation convergence
