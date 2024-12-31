@@ -1038,6 +1038,131 @@ def H_eff_SWT_large(ψ_0, ψ, E, remove_ground=False, return_Q=False):
         return H_eff
 
 
+# %%
+def H0_from_list(H_0_list):
+
+    I_list = [qt.identity(H_0_i.dims[0])  for H_0_i in H_0_list]
+    H_0 = 0
+    for n, H_0_n in enumerate(H_0_list):
+        Op_list = I_list.copy()
+        Op_list[n] = H_0_n
+        H_0 += qt.tensor(Op_list)
+
+    return H_0
+
+def H_eff_4x4(H_0_list, H, basis_states, mediating_states, n_eig=4, n_eig_extra_low=4, return_decomposition=False):
+    """
+    H = H0 + V
+    H_0 = H_0_0 ⊗ I     ⊗ ... ⊗ I +
+      I     ⊗ H_0_1 ⊗ ... ⊗ I +
+      ...                     +
+      I     ⊗ I     ⊗ ... ⊗ H_0_N
+    H_0_i = H_0_list[i]
+
+    len(basis_states) = 4
+    """
+    H_0 = H0_from_list(H_0_list)
+
+    ψ_0_list = [diag(H_0_i, n_eig, solver='numpy', real=True)[1] for H_0_i in H_0_list]
+
+    ψ_0_basis = []
+    for i, basis_indices in enumerate(basis_states):
+        ψ_0_basis_i = []
+        for n, ψ_0 in enumerate(ψ_0_list):
+            ψ_0_basis_i.append(qt.Qobj(ψ_0[:, basis_indices[n]]))
+        ψ_0_basis.append(qt.tensor(ψ_0_basis_i))
+
+    ψ_0_mediating = []
+    for i, mediating_indices in enumerate(mediating_states):
+        ψ_0_mediating_i = []
+        for n, ψ_0 in enumerate(ψ_0_list):
+            ψ_0_mediating_i.append(qt.Qobj(ψ_0[:, mediating_indices[n]]))
+        ψ_0_mediating.append(qt.tensor(ψ_0_mediating_i))
+
+    H_eff_p1 = H_eff_p1_large(ψ_0_basis, H=H, real=True, remove_ground=True)
+
+    V = H - H_0
+
+    E_0_ψ_0_basis = [np.real((ψ_0_i.dag() * H_0 * ψ_0_i).data[0, 0]) / 2 / np.pi / GHz for ψ_0_i in ψ_0_basis]
+    E_0_ψ_0_mediating = [np.real((ψ_0_i.dag() * H_0 * ψ_0_i).data[0, 0]) / 2 / np.pi / GHz for ψ_0_i in ψ_0_mediating]
+
+    H_eff_p2, H_eff_p2_decomp = H_eff_p2_decomposed(ψ_0_basis, ψ_0_mediating, E_0_ψ_0_basis,
+                                                               E_0_ψ_0_mediating, V, remove_ground=True)
+
+    E_0 = diag(H_0, n_eig=len(ψ_0_basis) + n_eig_extra_low, out='GHz', solver='scipy')[0]
+    E, ψ = diag(H, n_eig=len(ψ_0_basis) + n_eig_extra_low, out='GHz', solver='Qutip', qObj=True)
+    subspace_indices = find_close_indices_unique(E_0_ψ_0_basis, E_0)
+    ψ_basis = ψ[subspace_indices]
+    E_basis = E[subspace_indices]
+
+    H_eff_SWT = H_eff_SWT_large(ψ_0_basis, ψ_basis, E_basis, remove_ground=True)
+
+    P1  = decomposition_in_pauli_4x4(H_eff_p1, print_pretty=False)
+    P2  = decomposition_in_pauli_4x4(H_eff_p1 + H_eff_p2, print_pretty=False)
+    SWT = decomposition_in_pauli_4x4(H_eff_SWT, print_pretty=False)
+
+    if return_decomposition:
+        return P1, P2, SWT, H_eff_p2_decomp
+    else:
+        return P1, P2, SWT
+
+
+def H_eff_2x2(H_0_list, H, basis_states, mediating_states, n_eig=4, n_eig_extra_low=4, return_decomposition=False):
+    """
+    H = H0 + V
+    H_0 = H_0_0 ⊗ I     ⊗ ... ⊗ I +
+      I     ⊗ H_0_1 ⊗ ... ⊗ I +
+      ...                     +
+      I     ⊗ I     ⊗ ... ⊗ H_0_N
+    H_0_i = H_0_list[i]
+
+    len(basis_states) = 4
+    """
+    H_0 = H0_from_list(H_0_list)
+
+    ψ_0_list = [diag(H_0_i, n_eig, solver='numpy', real=True)[1] for H_0_i in H_0_list]
+
+    ψ_0_basis = []
+    for i, basis_indices in enumerate(basis_states):
+        ψ_0_basis_i = []
+        for n, ψ_0 in enumerate(ψ_0_list):
+            ψ_0_basis_i.append(qt.Qobj(ψ_0[:, basis_indices[n]]))
+        ψ_0_basis.append(qt.tensor(ψ_0_basis_i))
+
+    ψ_0_mediating = []
+    for i, mediating_indices in enumerate(mediating_states):
+        ψ_0_mediating_i = []
+        for n, ψ_0 in enumerate(ψ_0_list):
+            ψ_0_mediating_i.append(qt.Qobj(ψ_0[:, mediating_indices[n]]))
+        ψ_0_mediating.append(qt.tensor(ψ_0_mediating_i))
+
+    H_eff_p1 = H_eff_p1_large(ψ_0_basis, H=H, real=True, remove_ground=True)
+
+    V = H - H_0
+
+    E_0_ψ_0_basis = [np.real((ψ_0_i.dag() * H_0 * ψ_0_i).data[0, 0]) / 2 / np.pi / GHz for ψ_0_i in ψ_0_basis]
+    E_0_ψ_0_mediating = [np.real((ψ_0_i.dag() * H_0 * ψ_0_i).data[0, 0]) / 2 / np.pi / GHz for ψ_0_i in ψ_0_mediating]
+
+    H_eff_p2, H_eff_p2_decomp = H_eff_p2_decomposed(ψ_0_basis, ψ_0_mediating, E_0_ψ_0_basis,
+                                                               E_0_ψ_0_mediating, V, remove_ground=True)
+
+    E_0 = diag(H_0, n_eig=len(ψ_0_basis) + n_eig_extra_low, out='GHz', solver='scipy')[0]
+    E, ψ = diag(H, n_eig=len(ψ_0_basis) + n_eig_extra_low, out='GHz', solver='Qutip', qObj=True)
+    subspace_indices = find_close_indices_unique(E_0_ψ_0_basis, E_0)
+    ψ_basis = ψ[subspace_indices]
+    E_basis = E[subspace_indices]
+
+    H_eff_SWT = H_eff_SWT_large(ψ_0_basis, ψ_basis, E_basis, remove_ground=True)
+
+    P1  = decomposition_in_pauli_2x2(H_eff_p1, print=False)
+    P2  = decomposition_in_pauli_2x2(H_eff_p1 + H_eff_p2, print=False)
+    SWT = decomposition_in_pauli_2x2(H_eff_SWT, print=False)
+
+    if return_decomposition:
+        return P1, P2, SWT, H_eff_p2_decomp
+    else:
+        return P1, P2, SWT
+
 #%% Optimization functions
 def find_resonance(H_target, input_circuit):
     # Step 1: Calculate the target gap ω_target
@@ -1555,7 +1680,7 @@ def plot_second_order_contributions(H_eff_decomp, labels_low, labels_high, figsi
     for k in range(num_k):
         for x_pos, (i, j) in enumerate(zip(*nonzero_indices)):
             if np.abs(H_eff_decomp[i, j, k]) > threshold:  # Only include values above the threshold
-                plt.plot(x_pos,H_eff_decomp[i, j, k], '*', color=colors[k], label=f"{labels_high[k]}")
+                plt.plot(x_pos,H_eff_decomp[i, j, k], '*', color=colors[k], label=f"{labels_high[k]}", alpha=0.5)
 
     # Set x-axis ticks with labels for the nonzero matrix elements
     plt.xticks(ticks=range(len(H_eff_nonzero)), labels=labels, rotation=45, ha="right")
@@ -1640,7 +1765,7 @@ def rank_by_multiples(arr, tol = 0.1):
 
     return np.array( np.round(diff_array / unit), dtype='int')
 
-def decomposition_in_pauli_2x2(A, print=False):
+def decomposition_in_pauli_2x2(A ):
     '''Performs Pauli decomposition of a 2x2 matrix.
 
     Input:
@@ -1659,7 +1784,7 @@ def decomposition_in_pauli_2x2(A, print=False):
     P = np.zeros(4)  # array to store our results.
     # Loop to obtain each coefficient.
     for i in range(4):
-        P[i] = 0.5 * np.trace(s[i].T.conjugate() @ A)
+        P[i] = np.real( 0.5 * np.trace(s[i].T.conjugate() @ A) )
 
     return P
 
@@ -1680,13 +1805,13 @@ def decomposition_in_pauli_4x4(A,  print_pretty=True, test_decomposition=False):
     s = [i, σx, σy, σz]  # array containing the matrices.
     labels = ['I', 'σx', 'σy', 'σz']  # useful to print the result.
 
-    P = np.zeros((4, 4), dtype=complex)  # array to store our results.
+    P = np.zeros((4, 4))  # array to store our results.
     # Loop to obtain each coefficient.
     for i in range(4):
         for j in range(4):
             label = labels[i] + ' \U00002A02' + labels[j]
             S = np.kron(s[i], s[j])  # S_ij=σ_i /otimes σ_j.
-            P[i, j] = 0.25 * (np.dot(S.T.conjugate(), A)).trace() # P[i,j]=(1/4)tr(S_ij^t*A)
+            P[i, j] = np.real( 0.25 * (np.dot(S.T.conjugate(), A)).trace() ) # P[i,j]=(1/4)tr(S_ij^t*A)
             if np.abs(P[i, j])>1e-13 and print_pretty == True:
                 print(" %.4f\t*\t %s " % (P[i, j], label))
 
@@ -1905,6 +2030,8 @@ def find_close_indices_unique(E_0_ψ_0, E_0, tolerance=1e-8):
         else:
             # If all matching indices are used, handle appropriately
             # For this example, we'll raise an error
+            print(E_0_ψ_0)
+            print(E_0)
             raise ValueError("Not enough unique matching indices found.")
     return result_indices
 
