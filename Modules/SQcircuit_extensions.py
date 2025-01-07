@@ -1154,9 +1154,9 @@ def H_eff_2x2(H_0_list, H, basis_states, mediating_states, n_eig=4, n_eig_extra_
 
     H_eff_SWT = H_eff_SWT_large(ψ_0_basis, ψ_basis, E_basis, remove_ground=True)
 
-    P1  = decomposition_in_pauli_2x2(H_eff_p1, print=False)
-    P2  = decomposition_in_pauli_2x2(H_eff_p1 + H_eff_p2, print=False)
-    SWT = decomposition_in_pauli_2x2(H_eff_SWT, print=False)
+    P1  = decomposition_in_pauli_2x2(H_eff_p1 )
+    P2  = decomposition_in_pauli_2x2(H_eff_p1 + H_eff_p2 )
+    SWT = decomposition_in_pauli_2x2(H_eff_SWT )
 
     if return_decomposition:
         return P1, P2, SWT, H_eff_p2_decomp
