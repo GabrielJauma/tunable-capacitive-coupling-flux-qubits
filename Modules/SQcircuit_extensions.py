@@ -1678,15 +1678,59 @@ def plot_second_order_contributions(H_eff_decomp, labels_low, labels_high, figsi
     colors = plt.cm.tab20(np.linspace(0, 1, num_k))  # Unique color for each k value
 
     for k in range(num_k):
+        legend_k = True
         for x_pos, (i, j) in enumerate(zip(*nonzero_indices)):
             if np.abs(H_eff_decomp[i, j, k]) > threshold:  # Only include values above the threshold
-                plt.plot(x_pos,H_eff_decomp[i, j, k], '*', color=colors[k], label=f"{labels_high[k]}", alpha=0.5)
+                if legend_k:
+                    plt.plot(x_pos,H_eff_decomp[i, j, k], '*', color=colors[k], label=f"{labels_high[k]}", alpha=0.5)
+                    legend_k=False
+                else:
+                    plt.plot(x_pos,H_eff_decomp[i, j, k], '*', color=colors[k], alpha=0.5)
+
 
     # Set x-axis ticks with labels for the nonzero matrix elements
     plt.xticks(ticks=range(len(H_eff_nonzero)), labels=labels, rotation=45, ha="right")
     plt.xlabel("Low energy states")
     plt.title(r"$ \langle i | H_{eff}^{p2} | j \rangle $")
     plt.grid(True)
+
+    plt.legend(title="High energy mediators",ncol=2)
+    plt.tight_layout()
+    plt.show()
+
+def plot_second_order_contributions_log(H_eff_decomp, labels_low, labels_high, figsize = np.array([6, 5]) * 1.3, threshold=1e-10):
+    # Filter nonzero elements in H_eff and generate labels for them
+
+    H_eff = np.sum(H_eff_decomp, -1)
+    nonzero_indices = np.where(np.abs(H_eff) > threshold)
+    H_eff_nonzero = np.abs(H_eff[nonzero_indices])
+    labels = [f"{labels_low[i]},{labels_low[j]}" for i, j in zip(*nonzero_indices)]
+
+    # Start plotting
+    plt.figure(figsize=figsize, dpi=150)
+    plt.plot(range(len(H_eff_nonzero)), H_eff_nonzero, 'ok', markersize=10, markerfacecolor='None')
+
+    # Plot nonzero elements in H_eff_decomp corresponding to H_eff nonzero locations
+    num_k = H_eff_decomp.shape[-1]
+    colors = plt.cm.tab20(np.linspace(0, 1, num_k))  # Unique color for each k value
+
+    for k in range(num_k):
+        legend_k = True
+        for x_pos, (i, j) in enumerate(zip(*nonzero_indices)):
+            if np.abs(H_eff_decomp[i, j, k]) > threshold:  # Only include values above the threshold
+                if legend_k:
+                    plt.plot(x_pos,np.abs(H_eff_decomp[i, j, k]), '*', color=colors[k], label=f"{labels_high[k]}", alpha=0.5)
+                    legend_k=False
+                else:
+                    plt.plot(x_pos,np.abs(H_eff_decomp[i, j, k]), '*', color=colors[k], alpha=0.5)
+
+
+    # Set x-axis ticks with labels for the nonzero matrix elements
+    plt.xticks(ticks=range(len(H_eff_nonzero)), labels=labels, rotation=45, ha="right")
+    plt.xlabel("Low energy states")
+    plt.title(r"$ \langle i | H_{eff}^{p2} | j \rangle $")
+    plt.grid(True)
+    plt.yscale('log')
 
     plt.legend(title="High energy mediators",ncol=2)
     plt.tight_layout()
