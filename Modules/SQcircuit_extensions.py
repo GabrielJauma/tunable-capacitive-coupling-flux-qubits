@@ -817,19 +817,19 @@ def hamiltonian_qubit_C_qubit_C_qubit_H_Q_Cint(H_list, Q_list, C_int_list):
     return H
 
 #%% Low-energy hamiltonians
-def hamiltonian_fluxonium_low_ene(ω_q, μ, φ_ext):
+def hamiltonian_fluxonium_low_ene(ω_q, gx, gz):
     σ_x, σ_y, σ_z = pauli_matrices()
 
-    H = ω_q/2 * σ_z + μ * (φ_ext-0.5) * σ_x
+    H = (ω_q/2 + gz)* σ_z + gx * σ_x
 
     return H
 
-def hamiltonian_qubit_low_ene(ω_q, μ, ω_r, g_Φ, φ_ext, g_q=0):
+def hamiltonian_qubit_low_ene(ω_q, gx, gz, ω_r, g_Φ, g_q=0):
     σ_x, σ_y, σ_z = pauli_matrices()
-    a_dag   = create(3)
-    a       = annihilate(3)
+    a_dag   = create(2)
+    a       = annihilate(2)
 
-    H_f = hamiltonian_fluxonium_low_ene(ω_q, μ, φ_ext)
+    H_f = hamiltonian_fluxonium_low_ene(ω_q, gx, gz)
     H_r = ω_r * a_dag @ a
 
     I_r = qt.identity(H_r.shape[0])
@@ -886,6 +886,36 @@ def hamiltonian_fluxonium_C_fluxonium_C_fluxonium_low_ene(H_list, g_list, return
         return H
 
 
+def fluxonium_qubit_ops_vs_φ_ext(φ_ext, EJ,  E_0, ψ_0, fluxonium):
+    δφ_ext = (φ_ext - 0.5) * 2 * np.pi
+
+    δφ_ext_sin = -np.sin(δφ_ext)  # δφ_ext      #- δφ_ext**3/6  +  δφ_ext**5/120
+    δφ_ext_cos = -1 + np.cos(δφ_ext)  # δφ_ext**2/2 #- δφ_ext**4/24 +  δφ_ext**6/(6*120)
+
+    sin_φ_01 = ψ_0[:, 0].conj().T @ fluxonium.sin_op(0).__array__() @ ψ_0[:, 1]
+    cos_φ_00 = ψ_0[:, 0].conj().T @ fluxonium.cos_op(0).__array__() @ ψ_0[:, 0]
+    cos_φ_11 = ψ_0[:, 1].conj().T @ fluxonium.cos_op(0).__array__() @ ψ_0[:, 1]
+
+    H_eff_00_p1 = δφ_ext_cos * EJ * cos_φ_00
+    H_eff_11_p1 = δφ_ext_cos * EJ * cos_φ_11
+    H_eff_01_p1 = δφ_ext_sin * EJ * sin_φ_01
+
+    gx_p1 = np.real(H_eff_01_p1)
+    gz_p1 = np.real((H_eff_11_p1 - H_eff_00_p1) / 2)
+
+    sin_φ_12 = ψ_0[:, 1].conj().T @ fluxonium.sin_op(0).__array__() @ ψ_0[:, 2]
+    cos_φ_02 = ψ_0[:, 0].conj().T @ fluxonium.cos_op(0).__array__() @ ψ_0[:, 2]
+
+    H_eff_00_p2 = (1 / (E_0[0] - E_0[2])) * (δφ_ext_cos * EJ * cos_φ_02) ** 2
+    H_eff_11_p2 = (1 / (E_0[1] - E_0[2])) * (δφ_ext_sin * EJ * sin_φ_12) ** 2
+    H_eff_01_p2 = ((1 / (E_0[0] - E_0[2]) + 1 / (E_0[1] - E_0[2])) *
+                   (δφ_ext_cos * EJ * cos_φ_02) * (δφ_ext_sin * EJ * sin_φ_12))
+
+    gx_p2 = np.real(gx_p1 + H_eff_01_p2)
+    gz_p2 = np.real(gz_p1 - (H_eff_11_p2 - H_eff_00_p2) / 2)
+
+
+    return gx_p2, gz_p2
 #%% Circuits vs parameters
 def KIT_qubit_vs_param(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5, nmax_r=15, nmax_f=25, model='composition'):
 
@@ -1050,7 +1080,7 @@ def H0_from_list(H_0_list):
 
     return H_0
 
-def H_eff_4x4(H_0_list, H, basis_states, mediating_states, n_eig=4, n_eig_extra_low=4, return_decomposition=False):
+def H_eff_4x4(H_0_list, H, basis_states, mediating_states, n_eig=4, n_eig_extra_low=4, return_decomposition=False, return_E=False):
     """
     H = H0 + V
     H_0 = H_0_0 ⊗ I     ⊗ ... ⊗ I +
@@ -1101,10 +1131,14 @@ def H_eff_4x4(H_0_list, H, basis_states, mediating_states, n_eig=4, n_eig_extra_
     P2  = decomposition_in_pauli_4x4(H_eff_p1 + H_eff_p2, print_pretty=False)
     SWT = decomposition_in_pauli_4x4(H_eff_SWT, print_pretty=False)
 
+    return_list = [P1, P2, SWT]
+
     if return_decomposition:
-        return P1, P2, SWT, H_eff_p2_decomp
-    else:
-        return P1, P2, SWT
+        return_list.append(H_eff_p2_decomp)
+    if return_E:
+        return_list.append(E_basis)
+
+    return return_list
 
 
 def H_eff_2x2(H_0_list, H, basis_states, mediating_states, n_eig=4, n_eig_extra_low=4, return_decomposition=False):
