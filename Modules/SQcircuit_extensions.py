@@ -817,14 +817,36 @@ def hamiltonian_qubit_C_qubit_C_qubit_H_Q_Cint(H_list, Q_list, C_int_list):
     return H
 
 #%% Low-energy hamiltonians
-def hamiltonian_fluxonium_low_ene(ω_q, gx, gz):
+def hamiltonian_fluxonium_low_ene(ω_q, μ, φ_ext):
+    σ_x, σ_y, σ_z = pauli_matrices()
+
+    H = ω_q/2 * σ_z + μ * (φ_ext-0.5) * σ_x
+
+    return H
+
+def hamiltonian_fluxonium_low_ene_new(ω_q, gx, gz):
     σ_x, σ_y, σ_z = pauli_matrices()
 
     H = (ω_q/2 + gz)* σ_z + gx * σ_x
 
     return H
 
-def hamiltonian_qubit_low_ene(ω_q, gx, gz, ω_r, g_Φ, g_q=0):
+def hamiltonian_qubit_low_ene(ω_q, μ, ω_r, g_Φ, φ_ext, g_q=0):
+    σ_x, σ_y, σ_z = pauli_matrices()
+    a_dag   = create(3)
+    a       = annihilate(3)
+
+    H_f = hamiltonian_fluxonium_low_ene(ω_q, μ, φ_ext)
+    H_r = ω_r * a_dag @ a
+
+    I_r = qt.identity(H_r.shape[0])
+    I_f = qt.identity(H_f.shape[0])
+
+    H = np.kron(H_f, I_r) + np.kron(I_f, H_r) + g_Φ * np.kron(σ_x, a_dag + a) + g_q * np.kron(σ_y, 1j*(a_dag - a))
+
+    return H
+
+def hamiltonian_qubit_low_ene_new(ω_q, gx, gz, ω_r, g_Φ, g_q=0):
     σ_x, σ_y, σ_z = pauli_matrices()
     a_dag   = create(2)
     a       = annihilate(2)
@@ -875,8 +897,8 @@ def hamiltonian_fluxonium_C_fluxonium_C_fluxonium_low_ene(H_list, g_list, return
     H_0 = np.kron(np.kron(H_1, I), I) + np.kron(np.kron(I, H_2), I) + np.kron(np.kron(I, I), H_3)
 
     H_int = (g_12 * np.kron(np.kron(σ_y, σ_y), I) +
-            g_23 * np.kron(np.kron(I, σ_y), σ_y) +
-            g_13 * np.kron(np.kron(σ_y, I), σ_y))
+             g_23 * np.kron(np.kron(I, σ_y), σ_y) +
+             g_13 * np.kron(np.kron(σ_y, I), σ_y))
 
     H = H_0 + H_int
 
@@ -885,6 +907,36 @@ def hamiltonian_fluxonium_C_fluxonium_C_fluxonium_low_ene(H_list, g_list, return
     else:
         return H
 
+
+def fluxonium_qubit_ops_vs_φ_ext_general(φ_ext, EJ,  E_0, ψ_0, fluxonium):
+
+    δφ_ext_sin = np.sin(2 * np.pi * φ_ext)  # δφ_ext      #- δφ_ext**3/6  +  δφ_ext**5/120
+    δφ_ext_cos = 1 - np.cos(2 * np.pi * φ_ext)  # δφ_ext**2/2 #- δφ_ext**4/24 +  δφ_ext**6/(6*120)
+
+    sin_φ_01 = ψ_0[:, 0].conj().T @ fluxonium.sin_op(0).__array__() @ ψ_0[:, 1]
+    cos_φ_00 = ψ_0[:, 0].conj().T @ fluxonium.cos_op(0).__array__() @ ψ_0[:, 0]
+    cos_φ_11 = ψ_0[:, 1].conj().T @ fluxonium.cos_op(0).__array__() @ ψ_0[:, 1]
+
+    H_eff_00_p1 = δφ_ext_cos * EJ * cos_φ_00
+    H_eff_11_p1 = δφ_ext_cos * EJ * cos_φ_11
+    H_eff_01_p1 = δφ_ext_sin * EJ * sin_φ_01
+
+    gx_p1 = np.real(H_eff_01_p1)
+    gz_p1 = np.real((H_eff_11_p1 - H_eff_00_p1) / 2)
+
+    sin_φ_12 = ψ_0[:, 1].conj().T @ fluxonium.sin_op(0).__array__() @ ψ_0[:, 2]
+    cos_φ_02 = ψ_0[:, 0].conj().T @ fluxonium.cos_op(0).__array__() @ ψ_0[:, 2]
+
+    H_eff_00_p2 = (1 / (E_0[0] - E_0[2])) * (δφ_ext_cos * EJ * cos_φ_02) ** 2
+    H_eff_11_p2 = (1 / (E_0[1] - E_0[2])) * (δφ_ext_sin * EJ * sin_φ_12) ** 2
+    H_eff_01_p2 = ((1 / (E_0[0] - E_0[2]) + 1 / (E_0[1] - E_0[2])) *
+                   (δφ_ext_cos * EJ * cos_φ_02) * (δφ_ext_sin * EJ * sin_φ_12))
+
+    gx_p2 = np.real(gx_p1 + H_eff_01_p2)
+    gz_p2 = np.real(gz_p1 - (H_eff_11_p2 - H_eff_00_p2) / 2)
+
+
+    return gx_p1, gz_p1, gx_p2, gz_p2
 
 def fluxonium_qubit_ops_vs_φ_ext(φ_ext, EJ,  E_0, ψ_0, fluxonium):
     δφ_ext = (φ_ext - 0.5) * 2 * np.pi
