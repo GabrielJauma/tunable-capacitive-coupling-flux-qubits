@@ -1063,6 +1063,66 @@ def H_eff_p2_decomposed(ψ_0_low, ψ_0_high, E_0_low, E_0_high, V, remove_ground
 
     return H_eff, H_eff_decomp
 
+
+def H_eff_p3_large(ψ_0_low, ψ_0_high, E_0_low, E_0_high, V, remove_ground=False):
+    """
+    Compute the THIRD-ORDER effective Hamiltonian correction in the low subspace,
+    using a standard (symmetric) Rayleigh-Schrodinger-like formula.
+
+    Arguments
+    ---------
+    ψ_0_low   : list/array of Qobj states in the low-energy subspace
+    ψ_0_high  : list/array of Qobj states in the high-energy subspace
+    E_0_low   : array/list of energies for the low-energy states
+    E_0_high  : array/list of energies for the high-energy states
+    V         : Qobj operator (the perturbation)
+    remove_ground : bool, subtract the (i=0,j=0) diagonal element if True
+
+    Returns
+    -------
+    H_eff : np.ndarray (complex)
+        2D array representing the 3rd-order correction in the low subspace
+    """
+    n_eig_low = len(ψ_0_low)
+    n_eig_high = len(ψ_0_high)
+
+    # Initialize the 3rd-order matrix
+    H_eff = np.zeros((n_eig_low, n_eig_low), dtype=complex)
+
+    for i in range(n_eig_low):
+        E_i = E_0_low[i]
+        for j in range(n_eig_low):
+            E_j = E_0_low[j]
+            # We'll accumulate the sum over k, l in high
+            val_ij = 0.0j
+
+            for k in range(n_eig_high):
+                E_k = E_0_high[k]
+                # Matrix element from i->k
+                Vk_i_k = ((ψ_0_low[i].dag() * V * ψ_0_high[k]).data[0, 0]) / (
+                            2 * np.pi * GHz )  # same scaling as p2 code?
+
+                for l in range(n_eig_high):
+                    E_l = E_0_high[l]
+                    # Next factor k->l->j
+                    Vk_k_l = ((ψ_0_high[k].dag() * V * ψ_0_high[l]).data[0, 0]) / (2 * np.pi * GHz)
+                    Vk_l_j = ((ψ_0_high[l].dag() * V * ψ_0_low[j]).data[0, 0]) / (2 * np.pi * GHz)
+
+                    denom_i = (E_i - E_k) * (E_i - E_l)
+                    denom_j = (E_j - E_k) * (E_j - E_l)
+
+                    factor = (1.0 / 6.0) * ((1.0 / denom_i) + (1.0 / denom_j))
+
+                    val_ij += factor * Vk_i_k * Vk_k_l * Vk_l_j
+
+            H_eff[i, j] = val_ij
+
+    # Optionally shift so that H_eff[0,0] = 0
+    if remove_ground:
+        H_eff -= H_eff[0, 0] * np.eye(len(H_eff))
+
+    return H_eff
+
 def H_eff_SWT(H_0, H, n_eig, out='GHz', real=False, remove_ground=False, return_transformation=False,ψ_0=None ):
 
     ψ_0 = diag(H_0, n_eig, real=real, solver='numpy')[1]
@@ -1193,7 +1253,7 @@ def H_eff_4x4(H_0_list, H, basis_states, mediating_states, n_eig=4, n_eig_extra_
     return return_list
 
 
-def H_eff_2x2(H_0_list, H, basis_states, mediating_states, n_eig=4, n_eig_extra_low=4, return_decomposition=False):
+def H_eff_2x2(H_0_list, H, basis_states, mediating_states, n_eig=4, return_decomposition=False):
     """
     H = H0 + V
     H_0 = H_0_0 ⊗ I     ⊗ ... ⊗ I +
@@ -1231,9 +1291,11 @@ def H_eff_2x2(H_0_list, H, basis_states, mediating_states, n_eig=4, n_eig_extra_
 
     H_eff_p2, H_eff_p2_decomp = H_eff_p2_decomposed(ψ_0_basis, ψ_0_mediating, E_0_ψ_0_basis,
                                                                E_0_ψ_0_mediating, V, remove_ground=True)
+    H_eff_p3 = H_eff_p3_large(ψ_0_basis, ψ_0_mediating, E_0_ψ_0_basis,
+                                                               E_0_ψ_0_mediating, V, remove_ground=True)
 
-    E_0 = diag(H_0, n_eig=len(ψ_0_basis) + n_eig_extra_low, out='GHz', solver='scipy')[0]
-    E, ψ = diag(H, n_eig=len(ψ_0_basis) + n_eig_extra_low, out='GHz', solver='Qutip', qObj=True)
+    E_0 = diag(H_0, n_eig=n_eig, out='GHz', solver='scipy')[0]
+    E, ψ = diag(H, n_eig=n_eig, out='GHz', solver='Qutip', qObj=True)
     subspace_indices = find_close_indices_unique(E_0_ψ_0_basis, E_0)
     ψ_basis = ψ[subspace_indices]
     E_basis = E[subspace_indices]
@@ -1242,12 +1304,13 @@ def H_eff_2x2(H_0_list, H, basis_states, mediating_states, n_eig=4, n_eig_extra_
 
     P1  = decomposition_in_pauli_2x2(H_eff_p1 )
     P2  = decomposition_in_pauli_2x2(H_eff_p1 + H_eff_p2 )
+    P3  = decomposition_in_pauli_2x2(H_eff_p1 + H_eff_p2 + H_eff_p3 )
     SWT = decomposition_in_pauli_2x2(H_eff_SWT )
 
     if return_decomposition:
-        return P1, P2, SWT, H_eff_p2_decomp
+        return P1, P2, P3, SWT, H_eff_p2_decomp
     else:
-        return P1, P2, SWT
+        return P1, P2, P3, SWT
 
 #%% Optimization functions
 def find_resonance(H_target, input_circuit):
@@ -1768,7 +1831,7 @@ def plot_second_order_contributions(H_eff_decomp, labels_low, labels_high, figsi
         for x_pos, (i, j) in enumerate(zip(*nonzero_indices)):
             if np.abs(H_eff_decomp[i, j, k]) > threshold:  # Only include values above the threshold
                 if legend_k:
-                    plt.plot(x_pos,H_eff_decomp[i, j, k], '*', color=colors[k], label=f"{labels_high[k]}", alpha=0.5)
+                    plt.plot(x_pos, H_eff_decomp[i, j, k], '*', color=colors[k], label=f"{labels_high[k]}", alpha=0.5)
                     legend_k=False
                 else:
                     plt.plot(x_pos,H_eff_decomp[i, j, k], '*', color=colors[k], alpha=0.5)
