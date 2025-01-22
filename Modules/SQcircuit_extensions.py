@@ -1,13 +1,12 @@
 import SQcircuit as sq
 import Modules.figures as figs
 import numpy as np
-from scipy.linalg import eigvalsh, kron
+from scipy.linalg import eigvalsh, kron, expm
 import matplotlib.pyplot as plt
 import scipy as sp
 import qutip as qt
-from itertools import product
 
-plt.rcParams['backend'] = 'QtAgg'
+# plt.rcParams['backend'] = 'QtAgg'
 
 #%% Constants
 GHz = 1e9
@@ -907,67 +906,65 @@ def hamiltonian_fluxonium_C_fluxonium_C_fluxonium_low_ene(H_list, g_list, return
     else:
         return H
 
+# def fluxonium_qubit_ops_vs_φ_ext_general(φ_ext, EJ,  E_0, ψ_0, fluxonium):
+#
+#     δφ_ext_sin = np.sin(2 * np.pi * φ_ext)  # δφ_ext      #- δφ_ext**3/6  +  δφ_ext**5/120
+#     δφ_ext_cos = 1 - np.cos(2 * np.pi * φ_ext)  # δφ_ext**2/2 #- δφ_ext**4/24 +  δφ_ext**6/(6*120)
+#
+#     sin_φ_01 = ψ_0[:, 0].conj().T @ fluxonium.sin_op(0).__array__() @ ψ_0[:, 1]
+#     cos_φ_00 = ψ_0[:, 0].conj().T @ fluxonium.cos_op(0).__array__() @ ψ_0[:, 0]
+#     cos_φ_11 = ψ_0[:, 1].conj().T @ fluxonium.cos_op(0).__array__() @ ψ_0[:, 1]
+#
+#     H_eff_00_p1 = δφ_ext_cos * EJ * cos_φ_00
+#     H_eff_11_p1 = δφ_ext_cos * EJ * cos_φ_11
+#     H_eff_01_p1 = δφ_ext_sin * EJ * sin_φ_01
+#
+#     gx_p1 = np.real(H_eff_01_p1)
+#     gz_p1 = np.real((H_eff_11_p1 - H_eff_00_p1) / 2)
+#
+#     sin_φ_12 = ψ_0[:, 1].conj().T @ fluxonium.sin_op(0).__array__() @ ψ_0[:, 2]
+#     cos_φ_02 = ψ_0[:, 0].conj().T @ fluxonium.cos_op(0).__array__() @ ψ_0[:, 2]
+#
+#     H_eff_00_p2 = (1 / (E_0[0] - E_0[2])) * (δφ_ext_cos * EJ * cos_φ_02) ** 2
+#     H_eff_11_p2 = (1 / (E_0[1] - E_0[2])) * (δφ_ext_sin * EJ * sin_φ_12) ** 2
+#     H_eff_01_p2 = ((1 / (E_0[0] - E_0[2]) + 1 / (E_0[1] - E_0[2])) *
+#                    (δφ_ext_cos * EJ * cos_φ_02) * (δφ_ext_sin * EJ * sin_φ_12))
+#
+#     gx_p2 = np.real(gx_p1 + H_eff_01_p2)
+#     gz_p2 = np.real(gz_p1 - (H_eff_11_p2 - H_eff_00_p2) / 2)
+#
+#
+#     return gx_p1, gz_p1, gx_p2, gz_p2
 
-def fluxonium_qubit_ops_vs_φ_ext_general(φ_ext, EJ,  E_0, ψ_0, fluxonium):
+def fluxonium_qubit_ops_vs_φ_ext(EJ, E_0, fluxonium_0, φ_ext):
 
-    δφ_ext_sin = np.sin(2 * np.pi * φ_ext)  # δφ_ext      #- δφ_ext**3/6  +  δφ_ext**5/120
-    δφ_ext_cos = 1 - np.cos(2 * np.pi * φ_ext)  # δφ_ext**2/2 #- δφ_ext**4/24 +  δφ_ext**6/(6*120)
+    sin_φ_ext =  np.sin(2*np.pi*φ_ext)
+    cos_φ_ext =  1 + np.cos(2*np.pi*φ_ext)
 
-    sin_φ_01 = ψ_0[:, 0].conj().T @ fluxonium.sin_op(0).__array__() @ ψ_0[:, 1]
-    cos_φ_00 = ψ_0[:, 0].conj().T @ fluxonium.cos_op(0).__array__() @ ψ_0[:, 0]
-    cos_φ_11 = ψ_0[:, 1].conj().T @ fluxonium.cos_op(0).__array__() @ ψ_0[:, 1]
+    sin_φ_01 = fluxonium_0.sin_op(0, 'eig')[0,1]
+    cos_φ_00 = fluxonium_0.cos_op(0, 'eig')[0,0]
+    cos_φ_11 = fluxonium_0.cos_op(0, 'eig')[1,1]
 
-    H_eff_00_p1 = δφ_ext_cos * EJ * cos_φ_00
-    H_eff_11_p1 = δφ_ext_cos * EJ * cos_φ_11
-    H_eff_01_p1 = δφ_ext_sin * EJ * sin_φ_01
+    gx_p1 = - EJ * sin_φ_ext * sin_φ_01
+    gz_p1 = - EJ * cos_φ_ext * (cos_φ_00 - cos_φ_11) / 2
 
-    gx_p1 = np.real(H_eff_01_p1)
-    gz_p1 = np.real((H_eff_11_p1 - H_eff_00_p1) / 2)
+    sin_φ_12 = fluxonium_0.sin_op(0, 'eig')[1,2]
+    cos_φ_02 = fluxonium_0.cos_op(0, 'eig')[0,2]
 
-    sin_φ_12 = ψ_0[:, 1].conj().T @ fluxonium.sin_op(0).__array__() @ ψ_0[:, 2]
-    cos_φ_02 = ψ_0[:, 0].conj().T @ fluxonium.cos_op(0).__array__() @ ψ_0[:, 2]
+    H_eff_00_p2 = (1 / (E_0[0] - E_0[2])) * (EJ * cos_φ_ext * cos_φ_02) ** 2
+    H_eff_11_p2 = (1 / (E_0[1] - E_0[2])) * (EJ * sin_φ_ext * sin_φ_12) ** 2
+    H_eff_01_p2 = 0.5 * ((1 / (E_0[0] - E_0[2]) + 1 / (E_0[1] - E_0[2])) *
+                   ( EJ * cos_φ_ext * cos_φ_02) * ( EJ * sin_φ_ext * sin_φ_12))
 
-    H_eff_00_p2 = (1 / (E_0[0] - E_0[2])) * (δφ_ext_cos * EJ * cos_φ_02) ** 2
-    H_eff_11_p2 = (1 / (E_0[1] - E_0[2])) * (δφ_ext_sin * EJ * sin_φ_12) ** 2
-    H_eff_01_p2 = ((1 / (E_0[0] - E_0[2]) + 1 / (E_0[1] - E_0[2])) *
-                   (δφ_ext_cos * EJ * cos_φ_02) * (δφ_ext_sin * EJ * sin_φ_12))
+    # gx_p2 = np.real(gx_p1 + H_eff_01_p2)
+    gx_p2 = H_eff_01_p2
+    gz_p2 = (H_eff_00_p2 - H_eff_11_p2) / 2
 
-    gx_p2 = np.real(gx_p1 + H_eff_01_p2)
-    gz_p2 = np.real(gz_p1 - (H_eff_11_p2 - H_eff_00_p2) / 2)
 
 
     return gx_p1, gz_p1, gx_p2, gz_p2
 
-def fluxonium_qubit_ops_vs_φ_ext(φ_ext, EJ,  E_0, ψ_0, fluxonium):
-    δφ_ext = (φ_ext - 0.5) * 2 * np.pi
 
-    δφ_ext_sin = -np.sin(δφ_ext)  # δφ_ext      #- δφ_ext**3/6  +  δφ_ext**5/120
-    δφ_ext_cos = -1 + np.cos(δφ_ext)  # δφ_ext**2/2 #- δφ_ext**4/24 +  δφ_ext**6/(6*120)
-
-    sin_φ_01 = ψ_0[:, 0].conj().T @ fluxonium.sin_op(0).__array__() @ ψ_0[:, 1]
-    cos_φ_00 = ψ_0[:, 0].conj().T @ fluxonium.cos_op(0).__array__() @ ψ_0[:, 0]
-    cos_φ_11 = ψ_0[:, 1].conj().T @ fluxonium.cos_op(0).__array__() @ ψ_0[:, 1]
-
-    H_eff_00_p1 = δφ_ext_cos * EJ * cos_φ_00
-    H_eff_11_p1 = δφ_ext_cos * EJ * cos_φ_11
-    H_eff_01_p1 = δφ_ext_sin * EJ * sin_φ_01
-
-    gx_p1 = np.real(H_eff_01_p1)
-    gz_p1 = np.real((H_eff_11_p1 - H_eff_00_p1) / 2)
-
-    sin_φ_12 = ψ_0[:, 1].conj().T @ fluxonium.sin_op(0).__array__() @ ψ_0[:, 2]
-    cos_φ_02 = ψ_0[:, 0].conj().T @ fluxonium.cos_op(0).__array__() @ ψ_0[:, 2]
-
-    H_eff_00_p2 = (1 / (E_0[0] - E_0[2])) * (δφ_ext_cos * EJ * cos_φ_02) ** 2
-    H_eff_11_p2 = (1 / (E_0[1] - E_0[2])) * (δφ_ext_sin * EJ * sin_φ_12) ** 2
-    H_eff_01_p2 = ((1 / (E_0[0] - E_0[2]) + 1 / (E_0[1] - E_0[2])) *
-                   (δφ_ext_cos * EJ * cos_φ_02) * (δφ_ext_sin * EJ * sin_φ_12))
-
-    gx_p2 = np.real(gx_p1 + H_eff_01_p2)
-    gz_p2 = np.real(gz_p1 - (H_eff_11_p2 - H_eff_00_p2) / 2)
-
-
-    return gx_p2, gz_p2
 #%% Circuits vs parameters
 def KIT_qubit_vs_param(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5, nmax_r=15, nmax_f=25, model='composition'):
 
@@ -1253,17 +1250,8 @@ def H_eff_4x4(H_0_list, H, basis_states, mediating_states, n_eig=4, n_eig_extra_
     return return_list
 
 
-def H_eff_2x2(H_0_list, H, basis_states, mediating_states, n_eig=4, return_decomposition=False):
-    """
-    H = H0 + V
-    H_0 = H_0_0 ⊗ I     ⊗ ... ⊗ I +
-      I     ⊗ H_0_1 ⊗ ... ⊗ I +
-      ...                     +
-      I     ⊗ I     ⊗ ... ⊗ H_0_N
-    H_0_i = H_0_list[i]
+def H_eff_2x2(H_0_list, H, basis_states, mediating_states, n_eig=4, return_decomposition=False, return_H_eff=False):
 
-    len(basis_states) = 4
-    """
     H_0 = H0_from_list(H_0_list)
 
     ψ_0_list = [diag(H_0_i, n_eig, solver='numpy', real=True)[1] for H_0_i in H_0_list]
@@ -1307,10 +1295,14 @@ def H_eff_2x2(H_0_list, H, basis_states, mediating_states, n_eig=4, return_decom
     P3  = decomposition_in_pauli_2x2(H_eff_p1 + H_eff_p2 + H_eff_p3 )
     SWT = decomposition_in_pauli_2x2(H_eff_SWT )
 
+    return_list = [P1, P2, P3, SWT]
+
     if return_decomposition:
-        return P1, P2, P3, SWT, H_eff_p2_decomp
-    else:
-        return P1, P2, P3, SWT
+        return_list.append(H_eff_p2_decomp)
+    if return_H_eff:
+        return_list.append(H_eff_SWT)
+
+    return return_list
 
 #%% Optimization functions
 def find_resonance(H_target, input_circuit):
