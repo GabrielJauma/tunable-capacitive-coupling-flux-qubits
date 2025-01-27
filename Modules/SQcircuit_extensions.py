@@ -1032,10 +1032,10 @@ def get_parameters_QR_C_QR(fluxonium_0, resonator_0, fluxonium_1, resonator_1, C
     Q_q1 = np.abs( fluxonium_1.charge_op(0,'eig')[0,1] )
     Q_r1 = np.abs( resonator_1.charge_op(0,'eig')[0,1] )
 
-    g_qq = 1/2 * C_inv[0, 2] * fF ** -1 * Q_q0 * Q_q1 / 2 / np.pi / GHz
-    g_rr = 1/2 * C_inv[1, 3] * fF ** -1 * Q_r0 * Q_r1 / 2 / np.pi / GHz
-    g_qr = 1/2 * C_inv[0, 3] * fF ** -1 * Q_q0 * Q_r1 / 2 / np.pi / GHz
-    g_rq = 1/2 * C_inv[1, 2] * fF ** -1 * Q_r0 * Q_q1 / 2 / np.pi / GHz
+    g_qq = C_inv[0, 2] * fF ** -1 * Q_q0 * Q_q1 / 2 / np.pi / GHz
+    g_rr = C_inv[1, 3] * fF ** -1 * Q_r0 * Q_r1 / 2 / np.pi / GHz
+    g_qr = C_inv[0, 3] * fF ** -1 * Q_q0 * Q_r1 / 2 / np.pi / GHz
+    g_rq = C_inv[1, 2] * fF ** -1 * Q_r0 * Q_q1 / 2 / np.pi / GHz
     return g_qq, g_rr, g_qr, g_rq
 
 
@@ -1293,9 +1293,9 @@ def H0_from_list(H_0_list):
 
     return H_0
 
-def H_eff_4x4(H_0_list, H, basis_states, mediating_states, n_eig=4, n_eig_extra_low=4, return_decomposition=False, return_E=False, remove_ground=True):
-
+def ψ_0_from_H_0(H_0_list, basis_states, mediating_states, n_eig):
     H_0 = H0_from_list(H_0_list)
+    E_0 = diag(H_0, n_eig, out='GHz', solver='scipy')[0]
 
     ψ_0_list = [diag(H_0_i, n_eig, solver='numpy', real=True)[1] for H_0_i in H_0_list]
 
@@ -1313,6 +1313,10 @@ def H_eff_4x4(H_0_list, H, basis_states, mediating_states, n_eig=4, n_eig_extra_
             ψ_0_mediating_i.append(qt.Qobj(ψ_0[:, mediating_indices[n]]))
         ψ_0_mediating.append(qt.tensor(ψ_0_mediating_i))
 
+    return H_0, E_0, ψ_0_basis, ψ_0_mediating
+
+def H_eff_4x4(H, H_0, E_0, ψ_0_basis, ψ_0_mediating, n_eig, return_decomposition=False, return_E=False, remove_ground=True):
+
     H_eff_p1 = H_eff_p1_large(ψ_0_basis, H=H, real=True, remove_ground=True)
 
     V = H - H_0
@@ -1323,8 +1327,7 @@ def H_eff_4x4(H_0_list, H, basis_states, mediating_states, n_eig=4, n_eig_extra_
     H_eff_p2, H_eff_p2_decomp = H_eff_p2_decomposed(ψ_0_basis, ψ_0_mediating, E_0_ψ_0_basis,
                                                                E_0_ψ_0_mediating, V, remove_ground=True)
 
-    E_0 = diag(H_0, n_eig=len(ψ_0_basis) + n_eig_extra_low, out='GHz', solver='scipy')[0]
-    E, ψ = diag(H, n_eig=len(ψ_0_basis) + n_eig_extra_low, out='GHz', solver='Qutip', qObj=True)
+    E, ψ = diag(H, n_eig, out='GHz', solver='Qutip', qObj=True)
     subspace_indices = find_close_indices_unique(E_0_ψ_0_basis, E_0)
     ψ_basis = ψ[subspace_indices]
     E_basis = E[subspace_indices]
