@@ -941,55 +941,105 @@ def hamiltonian_fluxonium_C_fluxonium_C_fluxonium_low_ene(H_list, g_list, return
 #
 #     return gx_p1, gz_p1, gx_p2, gz_p2
 
-import numpy as np
-import qutip as qt
-from Modules.SQcircuit_extensions import get_experimental_parameters
-from Modules.SQcircuit_extensions import create, annihilate, pauli_matrices
+def hamiltonian_QR_C_QR_low_ene_qtip(ω_q0, gx_0, gz_0, ω_r0, gΦ0,
+                                      ω_q1, gx_1, gz_1, ω_r1, gΦ1,
+                                      g_qq, g_rr, g_qr, g_rq,
+                                      n_r=2):
+    # σ_x, σ_y, σ_z = pauli_matrices()
+    σ_x, σ_y, σ_z = [qt.sigmax(), qt.sigmay(), qt.sigmaz()]
+    a     = qt.destroy(n_r)
+    a_dag = qt.create (n_r)
+    Iq    = qt.qeye   (2)
+    Ir    = qt.qeye   (n_r)
+
+    def Q0(op): return qt.tensor([op, Ir, Iq, Ir])
+    def R0(op): return qt.tensor([Iq, op, Iq, Ir])
+    def Q1(op): return qt.tensor([Iq, Ir, op, Ir])
+    def R1(op): return qt.tensor([Iq, Ir, Iq, op])
+
+    Hq0   = Q0(qt.Qobj( hamiltonian_fluxonium_low_ene(ω_q0, gx_0, gz_0) ))
+    Hr0   = ω_r0 * R0(a_dag*a)
+    Hq0r0 = gΦ0  * qt.tensor([σ_x, a+a_dag, Iq, Ir])
+
+    Hq1   = Q1(qt.Qobj( hamiltonian_fluxonium_low_ene(ω_q1, gx_1, gz_1) ) )
+    Hr1   = ω_r1 * R1(a_dag*a)
+    Hq1r1 = gΦ1 * qt.tensor([ Iq, Ir, σ_x, a+a_dag])
+
+    Hqq = g_qq * qt.tensor([σ_y , Ir             , σ_y   , Ir            ])
+    Hrr = g_rr * qt.tensor([Iq  , 1j*(a_dag - a) , Iq    , 1j*(a_dag - a)])
+    Hqr = g_qr * qt.tensor([σ_y , Ir             , Iq    , 1j*(a_dag - a)])
+    Hrq = g_rq * qt.tensor([Iq  , 1j*(a_dag - a) , σ_y   , Ir            ])
+
+    return Hq0+Hr0+Hq0r0+Hq1+Hr1+Hq1r1+Hqq+Hrr+Hqr+Hrq
 
 def hamiltonian_QR_C_QR_low_ene(ω_q0, gx_0, gz_0, ω_r0, gΦ0,
                                 ω_q1, gx_1, gz_1, ω_r1, gΦ1,
                                 g_qq, g_rr, g_qr, g_rq,
                                 n_r0=2, n_r1=2):
     σ_x, σ_y, σ_z = pauli_matrices()
-    a0_dag = create(n_r0)
-    a0 = annihilate(n_r0)
-    a1_dag = create(n_r1)
-    a1 = annihilate(n_r1)
-    Iq = qt.qeye(2)
-    Ir0 = qt.qeye(n_r0)
-    Ir1 = qt.qeye(n_r1)
-    def Q0(op): return qt.tensor(op, Ir0, Iq, Ir1)
-    def R0(op): return qt.tensor(Iq, op, Iq, Ir1)
-    def Q1(op): return qt.tensor(Iq, Ir0, op, Ir1)
-    def R1(op): return qt.tensor(Iq, Ir0, Iq, op)
+    a0        = annihilate(n_r0)
+    a0_dag    = create(n_r0)
+    a1        = annihilate(n_r1)
+    a1_dag    = create(n_r1)
+    Iq        = qt.qeye(2)
+    Ir0       = qt.qeye(n_r0)
+    Ir1       = qt.qeye(n_r1)
+
+    def Q0(op): return kron_prod_list([op, Ir0, Iq, Ir1])
+    def R0(op): return kron_prod_list([Iq, op, Iq, Ir1 ])
+    def Q1(op): return kron_prod_list([Iq, Ir0, op, Ir1])
+    def R1(op): return kron_prod_list([Iq, Ir0, Iq, op ])
+
     Hq0   = Q0(hamiltonian_fluxonium_low_ene(ω_q0, gx_0, gz_0))
     Hr0   = ω_r0 * R0(a0_dag*a0)
-    Hq0r0 = gΦ0  * Q0(σ_x) * R0(a0+a0_dag)
 
-    Hq1   = Q0(hamiltonian_fluxonium_low_ene(ω_q1, gx_1, gz_1))
+    # Hq0r0 = gΦ0  * Q0(σ_x) * R0(a0+a0_dag) * kron_prod_list([σ_x, a0+a0_dag,Iq, Ir1])
+    Hq0r0 = gΦ0  * kron_prod_list([σ_x, a0+a0_dag,Iq, Ir1])
+
+    Hq1   = Q1(hamiltonian_fluxonium_low_ene(ω_q1, gx_1, gz_1))
     Hr1   = ω_r1 * R1(a1_dag*a1)
-    Hq1r1 = gΦ1  * Q1(σ_x) * R1(a1+a1_dag)
+    # Hq1r1 = gΦ1  * Q1(σ_x) * R1(a1+a1_dag)
+    Hq1r1 = gΦ1 * kron_prod_list([Iq, Ir0, σ_x, a1 + a1_dag])
 
-    Hqq = g_qq * Q0(σ_y) * Q1(σ_y)
-    Hrr = g_rr * R0(a0_dag - a0) * R1(a1_dag - a1)
-    Hqr = g_qr * Q0(σ_y) * (1j*R1(a1_dag - a1))
-    Hrq = g_rq * (1j*R0(a0_dag - a0)) * Q1(σ_y)
+    # Hqq = g_qq * Q0(σ_y) * Q1(σ_y)
+    # Hrr = g_rr * R0(a0_dag - a0) * R1(a1_dag - a1)
+    # Hqr = g_qr * Q0(σ_y) * (1j*R1(a1_dag - a1))
+    # Hrq = g_rq * (1j*R0(a0_dag - a0)) * Q1(σ_y)
+
+    Hqq = g_qq * kron_prod_list([σ_y, Ir0, σ_y, Ir1])
+    Hrr = g_rr * kron_prod_list([Iq, 1j*(a0_dag - a0), Iq, 1j*(a0_dag - a0)])
+    Hqr = g_qr * kron_prod_list([σ_y, Ir0, Iq, 1j*(a0_dag - a0)])
+    Hrq = g_rq * kron_prod_list([Iq, 1j*(a0_dag - a0), σ_y, Ir1])
+
     return Hq0+Hr0+Hq0r0+Hq1+Hr1+Hq1r1+Hqq+Hrr+Hqr+Hrq
 
-def get_parameters_QR_C_QR(name_0, name_1, C_C, C, Phi_q0, Phi_q1, Qq0ge, Qq1ge):
-    CR0, CF0, LF0, LR0, EJ0, Δ0, ωr0 = get_experimental_parameters(name_0, return_effective=True)
-    CR1, CF1, LF1, LR1, EJ1, Δ1, ωr1 = get_experimental_parameters(name_1, return_effective=True)
+def kron_prod_list(op_list):
+    kron_prod = op_list[0]
+    for op in op_list[1:]:
+        kron_prod = np.kron(kron_prod, op)
+    return kron_prod
 
-    gΦ0 = (1/LF0)*np.sqrt(0.5*np.sqrt(LR0/CR0))*Phi_q0
-    gΦ1 = (1/LF1)*np.sqrt(0.5*np.sqrt(LR1/CR1))*Phi_q1
-    gqq = (eps/C)*Qq0ge*Qq1ge
-    grr = (eps/C)*np.sqrt(0.25*np.sqrt((CR0*CR1)/(LR0*LR1)))
-    gqr = (eps/C)*Qq0ge*np.sqrt(0.5*np.sqrt(CR1/LR1))
-    grq = (eps/C)*np.sqrt(0.5*np.sqrt(CR0/LR0))*Qq1ge
-    return ω_q0, gx_0, gz_0, ωr0, gΦ0, ω_q1, gx_1, gz_1, ωr1, gΦ1, gqq, grr, gqr, grq
+def get_parameters_QR(fluxonium, resonator, LC):
+    Φq = np.abs( fluxonium.flux_op(0,'eig')[0,1] )
+    Φr = np.abs( resonator.flux_op(0,'eig')[0,1] )
+
+    g_Φ = Φq * Φr / (LC * nH) / 2 / np.pi / GHz
+    return g_Φ
+
+def get_parameters_QR_C_QR(fluxonium_0, resonator_0, fluxonium_1, resonator_1, C_inv):
+    Q_q0 = np.abs( fluxonium_0.charge_op(0,'eig')[0,1] )
+    Q_r0 = np.abs( resonator_0.charge_op(0,'eig')[0,1] )
+    Q_q1 = np.abs( fluxonium_1.charge_op(0,'eig')[0,1] )
+    Q_r1 = np.abs( resonator_1.charge_op(0,'eig')[0,1] )
+
+    g_qq = 1/2 * C_inv[0, 2] * fF ** -1 * Q_q0 * Q_q1 / 2 / np.pi / GHz
+    g_rr = 1/2 * C_inv[1, 3] * fF ** -1 * Q_r0 * Q_r1 / 2 / np.pi / GHz
+    g_qr = 1/2 * C_inv[0, 3] * fF ** -1 * Q_q0 * Q_r1 / 2 / np.pi / GHz
+    g_rq = 1/2 * C_inv[1, 2] * fF ** -1 * Q_r0 * Q_q1 / 2 / np.pi / GHz
+    return g_qq, g_rr, g_qr, g_rq
 
 
-def fluxonium_qubit_ops_vs_φ_ext(EJ, E_0, fluxonium_0, φ_ext):
+def fluxonium_qubit_ops_vs_φ_ext(EJ, E_0, fluxonium_0, φ_ext, return_full=False):
 
     sin_φ_ext =  np.sin(2*np.pi*φ_ext)
     cos_φ_ext =  1 + np.cos(2*np.pi*φ_ext)
@@ -1013,7 +1063,10 @@ def fluxonium_qubit_ops_vs_φ_ext(EJ, E_0, fluxonium_0, φ_ext):
     gx_p2 = H_eff_01_p2
     gz_p2 = (H_eff_00_p2 - H_eff_11_p2) / 2
 
-    return gx_p1, gz_p1, gx_p2, gz_p2
+    if return_full:
+        return gx_p1+gx_p2, gz_p1+gz_p2
+    else:
+        return gx_p1, gz_p1, gx_p2, gz_p2
 
 
 #%% Circuits vs parameters
@@ -1240,17 +1293,8 @@ def H0_from_list(H_0_list):
 
     return H_0
 
-def H_eff_4x4(H_0_list, H, basis_states, mediating_states, n_eig=4, n_eig_extra_low=4, return_decomposition=False, return_E=False):
-    """
-    H = H0 + V
-    H_0 = H_0_0 ⊗ I     ⊗ ... ⊗ I +
-      I     ⊗ H_0_1 ⊗ ... ⊗ I +
-      ...                     +
-      I     ⊗ I     ⊗ ... ⊗ H_0_N
-    H_0_i = H_0_list[i]
+def H_eff_4x4(H_0_list, H, basis_states, mediating_states, n_eig=4, n_eig_extra_low=4, return_decomposition=False, return_E=False, remove_ground=True):
 
-    len(basis_states) = 4
-    """
     H_0 = H0_from_list(H_0_list)
 
     ψ_0_list = [diag(H_0_i, n_eig, solver='numpy', real=True)[1] for H_0_i in H_0_list]
@@ -1296,8 +1340,10 @@ def H_eff_4x4(H_0_list, H, basis_states, mediating_states, n_eig=4, n_eig_extra_
     if return_decomposition:
         return_list.append(H_eff_p2_decomp)
     if return_E:
-        return_list.append(E_basis)
-
+        if remove_ground:
+            return_list.append(E_basis-E_basis[0])
+        else:
+            return_list.append(E_basis)
     return return_list
 
 
