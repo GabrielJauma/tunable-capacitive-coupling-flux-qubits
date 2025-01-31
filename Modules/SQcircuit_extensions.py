@@ -838,10 +838,10 @@ def hamiltonian_fluxonium_low_ene(ω_q, gx, gz):
 
     return H
 
-def hamiltonian_qubit_low_ene(ω_q, gx, gz, ω_r, g_Φ, g_q=0):
+def hamiltonian_qubit_low_ene(ω_q, gx, gz, ω_r, g_Φ, g_q=0, N = 2):
     σ_x, σ_y, σ_z = pauli_matrices()
-    a_dag   = create(3)
-    a       = annihilate(3)
+    a_dag   = create(N)
+    a       = annihilate(N)
 
     H_f = hamiltonian_fluxonium_low_ene(ω_q, gx, gz)
     H_r = ω_r * a_dag @ a
@@ -1315,7 +1315,7 @@ def ψ_0_from_H_0(H_0_list, basis_states, mediating_states, n_eig):
 
     return H_0, E_0, ψ_0_basis, ψ_0_mediating
 
-def H_eff_4x4(H, H_0, E_0, ψ_0_basis, ψ_0_mediating, n_eig, return_decomposition=False, return_E=False, remove_ground=True):
+def H_eff_4x4(H, H_0, E_0, ψ_0_basis, ψ_0_mediating, n_eig, return_decomposition=False, return_E=False, remove_ground=True, return_H_eff=False):
 
     H_eff_p1 = H_eff_p1_large(ψ_0_basis, H=H, real=True, remove_ground=True)
 
@@ -1347,6 +1347,8 @@ def H_eff_4x4(H, H_0, E_0, ψ_0_basis, ψ_0_mediating, n_eig, return_decompositi
             return_list.append(E_basis-E_basis[0])
         else:
             return_list.append(E_basis)
+    if return_H_eff:
+        return_list.append(H_eff_SWT)
     return return_list
 
 
@@ -2162,77 +2164,96 @@ def decomposition_in_pauli_4x4_qubit_resonator(A,  print_pretty=True):
                 print(" %.4f\t*\t %s " % (P[i, j], label))
 
     return P
-def decomposition_in_pauli_2xN_qubit_resonator(A, print_pretty=True):
-    from scipy.linalg import eigvalsh, kron
-    '''Performs Pauli decomposition of a 2xN Hamiltonian matrix representing a qubit-resonator system.
 
-    Input:
-    A = Hamiltonian matrix to decompose (size 2N x 2N).
-    print_pretty = Boolean flag to print the decomposition.
 
-    Output:
-    P = Dictionary of coefficients P[(i,j)] such that A = Σ P[i,j] σ_i ⊗ O_j where i = 0..3,
-        and O_j are cavity operators.
-    '''
+from scipy.linalg import eigvalsh
 
-    # Define Pauli matrices
-    I_qubit = np.eye(2, dtype=complex)
-    σx = np.array([[0, 1], [1, 0]], dtype=complex)
-    σy = np.array([[0, -1j], [1j, 0]], dtype=complex)
-    σz = np.array([[1, 0], [0, -1]], dtype=complex)
-    s = [I_qubit, σx, σy, σz]  # array containing the Pauli matrices
-    labels_qubit = ['I', 'σx', 'σy', 'σz']  # labels for printing
 
-    N = np.shape(A)[0]//2
-    # Truncate the cavity space and define cavity operators
-    I_cavity = np.eye(N, dtype=complex)
-    a = np.diag(np.sqrt(np.arange(1, N)), 1)  # Annihilation operator
-    a_dagger = a.conj().T  # Creation operator
-    number = a_dagger @ a  # Number operator
-    x = a + a_dagger  # Position operator
-    p = 1j * (a_dagger - a)  # Momentum operator
+def decomposition_in_pauli_2xN_qubit_resonator(
+        A, print_pretty=True, test_decomposition=False):
+    """
+    Decompose a 2xN Hamiltonian (qubit-resonator) in a non-orthonormal basis:
+        {σ_i ⊗ O_j},  i=0..3, j=0..3,
+    where O_j is one of {I, x, p, n} for the resonator.
 
-    # Define basis operators for the cavity
-    r = [I_cavity,  x, p, number, I_cavity-2*number]
-    labels_cavity = ['I','a†+a', 'i(a†-a)', 'a†a','I-2N']  # labels for printing
+    A:        (2N x 2N) matrix
+    returns:  coefficients c[i,j] for the best least-squares approximation
+    """
 
-    operator_indices = [(0,0),(3,0),(0,3),(1,1),(2,2),(3,3)]
-    P = {}  # Dictionary to store the coefficients
+    # Pauli part
+    I2 = np.eye(2, dtype=complex)
+    sx = np.array([[0, 1], [1, 0]], dtype=complex)
+    sy = np.array([[0, -1j], [1j, 0]], dtype=complex)
+    sz = np.array([[1, 0], [0, -1]], dtype=complex)
+    s = [I2, sx, sy, sz]
+    labels_qubit = ["I", "σx", "σy", "σz"]
 
-    # Loop to compute each coefficient
-    for i,j in operator_indices:
-            label = labels_qubit[i] + ' ⊗ ' + labels_cavity[j]
-            S = kron(s[i], r[j])  # Tensor product σ_i ⊗ O_j
-            numerator = np.trace(S.conj().T @ A)
-            denominator = np.trace(S.conj().T @ S)
-            c = numerator / denominator if denominator != 0 else 0
-            P[(i, j)] = c
-            if np.abs(c) > 1e-13 and print_pretty:
-                print(f"{c.real:.4f}\t*\t{label}")
+    # Resonator part
+    N = A.shape[0] // 2
+    I_N = np.eye(N, dtype=complex)
+    a = np.diag(np.sqrt(np.arange(1, N)), 1)
+    ad = a.conj().T
+    n = ad @ a
+    x = a + ad
+    p = 1j * (ad - a)
+    r = [I_N, x, p, n]
+    labels_cavity = ["I", "a†+a", "i(a†-a)", "n"]
 
-    # **Test**: Reconstruct the Hamiltonian and compare spectra
-    H_reconstructed = np.zeros_like(A, dtype=complex)
-    for (i, j), c in P.items():
-        S = kron(s[i], r[j])
-        H_reconstructed += c * S
+    # Build the total basis B_k = s[i] ⊗ r[j]
+    basis_ops = []
+    basis_labels = []
+    for i in range(4):
+        for j in range(4):
+            basis_ops.append(np.kron(s[i], r[j]))
+            basis_labels.append(labels_qubit[i] + " ⊗ " + labels_cavity[j])
 
-    # Diagonalize both the original and reconstructed Hamiltonians
-    eigenvalues_original = eigvalsh(A)
-    eigenvalues_reconstructed = eigvalsh(H_reconstructed)
+    M = len(basis_ops)  # M = 16
+    # Construct Gram matrix G and vector v
+    G = np.zeros((M, M), dtype=complex)
+    v = np.zeros(M, dtype=complex)
 
-    # Print and compare the eigenvalues
-    print("\nEigenvalues of the original Hamiltonian:")
-    print(np.round(eigenvalues_original, 5))
+    for k in range(M):
+        Bk = basis_ops[k]
+        v[k] = np.trace(Bk.conj().T @ A)
+        for l in range(M):
+            Bl = basis_ops[l]
+            G[k, l] = np.trace(Bk.conj().T @ Bl)
 
-    print("\nEigenvalues of the reconstructed Hamiltonian:")
-    print(np.round(eigenvalues_reconstructed, 5))
+    # Solve G c = v  =>  c = G^-1 v
+    c = np.linalg.solve(G, v)
 
-    if np.allclose(eigenvalues_original, eigenvalues_reconstructed, atol=1e-6):
-        print("\nThe spectra match! The reconstruction is successful.")
-    else:
-        print("\nThe spectra do not match. There might be an error in the decomposition.")
+    # Print out coefficients if desired
+    if print_pretty:
+        for idx, val in enumerate(c):
+            if abs(val) > 1e-13:
+                print(f"{val.real:.4f}\t*\t{basis_labels[idx]}")
 
-    return P
+    # Test reconstruction
+    if test_decomposition:
+        H_reconstructed = np.zeros_like(A, dtype=complex)
+        for idx, val in enumerate(c):
+            H_reconstructed += val * basis_ops[idx]
+
+        ev_original = eigvalsh(A)
+        ev_reconstructed = eigvalsh(H_reconstructed)
+        # Shift so we compare relative spectra
+        ev_original -= ev_original[0]
+        ev_reconstructed -= ev_reconstructed[0]
+
+        print("\nOriginal eigenvalues:")
+        print(np.round(ev_original, 5))
+        print("Reconstructed eigenvalues:")
+        print(np.round(ev_reconstructed, 5))
+
+        if np.allclose(ev_original, ev_reconstructed, atol=1e-6):
+            print("Spectra match (within tolerance).")
+        else:
+            print("Spectra do not match.")
+
+    # Reshape c into a (4x4) table c[i,j] if you like:
+    c_2d = c.reshape(4, 4)
+
+    return c_2d
 
 
 def decomposition_in_pauli_8x8(A, rd, print=True):
@@ -2300,7 +2321,7 @@ def find_close_indices(E_0_ψ_0, E_0):
 
     return result_indices
 
-def find_close_indices_unique(E_0_ψ_0, E_0, tolerance=1e-8):
+def find_close_indices_unique(E_0_ψ_0, E_0, tolerance=1e-8, print_error=True):
     result_indices = []
     used_indices = set()
     for value in E_0_ψ_0:
@@ -2313,11 +2334,14 @@ def find_close_indices_unique(E_0_ψ_0, E_0, tolerance=1e-8):
                 used_indices.add(idx)
                 break
         else:
-            # If all matching indices are used, handle appropriately
-            # For this example, we'll raise an error
-            print(E_0_ψ_0)
-            print(E_0)
-            raise ValueError("Not enough unique matching indices found.")
+            if print_error:
+                # If all matching indices are used, handle appropriately
+                # For this example, we'll raise an error
+                print(E_0_ψ_0)
+                print(E_0)
+                raise ValueError("Not enough unique matching indices found.")
+            else:
+                raise ValueError()
     return result_indices
 
 #%% Truncation convergence
