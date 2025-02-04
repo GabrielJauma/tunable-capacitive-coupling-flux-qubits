@@ -1406,6 +1406,9 @@ def H_eff_2x2(H_0_list, H, basis_states, mediating_states, n_eig=4, return_decom
 
     return return_list
 
+
+
+
 #%% Optimization functions
 def find_resonance(H_target, input_circuit):
     # Step 1: Calculate the target gap ω_target
@@ -2165,9 +2168,8 @@ def decomposition_in_pauli_4x4_qubit_resonator(A,  print_pretty=True):
 
     return P
 
-
-from scipy.linalg import eigvalsh
-
+import numpy as np
+from numpy.linalg import eigvalsh
 
 def decomposition_in_pauli_2xN_qubit_resonator(
         A, print_pretty=True, test_decomposition=False):
@@ -2186,6 +2188,8 @@ def decomposition_in_pauli_2xN_qubit_resonator(
     sy = np.array([[0, -1j], [1j, 0]], dtype=complex)
     sz = np.array([[1, 0], [0, -1]], dtype=complex)
     s = [I2, sx, sy, sz]
+
+
     labels_qubit = ["I", "σx", "σy", "σz"]
 
     # Resonator part
@@ -2196,14 +2200,30 @@ def decomposition_in_pauli_2xN_qubit_resonator(
     n = ad @ a
     x = a + ad
     p = 1j * (ad - a)
-    r = [I_N, x, p, n]
-    labels_cavity = ["I", "a†+a", "i(a†-a)", "n"]
 
+    xx = x @ x
+    pp = - p @ p
+    xp = x @ p
+    px = p @ x
+
+    # norm_I = np.sqrt(N)
+    # norm_n = np.sqrt(np.sum(np.arange(N)**2))
+    # norm_x = np.sqrt(np.trace(x.conj().T @ x))
+    # norm_p = np.sqrt(np.trace(p.conj().T @ p))
+
+    r = [I_N, x, p, n , xx, pp, xp, px]
+    # diag_ones = np.diag(np.ones(N))
+    # r = [np.diag(diag_ones[i]) for i in range(N)]
+    # r = [I_N / norm_I, x / norm_x, p / norm_p, n / norm_n]
+
+
+    labels_cavity = ["I", "a†+a", "i(a†-a)", "n" , "(a†+a)^2", "(a†-a)^2", "(a†+a)i(a†-a)", "i(a†-a)(a†+a)"]
+    # labels_cavity = [f'n_{i}' for i in range(N)]
     # Build the total basis B_k = s[i] ⊗ r[j]
     basis_ops = []
     basis_labels = []
-    for i in range(4):
-        for j in range(4):
+    for i in range(len(s)):
+        for j in range(len(r)):
             basis_ops.append(np.kron(s[i], r[j]))
             basis_labels.append(labels_qubit[i] + " ⊗ " + labels_cavity[j])
 
@@ -2251,7 +2271,7 @@ def decomposition_in_pauli_2xN_qubit_resonator(
             print("Spectra do not match.")
 
     # Reshape c into a (4x4) table c[i,j] if you like:
-    c_2d = c.reshape(4, 4)
+    c_2d = c.reshape(len(s), len(r))
 
     return c_2d
 
