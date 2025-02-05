@@ -1227,10 +1227,10 @@ def H_eff_p3_large(ψ_0_low, ψ_0_high, E_0_low, E_0_high, V, remove_ground=Fals
 def H_eff_SWT(H_0, H, n_eig, out='GHz', real=False, remove_ground=False, return_transformation=False,ψ_0=None ):
 
     ψ_0 = diag(H_0, n_eig, real=real, solver='numpy')[1]
-    try:
-        E, ψ = diag(H, n_eig, real=False, solver='scipy', out=out)
-    except:
-        E, ψ = diag(H, n_eig, real=False, solver='numpy', out=out)
+    # try:
+    #     E, ψ = diag(H, n_eig, real=False, solver='scipy', out=out)
+    # except:
+    E, ψ = diag(H, n_eig, real=False, solver='numpy', out=out)
 
     Q = np.zeros((n_eig, n_eig), dtype=complex)
     for i in range(n_eig):
@@ -1759,6 +1759,65 @@ def pauli_matrices():
 
     return σ_x ,σ_y ,σ_z
 
+
+def gell_mann_matrices():
+    """
+    Returns a list whose first element is the 3x3 identity matrix,
+    followed by the eight standard Gell-Mann matrices.
+    """
+    I = np.eye(3, dtype=complex)
+
+    lambda1 = np.array([
+        [0, 1, 0],
+        [1, 0, 0],
+        [0, 0, 0]
+    ], dtype=complex)
+
+    lambda2 = np.array([
+        [0, -1j, 0],
+        [1j, 0, 0],
+        [0, 0, 0]
+    ], dtype=complex)
+
+    lambda3 = np.array([
+        [1, 0, 0],
+        [0, -1, 0],
+        [0, 0, 0]
+    ], dtype=complex)
+
+    lambda4 = np.array([
+        [0, 0, 1],
+        [0, 0, 0],
+        [1, 0, 0]
+    ], dtype=complex)
+
+    lambda5 = np.array([
+        [0, 0, -1j],
+        [0, 0, 0],
+        [1j, 0, 0]
+    ], dtype=complex)
+
+    lambda6 = np.array([
+        [0, 0, 0],
+        [0, 0, 1],
+        [0, 1, 0]
+    ], dtype=complex)
+
+    lambda7 = np.array([
+        [0, 0, 0],
+        [0, 0, -1j],
+        [0, 1j, 0]
+    ], dtype=complex)
+
+    lambda8 = (1 / np.sqrt(3)) * np.array([
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, -2]
+    ], dtype=complex)
+
+    return [I, lambda1, lambda2, lambda3, lambda4, lambda5, lambda6, lambda7, lambda8]
+
+
 #%% Generic mathematical functions
 def diag(H, n_eig=4, out='GHz', real=False, solver='scipy', remove_ground=False, qObj=False):
     H = qt.Qobj(H)
@@ -1770,6 +1829,8 @@ def diag(H, n_eig=4, out='GHz', real=False, solver='scipy', remove_ground=False,
         efreqs, evecs = np.linalg.eigh(H.__array__())
         efreqs = efreqs[:n_eig]
         evecs  = evecs [:,:n_eig]
+        if qObj:
+            evecs = np.array([qt.Qobj(evecs[:,i].T) for i in range(n_eig)])
     elif solver == 'Qutip':
         efreqs, evecs = H.eigenstates(eigvals=n_eig, sparse=True)
         if not qObj:
@@ -2182,15 +2243,15 @@ def decomposition_in_pauli_2xN_qubit_resonator(
     returns:  coefficients c[i,j] for the best least-squares approximation
     """
 
-    # Pauli part
+    # Qubit part
     I2 = np.eye(2, dtype=complex)
     sx = np.array([[0, 1], [1, 0]], dtype=complex)
     sy = np.array([[0, -1j], [1j, 0]], dtype=complex)
     sz = np.array([[1, 0], [0, -1]], dtype=complex)
     s = [I2, sx, sy, sz]
-
-
     labels_qubit = ["I", "σx", "σy", "σz"]
+    # s = gell_mann_matrices()
+    # labels_qubit = [f'λ_{i}'for i in range(len(s))]
 
     # Resonator part
     N = A.shape[0] // 2
@@ -2201,24 +2262,20 @@ def decomposition_in_pauli_2xN_qubit_resonator(
     x = a + ad
     p = 1j * (ad - a)
 
-    xx = x @ x
-    pp = - p @ p
-    xp = x @ p
-    px = p @ x
-
-    # norm_I = np.sqrt(N)
-    # norm_n = np.sqrt(np.sum(np.arange(N)**2))
-    # norm_x = np.sqrt(np.trace(x.conj().T @ x))
-    # norm_p = np.sqrt(np.trace(p.conj().T @ p))
-
-    r = [I_N, x, p, n , xx, pp, xp, px]
-    # diag_ones = np.diag(np.ones(N))
-    # r = [np.diag(diag_ones[i]) for i in range(N)]
-    # r = [I_N / norm_I, x / norm_x, p / norm_p, n / norm_n]
+    r = [I_N, x, p, n]
+    labels_cavity = ["I", "a†+a", "i(a†-a)", "n"]
 
 
-    labels_cavity = ["I", "a†+a", "i(a†-a)", "n" , "(a†+a)^2", "(a†-a)^2", "(a†+a)i(a†-a)", "i(a†-a)(a†+a)"]
-    # labels_cavity = [f'n_{i}' for i in range(N)]
+    # if N > 2:
+    #     xx = x @ x
+    #     pp = - p @ p
+    #     xp = x @ p
+    #     px = p @ x
+    #     nn = n @ n
+    #     r += [xp,px] #, xx, pp , xp, px, nn]
+    #     labels_cavity += ["(a†+a)i(a†-a)","i(a†-a)(a†+a)" ]#, "(a†+a)^2", "(a†-a)^2", "(a†+a)i(a†-a)", "i(a†-a)(a†+a)", "n^2"]
+
+
     # Build the total basis B_k = s[i] ⊗ r[j]
     basis_ops = []
     basis_labels = []
@@ -2237,7 +2294,10 @@ def decomposition_in_pauli_2xN_qubit_resonator(
         v[k] = np.trace(Bk.conj().T @ A)
         for l in range(M):
             Bl = basis_ops[l]
-            G[k, l] = np.trace(Bk.conj().T @ Bl)
+            G[k, l] =  np.trace(Bk.conj().T @ Bl)
+
+    cond_G = np.linalg.cond(G)
+    print("Condition number of G:", cond_G)
 
     # Solve G c = v  =>  c = G^-1 v
     c = np.linalg.solve(G, v)
@@ -2245,8 +2305,9 @@ def decomposition_in_pauli_2xN_qubit_resonator(
     # Print out coefficients if desired
     if print_pretty:
         for idx, val in enumerate(c):
-            if abs(val) > 1e-13:
-                print(f"{val.real:.4f}\t*\t{basis_labels[idx]}")
+            if abs(val) > 1e-4:
+                # print(f"{val.real:.4f}\t*\t{basis_labels[idx]}")
+                print(f"{val:.4f}\t*\t{basis_labels[idx]}")
 
     # Test reconstruction
     if test_decomposition:
@@ -2274,6 +2335,168 @@ def decomposition_in_pauli_2xN_qubit_resonator(
     c_2d = c.reshape(len(s), len(r))
 
     return c_2d
+
+
+
+import numpy as np
+from scipy.linalg import eigvalsh
+
+def iterative_decomposition(A, candidate_ops, tol=1e-9, max_iters=None):
+    """
+    Greedy approach (similar to Orthogonal Matching Pursuit) to approximate A
+    using a subset of candidate_ops. Returns (selected_indices, coeffs).
+
+    A: (matrix) the operator to decompose.
+    candidate_ops: list of operators (matrices), each same shape as A.
+    tol: float, threshold for improvement to continue iterations.
+    max_iters: int, maximum basis operators to pick. Default = len(candidate_ops).
+
+    The decomposition solves A ~ Σ c_k * B_{idx_k}, picking B_{idx_k} one by one.
+    """
+    # Flatten A into a 1D vector for easy "dot products"
+    vecA = A.ravel()
+    vecB = [op.ravel() for op in candidate_ops]
+
+    # Start with an empty set
+    selected_indices = []
+    picked_matrix = np.zeros((len(vecA), 0), dtype=complex)
+    residual = vecA.copy()
+    norm_residual = np.linalg.norm(residual)
+    if max_iters is None:
+        max_iters = len(candidate_ops)
+
+    for iteration in range(max_iters):
+        best_op_index = None
+        best_improvement = 0.0
+
+        # 1) Find the candidate that best reduces the residual if we add it
+        for i, B in enumerate(vecB):
+            if i in selected_indices:
+                continue
+            overlap = np.vdot(residual, B)  # Hilbert–Schmidt "dot"
+            normB2 = np.vdot(B, B).real
+            if abs(normB2) < 1e-15:
+                continue
+            # how much we reduce residual^2 by adding this single operator
+            improvement = abs(overlap)**2 / normB2
+            if improvement > best_improvement:
+                best_improvement = improvement
+                best_op_index = i
+
+        # 2) If no operator helps or improvement is below tol, stop
+        if best_op_index is None or best_improvement < tol:
+            break
+
+        # 3) Add the chosen operator
+        selected_indices.append(best_op_index)
+        picked_matrix = np.hstack([picked_matrix, vecB[best_op_index][:, np.newaxis]])
+
+        # 4) Solve least-squares with all selected operators
+        c_ls, residuals, rank, svals = np.linalg.lstsq(picked_matrix, vecA, rcond=None)
+
+        # 5) Update the residual
+        residual = vecA - picked_matrix @ c_ls
+        new_norm = np.linalg.norm(residual)
+        if (norm_residual - new_norm) < tol:
+            break
+        norm_residual = new_norm
+
+    return selected_indices, c_ls
+
+
+def decomposition_in_pauli_2xN_qubit_resonator_iterative(
+        A, tol=1e-9, max_iters=None, print_pretty=True, test_decomposition=False):
+    """
+    Iterative decomposition of a 2xN Hamiltonian (qubit-resonator) using a
+    basis {σ_i ⊗ O_j}, i=0..3, j=0..3 (+ optional extended ops), but
+    picking only the subset that best fits A in a greedy manner.
+
+    Parameters
+    ----------
+    A : 2D ndarray (2N x 2N)
+    tol : float, threshold for improvement in each iteration
+    max_iters : int, maximum operators to pick from the candidate set
+    print_pretty : bool
+    test_decomposition : bool
+
+    Returns
+    -------
+    selected_indices : list of int
+        The indices of the chosen basis operators in the candidate list.
+    coeffs : list or ndarray
+        The corresponding coefficients for those operators.
+    H_approx : 2D ndarray
+        The reconstructed Hamiltonian from the chosen subset.
+    """
+
+    # -- Qubit operators --
+    I2 = np.eye(2, dtype=complex)
+    sx = np.array([[0, 1],[1, 0]], dtype=complex)
+    sy = np.array([[0, -1j],[1j, 0]], dtype=complex)
+    sz = np.array([[1, 0],[0, -1]], dtype=complex)
+    s = [I2, sx, sy, sz]
+    labels_qubit = ["I", "σx", "σy", "σz"]
+
+    # -- Resonator operators --
+    N = A.shape[0] // 2
+    I_N = np.eye(N, dtype=complex)
+    a = np.diag(np.sqrt(np.arange(1, N)), 1)
+    ad = a.conj().T
+    n = ad @ a
+    x = a + ad
+    p = 1j * (ad - a)
+
+    r = [I_N, x, p, n]
+    labels_cavity = ["I", "a†+a", "i(a†-a)", "n"]
+
+    # Optionally add more operators if you want
+    if N > 2:
+        xx = x @ x
+        pp = - p @ p
+        xp = x @ p
+        px = p @ x
+        nn = n @ n
+        r += [xp, px, xx, pp, nn]
+        labels_cavity += ["(a†+a)i(a†-a)", "i(a†-a)(a†+a)", "(a†+a)^2", "(a†-a)^2",  "n^2"]
+
+    # -- Build candidate operators --
+    basis_ops = []
+    basis_labels = []
+    for i, s_i in enumerate(s):
+        for j, r_j in enumerate(r):
+            basis_ops.append(np.kron(s_i, r_j))
+            basis_labels.append(f"{labels_qubit[i]} ⊗ {labels_cavity[j]}")
+
+    # -- Run the iterative decomposition --
+    selected_indices, coeffs = iterative_decomposition(A, basis_ops, tol=tol, max_iters=max_iters)
+
+    # -- Reconstruct the approximate Hamiltonian --
+    H_approx = np.zeros_like(A, dtype=complex)
+    for idx, cval in zip(selected_indices, coeffs):
+        H_approx += cval * basis_ops[idx]
+
+    # -- Print result --
+    if print_pretty:
+        print("\nSelected operators and coefficients:\n")
+        for op_idx, cval in zip(selected_indices, coeffs):
+            if abs(cval) > 1e-14:
+                print(f"{cval.real:.4f} + {cval.imag:.4f}i  *  {basis_labels[op_idx]}")
+
+    # -- Test reconstruction --
+    if test_decomposition:
+        ev_orig = eigvalsh(A)
+        ev_approx = eigvalsh(H_approx)
+        ev_orig -= ev_orig[0]
+        ev_approx -= ev_approx[0]
+        print("\nEigenvalues of original:     ", np.round(ev_orig, 5))
+        print("Eigenvalues of approximation:", np.round(ev_approx, 5))
+        if np.allclose(ev_orig, ev_approx, atol=1e-6):
+            print("Spectra match (within tolerance).")
+        else:
+            print("Spectra do not match.")
+
+    return selected_indices, coeffs, H_approx
+
 
 
 def decomposition_in_pauli_8x8(A, rd, print=True):
