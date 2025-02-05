@@ -2233,7 +2233,7 @@ import numpy as np
 from numpy.linalg import eigvalsh
 
 def decomposition_in_pauli_2xN_qubit_resonator(
-        A, print_pretty=True, test_decomposition=False):
+        A, print_pretty=True, test_decomposition=False, return_labels = False, print_conditioning=False, return_E_decomposition=False):
     """
     Decompose a 2xN Hamiltonian (qubit-resonator) in a non-orthonormal basis:
         {σ_i ⊗ O_j},  i=0..3, j=0..3,
@@ -2266,14 +2266,14 @@ def decomposition_in_pauli_2xN_qubit_resonator(
     labels_cavity = ["I", "a†+a", "i(a†-a)", "n"]
 
 
-    # if N > 2:
-    #     xx = x @ x
-    #     pp = - p @ p
-    #     xp = x @ p
-    #     px = p @ x
-    #     nn = n @ n
-    #     r += [xp,px] #, xx, pp , xp, px, nn]
-    #     labels_cavity += ["(a†+a)i(a†-a)","i(a†-a)(a†+a)" ]#, "(a†+a)^2", "(a†-a)^2", "(a†+a)i(a†-a)", "i(a†-a)(a†+a)", "n^2"]
+    if N > 2:
+        xx = x @ x
+        pp = - p @ p
+        xp = x @ p
+        px = p @ x
+        nn = n @ n
+        r += [xp,px] #, xx, pp , xp, px, nn]
+        labels_cavity += ["(a†+a)i(a†-a)","i(a†-a)(a†+a)" ]#, "(a†+a)^2", "(a†-a)^2", "(a†+a)i(a†-a)", "i(a†-a)(a†+a)", "n^2"]
 
 
     # Build the total basis B_k = s[i] ⊗ r[j]
@@ -2296,8 +2296,9 @@ def decomposition_in_pauli_2xN_qubit_resonator(
             Bl = basis_ops[l]
             G[k, l] =  np.trace(Bk.conj().T @ Bl)
 
-    cond_G = np.linalg.cond(G)
-    print("Condition number of G:", cond_G)
+    if print_conditioning:
+        cond_G = np.linalg.cond(G)
+        print("Condition number of G:", cond_G)
 
     # Solve G c = v  =>  c = G^-1 v
     c = np.linalg.solve(G, v)
@@ -2310,7 +2311,7 @@ def decomposition_in_pauli_2xN_qubit_resonator(
                 print(f"{val:.4f}\t*\t{basis_labels[idx]}")
 
     # Test reconstruction
-    if test_decomposition:
+    if test_decomposition or return_E_decomposition:
         H_reconstructed = np.zeros_like(A, dtype=complex)
         for idx, val in enumerate(c):
             H_reconstructed += val * basis_ops[idx]
@@ -2321,20 +2322,26 @@ def decomposition_in_pauli_2xN_qubit_resonator(
         ev_original -= ev_original[0]
         ev_reconstructed -= ev_reconstructed[0]
 
-        print("\nOriginal eigenvalues:")
-        print(np.round(ev_original, 5))
-        print("Reconstructed eigenvalues:")
-        print(np.round(ev_reconstructed, 5))
+        if not return_E_decomposition:
+            print("\nOriginal eigenvalues:")
+            print(np.round(ev_original, 5))
+            print("Reconstructed eigenvalues:")
+            print(np.round(ev_reconstructed, 5))
 
-        if np.allclose(ev_original, ev_reconstructed, atol=1e-6):
-            print("Spectra match (within tolerance).")
-        else:
-            print("Spectra do not match.")
+            if np.allclose(ev_original, ev_reconstructed, atol=1e-6):
+                print("Spectra match (within tolerance).")
+            else:
+                print("Spectra do not match.")
 
     # Reshape c into a (4x4) table c[i,j] if you like:
     c_2d = c.reshape(len(s), len(r))
 
-    return c_2d
+    return_list = [c_2d]
+    if return_labels:
+        return_list.append(basis_labels)
+    if return_E_decomposition:
+        return_list.append(ev_reconstructed)
+    return return_list
 
 
 
