@@ -831,6 +831,13 @@ def hamiltonian_fluxonium_low_ene_fit(φ_ext, ω_q, μ, A, B, C):
 
     return H
 
+def hamiltonian_fluxonium_low_ene_coefs(gx, gz):
+    σ_x, σ_y, σ_z = pauli_matrices()
+
+    H = gz * σ_z + gx * σ_x
+
+    return H
+
 def hamiltonian_fluxonium_low_ene(ω_q, gx, gz):
     σ_x, σ_y, σ_z = pauli_matrices()
 
@@ -850,6 +857,21 @@ def hamiltonian_qubit_low_ene(ω_q, gx, gz, ω_r, g_Φ, g_q=0, N = 2):
     I_f = qt.identity(H_f.shape[0])
 
     H = np.kron(H_f, I_r) + np.kron(I_f, H_r) + g_Φ * np.kron(σ_x, a_dag + a) + g_q * np.kron(σ_y, 1j*(a_dag - a))
+
+    return H
+
+def hamiltonian_qubit_low_ene_coefs(gx, gz, ω_r, g_Φ, g_zz, g_q=0, N = 2):
+    σ_x, σ_y, σ_z = pauli_matrices()
+    a_dag   = create(N)
+    a       = annihilate(N)
+
+    H_f = hamiltonian_fluxonium_low_ene_coefs(gx, gz)
+    H_r = ω_r * a_dag @ a
+
+    I_r = qt.identity(H_r.shape[0])
+    I_f = qt.identity(H_f.shape[0])
+
+    H = np.kron(H_f, I_r) + np.kron(I_f, H_r) + g_Φ * np.kron(σ_x, a_dag + a) + g_q * np.kron(σ_y, 1j*(a_dag - a)) + g_zz * np.kron(σ_z, a_dag @ a)
 
     return H
 
@@ -2266,14 +2288,14 @@ def decomposition_in_pauli_2xN_qubit_resonator(
     labels_cavity = ["I", "a†+a", "i(a†-a)", "n"]
 
 
-    if N > 2:
-        xx = x @ x
-        pp = - p @ p
-        xp = x @ p
-        px = p @ x
-        nn = n @ n
-        r += [xp,px] #, xx, pp , xp, px, nn]
-        labels_cavity += ["(a†+a)i(a†-a)","i(a†-a)(a†+a)" ]#, "(a†+a)^2", "(a†-a)^2", "(a†+a)i(a†-a)", "i(a†-a)(a†+a)", "n^2"]
+    # if N > 2:
+    #     xx = x @ x
+    #     pp = - p @ p
+    #     xp = x @ p
+    #     px = p @ x
+    #     nn = n @ n
+    #     r += [xp,px] #, xx, pp , xp, px, nn]
+    #     labels_cavity += ["(a†+a)i(a†-a)","i(a†-a)(a†+a)" ]#, "(a†+a)^2", "(a†-a)^2", "(a†+a)i(a†-a)", "i(a†-a)(a†+a)", "n^2"]
 
 
     # Build the total basis B_k = s[i] ⊗ r[j]
