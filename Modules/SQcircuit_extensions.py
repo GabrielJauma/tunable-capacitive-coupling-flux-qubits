@@ -860,18 +860,18 @@ def hamiltonian_qubit_low_ene(ω_q, gx, gz, ω_r, g_Φ, g_q=0, N = 2):
 
     return H
 
-def hamiltonian_qubit_low_ene_coefs(gx, gz, ω_r, g_Φ, g_zz, g_q=0, N = 2):
+def hamiltonian_QR_low_ene(ω_q, gx, gz, ω_r, g_Φ, N = 2):
     σ_x, σ_y, σ_z = pauli_matrices()
     a_dag   = create(N)
     a       = annihilate(N)
 
-    H_f = hamiltonian_fluxonium_low_ene_coefs(gx, gz)
+    H_f = (ω_q/2 + gz) * σ_z + gx * σ_x
     H_r = ω_r * a_dag @ a
 
     I_r = qt.identity(H_r.shape[0])
     I_f = qt.identity(H_f.shape[0])
 
-    H = np.kron(H_f, I_r) + np.kron(I_f, H_r) + g_Φ * np.kron(σ_x, a_dag + a) + g_q * np.kron(σ_y, 1j*(a_dag - a)) + g_zz * np.kron(σ_z, a_dag @ a)
+    H = np.kron(H_f, I_r) + np.kron(I_f, H_r) + g_Φ * np.kron(σ_x, a_dag + a)
 
     return H
 
@@ -1042,9 +1042,14 @@ def kron_prod_list(op_list):
     return kron_prod
 
 def get_parameters_QR(fluxonium, resonator, LC):
-    Φq = np.abs( fluxonium.flux_op(0,'eig')[0,1] )
-    Φr = np.abs( resonator.flux_op(0,'eig')[0,1] )
-
+    try:
+        Φq = np.abs( fluxonium.flux_op(0,'eig')[0,1] )
+        Φr = np.abs( resonator.flux_op(0,'eig')[0,1] )
+    except:
+        fluxonium.diag(2)
+        resonator.diag(2)
+        Φq = np.abs( fluxonium.flux_op(0,'eig')[0,1] )
+        Φr = np.abs( resonator.flux_op(0,'eig')[0,1] )
     g_Φ = Φq * Φr / (LC * nH) / 2 / np.pi / GHz
     return g_Φ
 
@@ -1336,6 +1341,7 @@ def ψ_0_from_H_0(H_0_list, basis_states, mediating_states, n_eig):
         ψ_0_mediating.append(qt.tensor(ψ_0_mediating_i))
 
     return H_0, E_0, ψ_0_basis, ψ_0_mediating
+
 
 def H_eff_4x4(H, H_0, E_0, ψ_0_basis, ψ_0_mediating, n_eig, return_decomposition=False, return_E=False, remove_ground=True, return_H_eff=False):
 
@@ -2270,8 +2276,13 @@ def decomposition_in_pauli_2xN_qubit_resonator(
     sx = np.array([[0, 1], [1, 0]], dtype=complex)
     sy = np.array([[0, -1j], [1j, 0]], dtype=complex)
     sz = np.array([[1, 0], [0, -1]], dtype=complex)
-    s = [I2, sx, sy, sz]
-    labels_qubit = ["I", "σx", "σy", "σz"]
+
+    # s = [I2, sx, sy, sz]
+    # labels_qubit = ["I", "σx", "σy", "σz"]
+
+    s = [I2, sx, sz]
+    labels_qubit = ["I", "σx", "σz"]
+
     # s = gell_mann_matrices()
     # labels_qubit = [f'λ_{i}'for i in range(len(s))]
 
@@ -2284,9 +2295,11 @@ def decomposition_in_pauli_2xN_qubit_resonator(
     x = a + ad
     p = 1j * (ad - a)
 
-    r = [I_N, x, p, n]
-    labels_cavity = ["I", "a†+a", "i(a†-a)", "n"]
+    # r = [I_N, x, p, n]
+    # labels_cavity = ["I", "a†+a", "i(a†-a)", "n"]
 
+    r = [I_N, x , n]
+    labels_cavity = ["I", "a†+a" , "n"]
 
     # if N > 2:
     #     xx = x @ x
