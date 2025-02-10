@@ -1284,7 +1284,7 @@ def H_eff_SWT(H_0, H, n_eig, out='GHz', real=False, remove_ground=False, return_
         return H_eff
 
 
-def H_eff_SWT_large(ψ_0, ψ, E, remove_ground=False, return_Q=False):
+def H_eff_SWT_large(ψ_0, ψ, E, remove_I=False, return_Q=False):
     n_eig = len(ψ_0)
     Q = np.zeros((n_eig, n_eig), dtype=complex)
     for i in range(n_eig):
@@ -1299,8 +1299,8 @@ def H_eff_SWT_large(ψ_0, ψ, E, remove_ground=False, return_Q=False):
 
     H_eff = A @ np.diag(E) @ A.T.conj()
 
-    if remove_ground:
-        H_eff -= H_eff[0, 0] * np.eye(len(H_eff))
+    if remove_I:
+        H_eff -= np.mean(np.diag(H_eff)) * np.eye(len(H_eff))
 
     if return_Q:
         return H_eff, Q
@@ -2167,7 +2167,7 @@ def decomposition_in_pauli_2x2(A ):
 
     return P
 
-def decomposition_in_pauli_4x4(A,  print_pretty=True, test_decomposition=False):
+def decomposition_in_pauli_4x4(A,  print_pretty=True, test_decomposition=False, return_labels=False):
     '''Performs Pauli decomposition of a 4x4 matrix.
 
     Input:
@@ -2184,11 +2184,14 @@ def decomposition_in_pauli_4x4(A,  print_pretty=True, test_decomposition=False):
     s = [i, σx, σy, σz]  # array containing the matrices.
     labels = ['I', 'σx', 'σy', 'σz']  # useful to print the result.
 
+    labels_sys = np.zeros([4, 4], dtype='object')
+
     P = np.zeros((4, 4))  # array to store our results.
     # Loop to obtain each coefficient.
     for i in range(4):
         for j in range(4):
             label = labels[i] + ' \U00002A02' + labels[j]
+            labels_sys[i,j] = label
             S = np.kron(s[i], s[j])  # S_ij=σ_i /otimes σ_j.
             P[i, j] = np.real( 0.25 * (np.dot(S.T.conjugate(), A)).trace() ) # P[i,j]=(1/4)tr(S_ij^t*A)
             if np.abs(P[i, j])>1e-13 and print_pretty == True:
@@ -2220,9 +2223,12 @@ def decomposition_in_pauli_4x4(A,  print_pretty=True, test_decomposition=False):
         else:
             print("\nThe spectra do not match. There might be an error in the decomposition.")
 
-    return P
+    if return_labels == True:
+        return P, labels_sys
+    else:
+        return P
 
-def decomposition_in_pauli_4x4_qubit_resonator(A,  print_pretty=True):
+def decomposition_in_pauli_4x4_qubit_resonator(A,  print_pretty=True, return_labels=True):
     '''Performs Pauli decomposition of a 4x4 matrix.
 
     Input:
@@ -2245,17 +2251,23 @@ def decomposition_in_pauli_4x4_qubit_resonator(A,  print_pretty=True):
     labels = ['I', 'σx', 'σy', 'σz']  # useful to print the result.
     labels_r = ['I', 'a_d+a', 'i(a_d-a)', 'a_d a']  # useful to print the result.
 
+    labels_sys = np.zeros([4,4], dtype='object')
+
     P = np.zeros((4, 4), dtype=complex)  # array to store our results.
     # Loop to obtain each coefficient.
     for i in range(4):
         for j in range(4):
             label = labels[i] + ' \U00002A02' + labels_r[j]
+            labels_sys[i,j] = label
             S = np.kron(s[i], r[j])  # S_ij=σ_i /otimes σ_j.
             P[i, j] = 0.25 * (np.dot(S.T.conjugate(), A)).trace() # P[i,j]=(1/4)tr(S_ij^t*A)
             if np.abs(P[i, j])>1e-13 and print_pretty == True:
                 print(" %.4f\t*\t %s " % (P[i, j], label))
 
-    return P
+    if return_labels == True:
+        return P, labels_sys
+    else:
+        return P
 
 import numpy as np
 from numpy.linalg import eigvalsh
@@ -2277,11 +2289,9 @@ def decomposition_in_pauli_2xN_qubit_resonator(
     sy = np.array([[0, -1j], [1j, 0]], dtype=complex)
     sz = np.array([[1, 0], [0, -1]], dtype=complex)
 
-    # s = [I2, sx, sy, sz]
-    # labels_qubit = ["I", "σx", "σy", "σz"]
+    s = [I2, sx, sy, sz]
+    labels_qubit = ["I", "σx", "σy", "σz"]
 
-    s = [I2, sx, sz]
-    labels_qubit = ["I", "σx", "σz"]
 
     # s = gell_mann_matrices()
     # labels_qubit = [f'λ_{i}'for i in range(len(s))]
@@ -2295,11 +2305,9 @@ def decomposition_in_pauli_2xN_qubit_resonator(
     x = a + ad
     p = 1j * (ad - a)
 
-    # r = [I_N, x, p, n]
-    # labels_cavity = ["I", "a†+a", "i(a†-a)", "n"]
+    r = [I_N, x, p, n]
+    labels_cavity = ["I", "a†+a", "i(a†-a)", "n"]
 
-    r = [I_N, x , n]
-    labels_cavity = ["I", "a†+a" , "n"]
 
     # if N > 2:
     #     xx = x @ x
@@ -2376,7 +2384,10 @@ def decomposition_in_pauli_2xN_qubit_resonator(
         return_list.append(basis_labels)
     if return_E_decomposition:
         return_list.append(ev_reconstructed)
-    return return_list
+    if len(return_list)>1:
+        return return_list
+    else:
+        return return_list[0]
 
 
 
