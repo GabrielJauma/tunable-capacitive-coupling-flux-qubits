@@ -2,6 +2,7 @@ import SQcircuit as sq
 import Modules.figures as figs
 import numpy as np
 from scipy.linalg import eigvalsh, kron, expm
+from scipy.optimize import minimize
 import matplotlib.pyplot as plt
 import scipy as sp
 import qutip as qt
@@ -15,6 +16,8 @@ fF  = 1e-15
 h   = 6.626e-34
 e0  = 1.602e-19
 Φ_0 = h / (2 * e0)
+eps = 1e-14
+
 
 #%% Conversion functions
 def L_to_EL(L, L_units='nH', E_units='GHz'):
@@ -1435,8 +1438,74 @@ def H_eff_2x2(H_0_list, H, basis_states, mediating_states, n_eig=4, return_decom
     return return_list
 
 
+# %% Hamiltonian fit functions
+def E_fit_QR_low_ene(coefs, E_exact):
+    ω_q, gx, gz, ω_r, g_Φ = coefs
+    H_low_ene = hamiltonian_QR_low_ene(ω_q, gx, gz, ω_r, g_Φ, N=4)
+    E_low_ene = diag(H_low_ene, 3, out='None', solver='numpy', remove_ground=True)[0]
+    return np.sqrt(np.sum((E_low_ene-E_exact[:3])**2))
 
 
+def fit_QR_Hamiltonian(fluxonium_0, resonator, L_C_eff, E_QR_vs_φ_ext, N_opt_run=2, print_progress=True):
+    ω_q = diag(fluxonium_0.hamiltonian(), 2, solver='numpy', remove_ground=True)[0][1]
+    ω_r = diag(resonator.hamiltonian(), 2, solver='numpy', remove_ground=True)[0][1]
+    g_Φ = get_parameters_QR(fluxonium_0, resonator, L_C_eff)
+    gx = 0
+    gz = 0
+    coefs_0 = np.array([ω_q, gx, gz, ω_r, g_Φ])
+    bounds_0 = [(-np.inf, np.inf), (0, eps), (0, eps), (-np.inf, np.inf), (-np.inf, np.inf)]
+
+    optimization_var = ['g_x', 'ω_r and g_z']
+
+    E_low_ene_φ_ext = np.zeros([len(E_QR_vs_φ_ext),4])
+    for opt_run in range(N_opt_run):
+        if print_progress:
+            print(f'Optimization {opt_run}, variable = {optimization_var[opt_run]}')
+        if opt_run == 0:
+            coefs_vs_φ_ext = np.zeros([len(E_QR_vs_φ_ext), 5])
+            coefs_vs_φ_ext[0] = coefs_0
+
+        for i in range(len(E_QR_vs_φ_ext)):
+            if i == 0:
+                ω_q, gx, gz, ω_r, g_Φ = minimize(E_fit_QR_low_ene, coefs_vs_φ_ext[i], E_QR_vs_φ_ext[i],
+                                                 bounds=bounds_0).x
+                coefs_vs_φ_ext[i] = ω_q, gx, gz, ω_r, g_Φ
+                H_low_ene = hamiltonian_QR_low_ene(ω_q, gx, gz, ω_r, g_Φ, N=4)
+                E_low_ene_φ_ext[i] = diag(H_low_ene, 4, out='None', solver='numpy', remove_ground=True)[0]
+                continue
+
+            if opt_run == 0:
+                ω_q, gx, gz, ω_r, g_Φ = coefs_vs_φ_ext[i - 1]
+                if i == 1:
+                    gx = 0.05
+            else:
+                ω_q, gx, gz, ω_r, g_Φ = coefs_vs_φ_ext[i]
+
+            if opt_run == 0:
+                bounds = [(ω_q, ω_q + eps), (-np.inf, np.inf), (gz, gz + eps), (ω_r, ω_r + eps),
+                          (g_Φ, g_Φ + eps)]  # 1st Optimize g_x
+            elif opt_run == 1:
+                bounds = [(ω_q, ω_q + 1e-14), (gx, gx+eps), (-np.inf, np.inf), (-np.inf, np.inf),
+                          (g_Φ, g_Φ + eps)]  # 2nd Optimize omega_r and g_z
+            # elif opt_run == 2:
+            #     bounds = [(ω_q, ω_q + eps),  (-np.inf, np.inf), (-np.inf, np.inf),  (-np.inf, np.inf),
+            #               (g_Φ, g_Φ + eps)]  # 3rd Optimize g_z
+            # elif opt_run == 3:
+            #     bounds = [(ω_q, ω_q + 1e-14),  (-np.inf, np.inf),  (-np.inf, np.inf),  (-np.inf, np.inf),
+            #               (-np.inf, np.inf), ]  # 4th Optimize g_phi
+
+            ω_q, gx, gz, ω_r, g_Φ = minimize(E_fit_QR_low_ene, [ω_q, gx, gz, ω_r, g_Φ], E_QR_vs_φ_ext[i],
+                                             bounds=bounds).x
+
+            coefs_vs_φ_ext[i] = ω_q, gx, gz, ω_r, g_Φ
+            H_low_ene = hamiltonian_QR_low_ene(ω_q, gx, gz, ω_r, g_Φ, N=4)
+            E_low_ene_φ_ext[i] = diag(H_low_ene, 4, out='None', solver='numpy', remove_ground=True)[0]
+
+            # print(E_low_ene_φ_ext[i, 1:3]- E_vs_φ_ext[i,1:3])
+        if print_progress:
+            print(
+                f'The final error of optimization {opt_run} is {np.sqrt(np.sum((E_low_ene_φ_ext[:, :3] - E_QR_vs_φ_ext[:, :3]) ** 2)) * 1e3} MHz')
+    return coefs_vs_φ_ext, E_low_ene_φ_ext
 #%% Optimization functions
 def find_resonance(H_target, input_circuit):
     # Step 1: Calculate the target gap ω_target
