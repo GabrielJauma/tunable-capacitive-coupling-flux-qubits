@@ -969,7 +969,7 @@ def hamiltonian_fluxonium_C_fluxonium_C_fluxonium_low_ene(H_list, g_list, return
 def hamiltonian_QR_C_QR_low_ene_qtip(ω_q0, gx_0, gz_0, ω_r0, gΦ0,
                                       ω_q1, gx_1, gz_1, ω_r1, gΦ1,
                                       g_qq, g_rr, g_qr, g_rq,
-                                      n_r=2):
+                                      n_r=4):
     # σ_x, σ_y, σ_z = pauli_matrices()
     σ_x, σ_y, σ_z = [qt.sigmax(), qt.sigmay(), qt.sigmaz()]
     a     = qt.destroy(n_r)
@@ -1057,10 +1057,20 @@ def get_parameters_QR(fluxonium, resonator, LC):
     return g_Φ
 
 def get_parameters_QR_C_QR(fluxonium_0, resonator_0, fluxonium_1, resonator_1, C_inv):
-    Q_q0 = np.abs( fluxonium_0.charge_op(0,'eig')[0,1] )
-    Q_r0 = np.abs( resonator_0.charge_op(0,'eig')[0,1] )
-    Q_q1 = np.abs( fluxonium_1.charge_op(0,'eig')[0,1] )
-    Q_r1 = np.abs( resonator_1.charge_op(0,'eig')[0,1] )
+    try:
+        Q_q0 = np.abs( fluxonium_0.charge_op(0,'eig')[0,1] )
+        Q_r0 = np.abs( resonator_0.charge_op(0,'eig')[0,1] )
+        Q_q1 = np.abs( fluxonium_1.charge_op(0,'eig')[0,1] )
+        Q_r1 = np.abs( resonator_1.charge_op(0,'eig')[0,1] )
+    except:
+        fluxonium_0.diag(2)
+        resonator_0.diag(2)
+        fluxonium_1.diag(2)
+        resonator_1.diag(2)
+        Q_q0 = np.abs( fluxonium_0.charge_op(0,'eig')[0,1] )
+        Q_r0 = np.abs( resonator_0.charge_op(0,'eig')[0,1] )
+        Q_q1 = np.abs( fluxonium_1.charge_op(0,'eig')[0,1] )
+        Q_r1 = np.abs( resonator_1.charge_op(0,'eig')[0,1] )
 
     g_qq = C_inv[0, 2] * fF ** -1 * Q_q0 * Q_q1 / 2 / np.pi / GHz
     g_rr = C_inv[1, 3] * fF ** -1 * Q_r0 * Q_r1 / 2 / np.pi / GHz
@@ -1363,7 +1373,7 @@ def H_eff_4x4(H, H_0, E_0, ψ_0_basis, ψ_0_mediating, n_eig, return_decompositi
     ψ_basis = ψ[subspace_indices]
     E_basis = E[subspace_indices]
 
-    H_eff_SWT = H_eff_SWT_large(ψ_0_basis, ψ_basis, E_basis, remove_ground=True)
+    H_eff_SWT = H_eff_SWT_large(ψ_0_basis, ψ_basis, E_basis)
 
     P1  = decomposition_in_pauli_4x4(H_eff_p1, print_pretty=False)
     P2  = decomposition_in_pauli_4x4(H_eff_p1 + H_eff_p2, print_pretty=False)
@@ -1439,6 +1449,8 @@ def H_eff_2x2(H_0_list, H, basis_states, mediating_states, n_eig=4, return_decom
 
 
 # %% Hamiltonian fit functions
+
+# Fit QR unit cell
 def E_fit_QR_low_ene(coefs, E_exact):
     ω_q, gx, gz, ω_r, g_Φ = coefs
     H_low_ene = hamiltonian_QR_low_ene(ω_q, gx, gz, ω_r, g_Φ, N=4)
@@ -1453,7 +1465,7 @@ def fit_QR_Hamiltonian(fluxonium_0, resonator, L_C_eff, E_QR_vs_φ_ext, N_opt_ru
     gx = 0
     gz = 0
     coefs_0 = np.array([ω_q, gx, gz, ω_r, g_Φ])
-    bounds_0 = [(-np.inf, np.inf), (0, eps), (0, eps), (-np.inf, np.inf), (-np.inf, np.inf)]
+    bounds_0 = [(-np.inf, np.inf), (0, eps), (0, eps), (-np.inf, np.inf), (g_Φ, g_Φ+eps)]
 
     optimization_var = ['g_x', 'ω_r and g_z']
 
@@ -1506,6 +1518,97 @@ def fit_QR_Hamiltonian(fluxonium_0, resonator, L_C_eff, E_QR_vs_φ_ext, N_opt_ru
             print(
                 f'The final error of optimization {opt_run} is {np.sqrt(np.sum((E_low_ene_φ_ext[:, :3] - E_QR_vs_φ_ext[:, :3]) ** 2)) * 1e3} MHz')
     return coefs_vs_φ_ext, E_low_ene_φ_ext
+
+# Fit QR-C-QR
+def E_fit_QR_C_QR_low_ene(coefs, E_exact):
+    coefs_QR, coefs_QR_prime, coefs_C = [coefs[:5], coefs[5:10], coefs[10:]]
+    ω_q, gx, gz, ω_r, gΦ = coefs_QR
+    ω_q_prime, gx_prime, gz_prime, ω_r_prime, gΦ_prime = coefs_QR_prime
+    g_qq, g_rr, g_qr, g_rq = coefs_C
+    H_low_ene = hamiltonian_QR_C_QR_low_ene_qtip(ω_q, gx, gz, ω_r, gΦ,
+                                                 ω_q_prime, gx_prime, gz_prime, ω_r_prime, gΦ_prime,
+                                                 g_qq, g_rr, g_qr, g_rq)
+    E_low_ene = diag(H_low_ene, 5, out='None', solver='numpy', remove_ground=True)[0]
+    return np.sqrt(np.sum((E_low_ene-E_exact[:5])**2))
+
+
+def fit_QR_C_QR_Hamiltonian(circuits, LCs, C_inv_qubit_C_qubit, E_QR_C_QR_vs_φ_ext, N_opt_run=2, print_progress=True):
+    # THS CODE ASSUMES A CHANGE IN EXTERNAL MAGENTIC FLUX OF FLUXONIUM PRIME
+    fluxonium_0, resonator, fluxonium_prime_0, resonator_prime = circuits
+    L_C_eff, L_C_eff_prime = LCs
+
+    ω_q = diag(fluxonium_0.hamiltonian(), 2, solver='numpy', remove_ground=True)[0][1]
+    ω_r = diag(resonator.hamiltonian(), 2, solver='numpy', remove_ground=True)[0][1]
+    g_Φ = get_parameters_QR(fluxonium_0, resonator, L_C_eff)
+    gx = 0
+    gz = 0
+
+    g_qq, g_rr, g_qr, g_rq = get_parameters_QR_C_QR(fluxonium_0, resonator, fluxonium_prime_0, resonator_prime, C_inv_qubit_C_qubit)
+
+    ω_q_prime = diag(fluxonium_prime_0.hamiltonian(), 2, solver='numpy', remove_ground=True)[0][1]
+    ω_r_prime = diag(resonator_prime.hamiltonian(), 2, solver='numpy', remove_ground=True)[0][1]
+    g_Φ_prime = get_parameters_QR(fluxonium_prime_0, resonator_prime, L_C_eff_prime)
+    gx_prime = 0
+    gz_prime = 0
+
+    coefs_QR_0 = [ω_q, gx, gz, ω_r, g_Φ]
+    coefs_QR_prime_0 = [ω_q_prime, gx_prime, gz_prime, ω_r_prime, g_Φ_prime]
+    coefs_C = [g_qq, g_rr, g_qr, g_rq]
+    coefs_0 = np.array(coefs_QR_0 + coefs_QR_prime_0 + coefs_C)
+
+    bounds_QR_0         = [(-np.inf, np.inf), (gx, gx+eps)              , (gz, gz+eps)              , (-np.inf, np.inf), (g_Φ, g_Φ+eps)]
+    bounds_QR_prime_0   = [(-np.inf, np.inf), (gx_prime, gx_prime+eps)  , (gz_prime, gz_prime+eps)  , (-np.inf, np.inf), (g_Φ_prime, g_Φ_prime+eps)]
+    bounds_C_0          = [(g_qq, g_qq+eps), (g_rr, g_rr+eps), (g_qr, g_qr+eps), (g_rq, g_rq+eps)]
+    bounds_0 = bounds_QR_0 + bounds_QR_prime_0 + bounds_C_0
+
+    optimization_var = ['g_x and g_x_prime', 'ω_r, g_z and ω_r_prime, g_z_prime']
+
+    n_fit = len(E_QR_C_QR_vs_φ_ext)
+    E_low_ene_φ_ext = np.zeros([n_fit,5])
+    for opt_run in range(N_opt_run):
+        if print_progress:
+            print(f'Optimization {opt_run}, variable = {optimization_var[opt_run]}')
+        if opt_run == 0:
+            coefs_vs_φ_ext = np.zeros([n_fit, 14])
+            coefs_vs_φ_ext[0] = coefs_0
+
+        for i in range(n_fit):
+            if i == 0:
+                coefs_vs_φ_ext[i] = minimize(E_fit_QR_C_QR_low_ene, coefs_vs_φ_ext[i], E_QR_C_QR_vs_φ_ext[i], bounds=bounds_0).x
+                H_low_ene = hamiltonian_QR_C_QR_low_ene_qtip(*coefs_vs_φ_ext[i])
+                E_low_ene_φ_ext[i] = diag(H_low_ene, 5, out='None', solver='numpy', remove_ground=True)[0]
+                continue
+
+            if opt_run == 0:
+                ω_q, gx, gz, ω_r, g_Φ, ω_q_prime, gx_prime, gz_prime, ω_r_prime, g_Φ_prime, g_qq, g_rr, g_qr, g_rq =\
+                    coefs_vs_φ_ext[i - 1]
+                if i == 1:
+                    gx_prime = 0.05
+                    gx = 0
+            else:
+                ω_q, gx, gz, ω_r, g_Φ, ω_q_prime, gx_prime, gz_prime, ω_r_prime, g_Φ_prime, g_qq, g_rr, g_qr, g_rq = \
+                    coefs_vs_φ_ext[i]
+
+            if opt_run == 0: # 1st Optimize g_x
+                bounds_QR       = [(ω_q, ω_q + eps), (-np.inf, np.inf), (gz, gz + eps), (ω_r, ω_r + eps), (g_Φ, g_Φ + eps)]
+                bounds_QR_prime = [(ω_q_prime, ω_q_prime + eps), (-np.inf, np.inf), (gz_prime, gz_prime + eps), (ω_r_prime, ω_r_prime + eps), (g_Φ_prime, g_Φ_prime + eps)]
+                bounds = bounds_QR + bounds_QR_prime + bounds_C_0
+            elif opt_run == 1:   # 2nd Optimize omega_r and g_z
+                bounds_QR          = [(ω_q, ω_q + eps), (gx, gx+eps), (-np.inf, np.inf), (-np.inf, np.inf), (g_Φ, g_Φ + eps)]
+                bounds_QR_prime    = [(ω_q_prime, ω_q_prime + eps), (gx_prime, gx_prime+eps), (-np.inf, np.inf), (-np.inf, np.inf), (g_Φ_prime, g_Φ_prime + eps)]
+                bounds = bounds_QR + bounds_QR_prime + bounds_C_0
+
+            coefs_vs_φ_ext[i] = minimize(E_fit_QR_C_QR_low_ene, [ω_q, gx, gz, ω_r, g_Φ, ω_q_prime, gx_prime, gz_prime, ω_r_prime, g_Φ_prime, g_qq, g_rr, g_qr, g_rq], E_QR_C_QR_vs_φ_ext[i],
+                                             bounds=bounds).x
+
+            H_low_ene = hamiltonian_QR_C_QR_low_ene_qtip(*coefs_vs_φ_ext[i])
+            E_low_ene_φ_ext[i] = diag(H_low_ene, 5, out='None', solver='numpy', remove_ground=True)[0]
+
+            # print(E_low_ene_φ_ext[i, 1:5]- E_QR_C_QR_vs_φ_ext[i,1:5])
+        if print_progress:
+            print(
+                f'The final error of optimization {opt_run} is {np.sqrt(np.sum((E_low_ene_φ_ext[:, :5] - E_QR_C_QR_vs_φ_ext[:, :5]) ** 2)) * 1e3} MHz')
+    return coefs_vs_φ_ext, E_low_ene_φ_ext
 #%% Optimization functions
 def find_resonance(H_target, input_circuit):
     # Step 1: Calculate the target gap ω_target
@@ -1557,26 +1660,26 @@ def find_resonance_low_energy(H_target, H_input_function, inpout_args, solver='n
 
 #%% Sorting and labeling functions
 
-def sq_get_energy_indices_hamiltonian(H_qubit, H_fluxonium, H_resonator, n_eig=2):
-    E_qubit     = diag(H_qubit    , n_eig=n_eig+4, remove_ground=True)[0]
-    E_fluxonium = diag(H_fluxonium, n_eig=n_eig, remove_ground=True)[0]
-    E_resonator = diag(H_resonator, n_eig=n_eig, remove_ground=True)[0]
-
-    n_eig = len(E_qubit)
-
-    N_fluxonium = np.zeros(n_eig, dtype='int')
-    N_resonator = np.zeros(n_eig, dtype='int')
-
-    E_matrix = E_fluxonium[:, np.newaxis] + E_resonator
-
-    tol = E_qubit[1]-E_qubit[0]
-    for k in range(n_eig):
-        ΔE_matrix = np.abs(E_matrix - E_qubit[k])
-        if ΔE_matrix.min() < tol:
-            N_fluxonium[k], N_resonator[k] = np.unravel_index(ΔE_matrix.argmin(), ΔE_matrix.shape)
-        else:
-            N_fluxonium[k], N_resonator[k] = [-123, -123]
-    return N_fluxonium, N_resonator
+# def sq_get_energy_indices_hamiltonian(H_qubit, H_fluxonium, H_resonator, n_eig=2):
+#     E_qubit     = diag(H_qubit    , n_eig=n_eig+4, remove_ground=True)[0]
+#     E_fluxonium = diag(H_fluxonium, n_eig=n_eig, remove_ground=True)[0]
+#     E_resonator = diag(H_resonator, n_eig=n_eig, remove_ground=True)[0]
+#
+#     n_eig = len(E_qubit)
+#
+#     N_fluxonium = np.zeros(n_eig, dtype='int')
+#     N_resonator = np.zeros(n_eig, dtype='int')
+#
+#     E_matrix = E_fluxonium[:, np.newaxis] + E_resonator
+#
+#     tol = E_qubit[1]-E_qubit[0]
+#     for k in range(n_eig):
+#         ΔE_matrix = np.abs(E_matrix - E_qubit[k])
+#         if ΔE_matrix.min() < tol:
+#             N_fluxonium[k], N_resonator[k] = np.unravel_index(ΔE_matrix.argmin(), ΔE_matrix.shape)
+#         else:
+#             N_fluxonium[k], N_resonator[k] = [-123, -123]
+#     return N_fluxonium, N_resonator
 
 def sq_get_energy_indices(E_composite, E_1, E_2):
     n_eig = len(E_composite)
