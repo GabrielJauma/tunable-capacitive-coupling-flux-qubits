@@ -156,20 +156,18 @@ def transparent_cmap(cmap_name, power):
     # register this new colormap with matplotlib
     plt.register_cmap(cmap=map_object)
 
-def colorbar_for_lines(fig, values, label=None, location='top'):
-    norm = mpl.colors.Normalize(vmin=values[0], vmax=values[-1])
-    sm = plt.cm.ScalarMappable(cmap='plasma', norm=norm)
-    sm.set_array([])
+def colorbar_for_lines(fig, ax, values, colormap, label=None, location='top' ):
+    norm = mpl.colors.Normalize(values.min(), values.max())
 
     if label is not None and location == 'top':
-        a = fig.colorbar(sm, ticks=values)
+        a = fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=colormap), ax=ax)
         a.ax.set_title(label)
 
     elif label is not None and location == 'side':
-        fig.colorbar(sm, ticks=values, label=label)
+        fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=colormap), ax=ax, label=label)
 
     else:
-        fig.colorbar(sm, ticks=values)
+        fig.colorbar(mpl.cm.ScalarMappable(norm=norm, cmap=colormap), ax=ax)
 
 
 def colorbar(mappable, ticks=False):
