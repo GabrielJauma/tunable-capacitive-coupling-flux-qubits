@@ -1961,6 +1961,29 @@ def pauli_matrices():
     return σ_x ,σ_y ,σ_z
 
 
+def spin_one_matrices():
+    """
+    Returns the Sx, Sy, Sz matrices for a spin-1 system.
+
+    These satisfy the commutation relations [Sx, Sy] = i Sz, etc.
+    We assume hbar = 1.
+    """
+    # S_z = diag(1, 0, -1)
+    Sz = np.diag([1.0, 0.0, -1.0])
+
+    # S_x in 3D (spin-1) representation
+    # Factor 1/sqrt(2) is included to satisfy the usual su(2) algebra.
+    Sx = (1.0 / np.sqrt(2)) * np.array([[0, 1, 0],
+                                         [1, 0, 1],
+                                         [0, 1, 0]], dtype=complex)
+
+    # S_y in 3D (spin-1) representation
+    # Note that 1j is the imaginary unit in Python.
+    Sy = (1.0 / np.sqrt(2)) * np.array([[0, -1j, 0],
+                                         [1j, 0, -1j],
+                                         [0, 1j, 0]], dtype=complex)
+
+    return Sx, Sy, Sz
 def gell_mann_matrices():
     """
     Returns a list whose first element is the 3x3 identity matrix,
@@ -2030,8 +2053,7 @@ def diag(H, n_eig=4, out='GHz', real=False, solver='scipy', remove_ground=False,
         efreqs, evecs = np.linalg.eigh(H.__array__())
         efreqs = efreqs[:n_eig]
         evecs  = evecs [:,:n_eig]
-        if qObj:
-            evecs = np.array([qt.Qobj(evecs[:,i].T) for i in range(n_eig)])
+
     elif solver == 'Qutip':
         efreqs, evecs = H.eigenstates(eigvals=n_eig, sparse=True)
         if not qObj:
@@ -2039,14 +2061,15 @@ def diag(H, n_eig=4, out='GHz', real=False, solver='scipy', remove_ground=False,
         efreqs_sorted = efreqs
         evecs_sorted = evecs
 
-    if not qObj:
+    if not qObj or solver == 'scipy' or solver == 'numpy':
         efreqs_sorted = np.sort(efreqs.real)
-        # efreqs_sorted = efreqs_sorted - efreqs_sorted[0]
 
         sort_arg = np.argsort(efreqs)
         if isinstance(sort_arg, int):
             sort_arg = [sort_arg]
         evecs_sorted = evecs[:, sort_arg]
+
+
 
     if real:
         evecs_sorted = real_eigenvectors(evecs_sorted)
@@ -2056,6 +2079,9 @@ def diag(H, n_eig=4, out='GHz', real=False, solver='scipy', remove_ground=False,
         efreqs_sorted /= 2 * np.pi
     if remove_ground:
         efreqs_sorted -= efreqs_sorted[0]
+
+    if solver == 'numpy' and qObj:
+        evecs_sorted = [qt.Qobj(evecs_sorted[:, i].T) for i in range(n_eig)]
 
     return efreqs_sorted, evecs_sorted
 
@@ -2339,6 +2365,90 @@ def decomposition_in_pauli_2x2(A ):
         P[i] = np.real( 0.5 * np.trace(s[i].T.conjugate() @ A) )
 
     return P
+
+
+def decomposition_in_pauli_3x3(
+        A, print_pretty=True, test_decomposition=False, return_labels = False, print_conditioning=False, return_E_decomposition=False):
+    """
+    Decompose a 2xN Hamiltonian (qubit-resonator) in a non-orthonormal basis:
+        {σ_i ⊗ O_j},  i=0..3, j=0..3,
+    where O_j is one of {I, x, p, n} for the resonator.
+
+    A:        (2N x 2N) matrix
+    returns:  coefficients c[i,j] for the best least-squares approximation
+    """
+
+    # s = gell_mann_matrices()
+    # labels_qubit = [f'$λ_{i}$'for i in range(len(s))]
+    I = np.eye(3)
+    Sx, Sy, Sz = spin_one_matrices()
+    s = [I, Sx, Sy, Sz]
+    labels_qubit = ['$I$','$Sx$','$Sy$','$Sz$']
+
+    # Build the total basis B_k = s[i] ⊗ r[j]
+    basis_ops = s
+    basis_labels = labels_qubit
+
+    M = len(basis_ops)  # M = 16
+    # Construct Gram matrix G and vector v
+    G = np.zeros((M, M), dtype=complex)
+    v = np.zeros(M, dtype=complex)
+
+    for k in range(M):
+        Bk = basis_ops[k]
+        v[k] = np.trace(Bk.conj().T @ A)
+        for l in range(M):
+            Bl = basis_ops[l]
+            G[k, l] =  np.trace(Bk.conj().T @ Bl)
+
+    if print_conditioning:
+        cond_G = np.linalg.cond(G)
+        print("Condition number of G:", cond_G)
+
+    # Solve G c = v  =>  c = G^-1 v
+    c = np.linalg.solve(G, v)
+
+    # Print out coefficients if desired
+    if print_pretty:
+        for idx, val in enumerate(c):
+            if abs(val) > 1e-4:
+                # print(f"{val.real:.4f}\t*\t{basis_labels[idx]}")
+                print(f"{val:.4f}\t*\t{basis_labels[idx]}")
+
+    # Test reconstruction
+    if test_decomposition or return_E_decomposition:
+        H_reconstructed = np.zeros_like(A, dtype=complex)
+        for idx, val in enumerate(c):
+            H_reconstructed += val * basis_ops[idx]
+
+        ev_original = eigvalsh(A)
+        ev_reconstructed = eigvalsh(H_reconstructed)
+        # Shift so we compare relative spectra
+        ev_original -= ev_original[0]
+        ev_reconstructed -= ev_reconstructed[0]
+
+        if not return_E_decomposition:
+            print("\nOriginal eigenvalues:")
+            print(np.round(ev_original, 5))
+            print("Reconstructed eigenvalues:")
+            print(np.round(ev_reconstructed, 5))
+
+            if np.allclose(ev_original, ev_reconstructed, atol=1e-6):
+                print("Spectra match (within tolerance).")
+            else:
+                print("Spectra do not match.")
+
+    return_list = [c]
+    if return_labels:
+        return_list.append(basis_labels)
+    if return_E_decomposition:
+        return_list.append(ev_reconstructed)
+    if len(return_list)>1:
+        return return_list
+    else:
+        return return_list[0]
+
+
 
 def decomposition_in_pauli_4x4(A,  print_pretty=True, test_decomposition=False, return_labels=False):
     '''Performs Pauli decomposition of a 4x4 matrix.
