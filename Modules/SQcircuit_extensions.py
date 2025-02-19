@@ -1455,7 +1455,8 @@ def E_fit_QR_low_ene(coefs, E_exact):
     ω_q, gx, gz, ω_r, g_Φ = coefs
     H_low_ene = hamiltonian_QR_low_ene(ω_q, gx, gz, ω_r, g_Φ, N=4)
     E_low_ene = diag(H_low_ene, 3, out='None', solver='numpy', remove_ground=True)[0]
-    return np.sqrt(np.sum((E_low_ene-E_exact[:3])**2))
+    return np.sum(np.abs(E_low_ene-E_exact[:3]))
+    # return np.sqrt(np.sum((E_low_ene-E_exact[:3])**2))
 
 
 def fit_QR_Hamiltonian(fluxonium_0, resonator, L_C_eff, E_QR_vs_φ_ext, N_opt_run=2, print_progress=True):
