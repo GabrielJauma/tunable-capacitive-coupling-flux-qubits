@@ -1431,7 +1431,7 @@ def H_eff_2x2(H_0_list, H, basis_states, mediating_states, n_eig=4, return_decom
     ψ_basis = ψ[subspace_indices]
     E_basis = E[subspace_indices]
 
-    H_eff_SWT = H_eff_SWT_large(ψ_0_basis, ψ_basis, E_basis, remove_ground=True)
+    H_eff_SWT = H_eff_SWT_large(ψ_0_basis, ψ_basis, E_basis)
 
     P1  = decomposition_in_pauli_2x2(H_eff_p1 )
     P2  = decomposition_in_pauli_2x2(H_eff_p1 + H_eff_p2 )
@@ -1451,11 +1451,14 @@ def H_eff_2x2(H_0_list, H, basis_states, mediating_states, n_eig=4, return_decom
 # %% Hamiltonian fit functions
 
 # Fit QR unit cell
-def E_fit_QR_low_ene(coefs, E_exact):
+def E_fit_QR_low_ene(coefs, E_exact, return_E=False):
     ω_q, gx, gz, ω_r, g_Φ = coefs
     H_low_ene = hamiltonian_QR_low_ene(ω_q, gx, gz, ω_r, g_Φ, N=4)
-    E_low_ene = diag(H_low_ene, 3, out='None', solver='numpy', remove_ground=True)[0]
-    return np.sum(np.abs(E_low_ene-E_exact[:3]))
+    E_low_ene = diag(H_low_ene, 4, out='None', solver='numpy', remove_ground=True)[0]
+    if not return_E:
+        return np.sum(np.abs(E_low_ene[:3]-E_exact[:3]))
+    else:
+        return E_low_ene, np.sum(np.abs(E_low_ene[:3] - E_exact[:3]))
     # return np.sqrt(np.sum((E_low_ene-E_exact[:3])**2))
 
 
@@ -2378,12 +2381,16 @@ def decomposition_in_pauli_3x3(
     returns:  coefficients c[i,j] for the best least-squares approximation
     """
 
-    # s = gell_mann_matrices()
-    # labels_qubit = [f'$λ_{i}$'for i in range(len(s))]
-    I = np.eye(3)
-    Sx, Sy, Sz = spin_one_matrices()
-    s = [I, Sx, Sy, Sz]
-    labels_qubit = ['$I$','$Sx$','$Sy$','$Sz$']
+    s = gell_mann_matrices()
+    labels_qubit = [f'$λ_{i}$'for i in range(len(s))]
+
+
+    # I = np.eye(3)
+    # Sx, Sy, Sz = spin_one_matrices()
+    # s = [I, Sx, Sy, Sz]
+    # labels_qubit = ['$I$','$Sx$','$Sy$','$Sz$']
+
+
 
     # Build the total basis B_k = s[i] ⊗ r[j]
     basis_ops = s
