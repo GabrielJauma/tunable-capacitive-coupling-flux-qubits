@@ -2420,7 +2420,7 @@ def decomposition_in_pauli_2x2(A ):
 
 
 def decomposition_in_pauli_3x3(
-        A, print_pretty=True, test_decomposition=False, return_labels = False, print_conditioning=False, return_E_decomposition=False):
+        A, print_pretty=True, test_decomposition=False, return_labels = False, print_conditioning=False, return_E_decomposition=False, use_Sz=False):
     """
     Decompose a 2xN Hamiltonian (qubit-resonator) in a non-orthonormal basis:
         {σ_i ⊗ O_j},  i=0..3, j=0..3,
@@ -2440,6 +2440,14 @@ def decomposition_in_pauli_3x3(
     # labels_qubit = ['$I$','$Sx$','$Sy$','$Sz$']
 
 
+    if use_Sz:
+        # s[-1] = spin_one_matrices()[-1]
+        # s[-1] = 1/2  * 1/np.sqrt(3) * np.array([[0,0,0],
+        #                                         [0,1,0],
+        #                                         [0,0,-1]])
+        s[-1] = np.array([[0, 0, 0],
+                          [0, 1, 0],
+                          [0, 0,-1]])
 
     # Build the total basis B_k = s[i] ⊗ r[j]
     basis_ops = s
@@ -2637,6 +2645,120 @@ def decomposition_in_pauli_2xN_qubit_resonator(
 
     # Resonator part
     N = A.shape[0] // 2
+    I_N = np.eye(N, dtype=complex)
+    a = np.diag(np.sqrt(np.arange(1, N)), 1)
+    ad = a.conj().T
+    n = ad @ a
+    x = a + ad
+    p = 1j * (ad - a)
+
+    r = [I_N, x, p, n]
+    labels_cavity = ["I", "a†+a", "i(a†-a)", "n"]
+
+
+    # if N > 2:
+    #     xx = x @ x
+    #     pp = - p @ p
+    #     xp = x @ p
+    #     px = p @ x
+    #     nn = n @ n
+    #     r += [xp,px] #, xx, pp , xp, px, nn]
+    #     labels_cavity += ["(a†+a)i(a†-a)","i(a†-a)(a†+a)" ]#, "(a†+a)^2", "(a†-a)^2", "(a†+a)i(a†-a)", "i(a†-a)(a†+a)", "n^2"]
+
+
+    # Build the total basis B_k = s[i] ⊗ r[j]
+    basis_ops = []
+    basis_labels = []
+    for i in range(len(s)):
+        for j in range(len(r)):
+            basis_ops.append(np.kron(s[i], r[j]))
+            basis_labels.append(labels_qubit[i] + " ⊗ " + labels_cavity[j])
+
+    M = len(basis_ops)  # M = 16
+    # Construct Gram matrix G and vector v
+    G = np.zeros((M, M), dtype=complex)
+    v = np.zeros(M, dtype=complex)
+
+    for k in range(M):
+        Bk = basis_ops[k]
+        v[k] = np.trace(Bk.conj().T @ A)
+        for l in range(M):
+            Bl = basis_ops[l]
+            G[k, l] =  np.trace(Bk.conj().T @ Bl)
+
+    if print_conditioning:
+        cond_G = np.linalg.cond(G)
+        print("Condition number of G:", cond_G)
+
+    # Solve G c = v  =>  c = G^-1 v
+    c = np.linalg.solve(G, v)
+
+    # Print out coefficients if desired
+    if print_pretty:
+        for idx, val in enumerate(c):
+            if abs(val) > 1e-4:
+                # print(f"{val.real:.4f}\t*\t{basis_labels[idx]}")
+                print(f"{val:.4f}\t*\t{basis_labels[idx]}")
+
+    # Test reconstruction
+    if test_decomposition or return_E_decomposition:
+        H_reconstructed = np.zeros_like(A, dtype=complex)
+        for idx, val in enumerate(c):
+            H_reconstructed += val * basis_ops[idx]
+
+        ev_original = eigvalsh(A)
+        ev_reconstructed = eigvalsh(H_reconstructed)
+        # Shift so we compare relative spectra
+        ev_original -= ev_original[0]
+        ev_reconstructed -= ev_reconstructed[0]
+
+        if not return_E_decomposition:
+            print("\nOriginal eigenvalues:")
+            print(np.round(ev_original, 5))
+            print("Reconstructed eigenvalues:")
+            print(np.round(ev_reconstructed, 5))
+
+            if np.allclose(ev_original, ev_reconstructed, atol=1e-6):
+                print("Spectra match (within tolerance).")
+            else:
+                print("Spectra do not match.")
+
+    # Reshape c into a (4x4) table c[i,j] if you like:
+    c_2d = c.reshape(len(s), len(r))
+
+    return_list = [c_2d]
+    if return_labels:
+        return_list.append(basis_labels)
+    if return_E_decomposition:
+        return_list.append(ev_reconstructed)
+    if len(return_list)>1:
+        return return_list
+    else:
+        return return_list[0]
+
+
+
+def decomposition_in_pauli_3xN_qutrit_resonator(
+        A, print_pretty=True, test_decomposition=False, return_labels = False, print_conditioning=False, return_E_decomposition=False):
+    """
+    Decompose a 2xN Hamiltonian (qubit-resonator) in a non-orthonormal basis:
+        {σ_i ⊗ O_j},  i=0..3, j=0..3,
+    where O_j is one of {I, x, p, n} for the resonator.
+
+    A:        (2N x 2N) matrix
+    returns:  coefficients c[i,j] for the best least-squares approximation
+    """
+
+    # Qutrit part
+    s = gell_mann_matrices()
+    labels_qubit = [f'λ_{i}' for i in range(len(s))]
+
+
+    # s = gell_mann_matrices()
+    # labels_qubit = [f'λ_{i}'for i in range(len(s))]
+
+    # Resonator part
+    N = A.shape[0] // 3
     I_N = np.eye(N, dtype=complex)
     a = np.diag(np.sqrt(np.arange(1, N)), 1)
     ad = a.conj().T
