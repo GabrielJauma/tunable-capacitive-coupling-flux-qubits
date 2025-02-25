@@ -1496,7 +1496,7 @@ def H_eff_2x2(H_0_list, H, basis_states, mediating_states, n_eig=4, return_decom
 def E_fit_QR_low_ene(coefs, E_exact, return_E=False):
     ω_q, gx, gz, ω_r, g_Φ = coefs
     H_low_ene = hamiltonian_uc_qubit_cavity(ω_q, gx, gz, ω_r, g_Φ, N=4)
-    E_low_ene = diag(H_low_ene, 4, out='None', solver='numpy', remove_ground=True)[0]
+    E_low_ene = diag(H_low_ene, 4, out=None, remove_ground=True)[0]
     if not return_E:
         return np.sum(np.abs(E_low_ene[:3]-E_exact[:3]))
     else:
@@ -1510,8 +1510,8 @@ def fit_QR_Hamiltonian(fluxonium_0, resonator, g_Φ, E_QR_vs_φ_ext, print_progr
     gx = 0
     gz = 0
     coefs_0 = np.array([ω_q, gx, gz, ω_r, g_Φ])
-    # bounds_0 = [(-np.inf, np.inf), (0, eps), (0, eps), (-np.inf, np.inf), (g_Φ, g_Φ+eps)]
-    bounds_0 = [(ω_q, ω_q+eps), (0, eps), (0, eps), (ω_r, ω_r+eps), (g_Φ, g_Φ+eps)]
+    bounds_0 = [(-np.inf, np.inf), (0, eps), (0, eps), (-np.inf, np.inf), (g_Φ, g_Φ+eps)]
+    # bounds_0 = [(ω_q, ω_q+eps), (0, eps), (0, eps), (ω_r, ω_r+eps), (g_Φ, g_Φ+eps)]
 
     optimization_var = ['g_x', 'g_z']
 
@@ -1525,11 +1525,16 @@ def fit_QR_Hamiltonian(fluxonium_0, resonator, g_Φ, E_QR_vs_φ_ext, print_progr
 
         for i in range(len(E_QR_vs_φ_ext)):
             if i == 0:
-                # ω_q, gx, gz, ω_r, g_Φ = minimize(E_fit_QR_low_ene, coefs_vs_φ_ext[i], E_QR_vs_φ_ext[i],
-                #                                  bounds=bounds_0).x
+                if print_progress:
+                    print(rf'Bare frequencies: ω_q = {ω_q}, ω_r ={ω_r}')
+                ω_q, gx, gz, ω_r, g_Φ = minimize(E_fit_QR_low_ene, coefs_vs_φ_ext[i], E_QR_vs_φ_ext[i],
+                                                 bounds=bounds_0).x
+
                 coefs_vs_φ_ext[i] = ω_q, gx, gz, ω_r, g_Φ
                 H_low_ene = hamiltonian_uc_qubit_cavity(ω_q, gx, gz, ω_r, g_Φ, N=4)
                 E_low_ene_φ_ext[i] = diag(H_low_ene, 4, out='None', solver='numpy', remove_ground=True)[0]
+                if print_progress:
+                    print(rf'Fitted frequencies at φ_ext=0 ω_q = {ω_q}, ω_r ={ω_r}')
                 continue
 
             if opt_run == 0:
@@ -1538,8 +1543,8 @@ def fit_QR_Hamiltonian(fluxonium_0, resonator, g_Φ, E_QR_vs_φ_ext, print_progr
                     gx = 0.05
             else:
                 ω_q, gx, gz, ω_r, g_Φ = coefs_vs_φ_ext[i]
-                if i == 1:
-                    gz = 0.005
+                # if i == 1:
+                #     gz = 0.005
 
             if opt_run == 0:
                 bounds = [(ω_q, ω_q + eps), (-np.inf, np.inf), (gz, gz + eps), (ω_r, ω_r + eps),
@@ -1560,7 +1565,7 @@ def fit_QR_Hamiltonian(fluxonium_0, resonator, g_Φ, E_QR_vs_φ_ext, print_progr
                 f'The final error of optimization {opt_run} is {np.sqrt(np.sum((E_low_ene_φ_ext[:, :3] - E_QR_vs_φ_ext[:, :3]) ** 2)) * 1e3} MHz')
     return coefs_vs_φ_ext, E_low_ene_φ_ext
 
-def fit_QR_Hamiltonian_gx_gz(fluxonium_0, resonator, g_Φ, E_QR_vs_φ_ext, print_progress=True):
+def fit_QR_Hamiltonian_gx(fluxonium_0, resonator, g_Φ, E_QR_vs_φ_ext, print_progress=True):
     ω_q = diag(fluxonium_0.hamiltonian(), 2, solver='numpy', remove_ground=True)[0][1]
     ω_r = diag(resonator.hamiltonian(), 2, solver='numpy', remove_ground=True)[0][1]
     gx = 0
