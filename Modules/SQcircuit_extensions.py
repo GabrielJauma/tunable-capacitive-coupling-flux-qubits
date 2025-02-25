@@ -16,7 +16,7 @@ fF  = 1e-15
 h   = 6.626e-34
 e0  = 1.602e-19
 Φ_0 = h / (2 * e0)
-eps = 1e-14
+eps = 1e-16
 
 
 #%% Conversion functions
@@ -869,12 +869,14 @@ def hamiltonian_QR_low_ene(ω_q, gx, gz, ω_r, g_Φ, N = 2):
     a       = annihilate(N)
 
     H_f = (ω_q/2 + gz) * σ_z + gx * σ_x
+    # H_f = (ω_q/2) * σ_z + gx * σ_x
     H_r = ω_r * a_dag @ a
 
     I_r = qt.identity(H_r.shape[0])
     I_f = qt.identity(H_f.shape[0])
 
     H = np.kron(H_f, I_r) + np.kron(I_f, H_r) + g_Φ * np.kron(σ_x, a_dag + a)
+    # H = np.kron(H_f, I_r) + np.kron(I_f, H_r) + g_Φ * np.kron(σ_x, a_dag + a) + gz * np.kron(σ_z, a_dag @ a)
 
     return H
 
@@ -1468,10 +1470,11 @@ def fit_QR_Hamiltonian(fluxonium_0, resonator, g_Φ, E_QR_vs_φ_ext, print_progr
     gx = 0
     gz = 0
     coefs_0 = np.array([ω_q, gx, gz, ω_r, g_Φ])
-    # bounds_0 = [(-np.inf, np.inf), (0, eps), (0, eps), (-np.inf, np.inf), (-np.inf, np.inf)]
-    bounds_0 = [(ω_q, ω_q+eps), (0, eps), (0, eps), (ω_r, ω_r+eps), (-np.inf, np.inf)]
+    bounds_0 = [(-np.inf, np.inf), (0, eps), (0, eps), (-np.inf, np.inf), (g_Φ, g_Φ+eps)]
+    # bounds_0 = [(-np.inf, np.inf), (0, eps), (0, eps), (-np.inf, np.inf), (g_Φ, g_Φ+eps)]
+    # bounds_0 = [(ω_q, ω_q+eps), (0, eps), (0, eps), (ω_r, ω_r+eps), (g_Φ, g_Φ+eps)]
 
-    optimization_var = ['g_x', 'g_Φ']
+    optimization_var = ['g_x', 'g_z']
 
     E_low_ene_φ_ext = np.zeros([len(E_QR_vs_φ_ext),4])
     for opt_run in range(2):
@@ -1504,7 +1507,7 @@ def fit_QR_Hamiltonian(fluxonium_0, resonator, g_Φ, E_QR_vs_φ_ext, print_progr
                           (g_Φ, g_Φ + eps)]  # 1st Optimize g_x
             elif opt_run == 1:
                 bounds =[(ω_q, ω_q + eps), (gx, gx+eps), (-np.inf, np.inf), (ω_r, ω_r + eps),
-                          (-np.inf, np.inf)]  # 2nd Optimize omega_r and g_z
+                          (g_Φ, g_Φ + eps)]  # 2nd Optimize omega_r and g_z
 
             ω_q, gx, gz, ω_r, g_Φ = minimize(E_fit_QR_low_ene, [ω_q, gx, gz, ω_r, g_Φ], E_QR_vs_φ_ext[i],
                                              bounds=bounds).x
@@ -2005,12 +2008,16 @@ def create(n):
 def annihilate(n):
     return np.diag(np.sqrt(np.arange(1, n, dtype='complex')), 1)
 
-def pauli_matrices():
+def pauli_matrices(return_I=False):
+    I   = np.array([[1, 0], [0, 1]], dtype='complex')
     σ_x = np.array([[0, 1], [1, 0]], dtype='complex')
     σ_y = np.array([[0, -1], [1, 0]], dtype='complex') * 1j
     σ_z = np.array([[1, 0], [0, -1]], dtype='complex')
 
-    return σ_x ,σ_y ,σ_z
+    if return_I:
+        return I, σ_x ,σ_y ,σ_z
+    else:
+        return σ_x ,σ_y ,σ_z
 
 
 def spin_one_matrices():
@@ -2620,7 +2627,7 @@ import numpy as np
 from numpy.linalg import eigvalsh
 
 def decomposition_in_pauli_2xN_qubit_resonator(
-        A, print_pretty=True, test_decomposition=False, return_labels = False, print_conditioning=False, return_E_decomposition=False):
+        A, print_pretty=True, test_decomposition=False, return_labels = False, print_conditioning=False, return_E_decomposition=False, return_2d=True):
     """
     Decompose a 2xN Hamiltonian (qubit-resonator) in a non-orthonormal basis:
         {σ_i ⊗ O_j},  i=0..3, j=0..3,
@@ -2631,12 +2638,7 @@ def decomposition_in_pauli_2xN_qubit_resonator(
     """
 
     # Qubit part
-    I2 = np.eye(2, dtype=complex)
-    sx = np.array([[0, 1], [1, 0]], dtype=complex)
-    sy = np.array([[0, -1j], [1j, 0]], dtype=complex)
-    sz = np.array([[1, 0], [0, -1]], dtype=complex)
-
-    s = [I2, sx, sy, sz]
+    s = pauli_matrices(return_I=True)
     labels_qubit = ["I", "σx", "σy", "σz"]
 
 
@@ -2648,23 +2650,12 @@ def decomposition_in_pauli_2xN_qubit_resonator(
     I_N = np.eye(N, dtype=complex)
     a = np.diag(np.sqrt(np.arange(1, N)), 1)
     ad = a.conj().T
-    n = ad @ a
     x = a + ad
     p = 1j * (ad - a)
+    n = ad @ a
 
     r = [I_N, x, p, n]
     labels_cavity = ["I", "a†+a", "i(a†-a)", "n"]
-
-
-    # if N > 2:
-    #     xx = x @ x
-    #     pp = - p @ p
-    #     xp = x @ p
-    #     px = p @ x
-    #     nn = n @ n
-    #     r += [xp,px] #, xx, pp , xp, px, nn]
-    #     labels_cavity += ["(a†+a)i(a†-a)","i(a†-a)(a†+a)" ]#, "(a†+a)^2", "(a†-a)^2", "(a†+a)i(a†-a)", "i(a†-a)(a†+a)", "n^2"]
-
 
     # Build the total basis B_k = s[i] ⊗ r[j]
     basis_ops = []
@@ -2724,9 +2715,10 @@ def decomposition_in_pauli_2xN_qubit_resonator(
                 print("Spectra do not match.")
 
     # Reshape c into a (4x4) table c[i,j] if you like:
-    c_2d = c.reshape(len(s), len(r))
+    if return_2d:
+        c = c.reshape(len(s), len(r))
 
-    return_list = [c_2d]
+    return_list = [c]
     if return_labels:
         return_list.append(basis_labels)
     if return_E_decomposition:
@@ -2735,7 +2727,6 @@ def decomposition_in_pauli_2xN_qubit_resonator(
         return return_list
     else:
         return return_list[0]
-
 
 
 def decomposition_in_pauli_3xN_qutrit_resonator(
