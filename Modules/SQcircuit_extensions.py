@@ -16,7 +16,7 @@ fF  = 1e-15
 h   = 6.626e-34
 e0  = 1.602e-19
 Φ_0 = h / (2 * e0)
-eps = 1e-14
+eps = 1e-16
 
 
 #%% Conversion functions
@@ -863,7 +863,7 @@ def hamiltonian_qubit_low_ene(ω_q, gx, gz, ω_r, g_Φ, g_q=0, N = 2):
 
     return H
 
-def hamiltonian_QR_low_ene(ω_q, gx, gz, ω_r, g_Φ, N = 2):
+def hamiltonian_uc_qubit_cavity(ω_q, gx, gz, ω_r, g_Φ, N = 2):
     σ_x, σ_y, σ_z = pauli_matrices()
     a_dag   = create(N)
     a       = annihilate(N)
@@ -875,6 +875,33 @@ def hamiltonian_QR_low_ene(ω_q, gx, gz, ω_r, g_Φ, N = 2):
     I_f = qt.identity(H_f.shape[0])
 
     H = np.kron(H_f, I_r) + np.kron(I_f, H_r) + g_Φ * np.kron(σ_x, a_dag + a)
+
+    return H
+
+def hamintonian_fluxonium_qutrit(ωq_01, ωq_02, g_λ1, g_λ3, g_λ4, g_λ6, g_λ8):
+    λ = gell_mann_matrices()
+
+    H = ((-ωq_01/2 + g_λ3) * λ[3] +                                 # Gap between g and e
+         ((ωq_01 - 2 * ωq_02) / 2 / np.sqrt(3) + g_λ8) * λ[8] +  # Gap between f and (g+e)/2
+          g_λ1 * λ[1] +                                          # 1 photon exchange between g and e
+          g_λ6 * λ[6] +                                          # 1 photon exchange between e and f
+          g_λ4 * λ[4] )                                          # 2 photon exchange between g and f
+
+    return H
+
+
+def hamiltonian_uc_qutrit_cavity(ωq_01, ωq_02, g_λ1, g_λ3, g_λ4, g_λ6, g_λ8, ω_r, gΦ_λ1, gΦ_λ6, N = 2):
+    λ = gell_mann_matrices()
+    a_dag   = create(N)
+    a       = annihilate(N)
+
+    H_f = hamintonian_fluxonium_qutrit(ωq_01, ωq_02, g_λ1, g_λ3, g_λ4, g_λ6, g_λ8)
+    H_r = ω_r * a_dag @ a
+
+    I_r = qt.identity(H_r.shape[0])
+    I_f = qt.identity(H_f.shape[0])
+
+    H = np.kron(H_f, I_r) + np.kron(I_f, H_r) + gΦ_λ1 * np.kron(λ[1], a_dag + a) + gΦ_λ6 * np.kron(λ[6], a_dag + a)
 
     return H
 
@@ -1044,6 +1071,8 @@ def kron_prod_list(op_list):
         kron_prod = np.kron(kron_prod, op)
     return kron_prod
 
+
+
 def get_parameters_QR(fluxonium, resonator, LC):
     try:
         Φq = np.abs( fluxonium.flux_op(0,'eig')[0,1] )
@@ -1055,6 +1084,19 @@ def get_parameters_QR(fluxonium, resonator, LC):
         Φr = np.abs( resonator.flux_op(0,'eig')[0,1] )
     g_Φ = Φq * Φr / (LC * nH) / 2 / np.pi / GHz
     return g_Φ
+
+def get_parameters_qutrit_cavity(fluxonium, resonator, LC):
+
+    fluxonium.diag(3)
+    resonator.diag(3)
+
+    Φq_01 = np.abs( fluxonium.flux_op(0,'eig')[0,1] )
+    Φq_12 = np.abs( fluxonium.flux_op(0,'eig')[1,2] )
+    Φr = np.abs( resonator.flux_op(0,'eig')[0,1] )
+
+    gΦ_λ1 = Φq_01 * Φr / (LC * nH) / 2 / np.pi / GHz
+    gΦ_λ6 = Φq_12 * Φr / (LC * nH) / 2 / np.pi / GHz
+    return gΦ_λ1, gΦ_λ6
 
 def get_parameters_QR_C_QR(fluxonium_0, resonator_0, fluxonium_1, resonator_1, C_inv):
     try:
@@ -1453,7 +1495,7 @@ def H_eff_2x2(H_0_list, H, basis_states, mediating_states, n_eig=4, return_decom
 # Fit QR unit cell
 def E_fit_QR_low_ene(coefs, E_exact, return_E=False):
     ω_q, gx, gz, ω_r, g_Φ = coefs
-    H_low_ene = hamiltonian_QR_low_ene(ω_q, gx, gz, ω_r, g_Φ, N=4)
+    H_low_ene = hamiltonian_uc_qubit_cavity(ω_q, gx, gz, ω_r, g_Φ, N=4)
     E_low_ene = diag(H_low_ene, 4, out='None', solver='numpy', remove_ground=True)[0]
     if not return_E:
         return np.sum(np.abs(E_low_ene[:3]-E_exact[:3]))
@@ -1468,13 +1510,13 @@ def fit_QR_Hamiltonian(fluxonium_0, resonator, g_Φ, E_QR_vs_φ_ext, print_progr
     gx = 0
     gz = 0
     coefs_0 = np.array([ω_q, gx, gz, ω_r, g_Φ])
-    # bounds_0 = [(-np.inf, np.inf), (0, eps), (0, eps), (-np.inf, np.inf), (-np.inf, np.inf)]
-    bounds_0 = [(ω_q, ω_q+eps), (0, eps), (0, eps), (ω_r, ω_r+eps), (-np.inf, np.inf)]
+    # bounds_0 = [(-np.inf, np.inf), (0, eps), (0, eps), (-np.inf, np.inf), (g_Φ, g_Φ+eps)]
+    bounds_0 = [(ω_q, ω_q+eps), (0, eps), (0, eps), (ω_r, ω_r+eps), (g_Φ, g_Φ+eps)]
 
-    optimization_var = ['g_x', 'g_Φ']
+    optimization_var = ['g_x', 'g_z']
 
     E_low_ene_φ_ext = np.zeros([len(E_QR_vs_φ_ext),4])
-    for opt_run in range(2):
+    for opt_run in range(1):
         if print_progress:
             print(f'Optimization {opt_run}, variable = {optimization_var[opt_run]}')
         if opt_run == 0:
@@ -1483,10 +1525,10 @@ def fit_QR_Hamiltonian(fluxonium_0, resonator, g_Φ, E_QR_vs_φ_ext, print_progr
 
         for i in range(len(E_QR_vs_φ_ext)):
             if i == 0:
-                ω_q, gx, gz, ω_r, g_Φ = minimize(E_fit_QR_low_ene, coefs_vs_φ_ext[i], E_QR_vs_φ_ext[i],
-                                                 bounds=bounds_0).x
+                # ω_q, gx, gz, ω_r, g_Φ = minimize(E_fit_QR_low_ene, coefs_vs_φ_ext[i], E_QR_vs_φ_ext[i],
+                #                                  bounds=bounds_0).x
                 coefs_vs_φ_ext[i] = ω_q, gx, gz, ω_r, g_Φ
-                H_low_ene = hamiltonian_QR_low_ene(ω_q, gx, gz, ω_r, g_Φ, N=4)
+                H_low_ene = hamiltonian_uc_qubit_cavity(ω_q, gx, gz, ω_r, g_Φ, N=4)
                 E_low_ene_φ_ext[i] = diag(H_low_ene, 4, out='None', solver='numpy', remove_ground=True)[0]
                 continue
 
@@ -1496,21 +1538,21 @@ def fit_QR_Hamiltonian(fluxonium_0, resonator, g_Φ, E_QR_vs_φ_ext, print_progr
                     gx = 0.05
             else:
                 ω_q, gx, gz, ω_r, g_Φ = coefs_vs_φ_ext[i]
-                # if i == 1:
-                #     gz = -0.05
+                if i == 1:
+                    gz = 0.005
 
             if opt_run == 0:
                 bounds = [(ω_q, ω_q + eps), (-np.inf, np.inf), (gz, gz + eps), (ω_r, ω_r + eps),
                           (g_Φ, g_Φ + eps)]  # 1st Optimize g_x
             elif opt_run == 1:
                 bounds =[(ω_q, ω_q + eps), (gx, gx+eps), (-np.inf, np.inf), (ω_r, ω_r + eps),
-                          (-np.inf, np.inf)]  # 2nd Optimize omega_r and g_z
+                          (g_Φ, g_Φ + eps)]  # 2nd Optimize g_z
 
             ω_q, gx, gz, ω_r, g_Φ = minimize(E_fit_QR_low_ene, [ω_q, gx, gz, ω_r, g_Φ], E_QR_vs_φ_ext[i],
                                              bounds=bounds).x
 
             coefs_vs_φ_ext[i] = ω_q, gx, gz, ω_r, g_Φ
-            H_low_ene = hamiltonian_QR_low_ene(ω_q, gx, gz, ω_r, g_Φ, N=4)
+            H_low_ene = hamiltonian_uc_qubit_cavity(ω_q, gx, gz, ω_r, g_Φ, N=4)
             E_low_ene_φ_ext[i] = diag(H_low_ene, 4, out='None', solver='numpy', remove_ground=True)[0]
 
         if print_progress:
@@ -1542,7 +1584,7 @@ def fit_QR_Hamiltonian_gx_gz(fluxonium_0, resonator, g_Φ, E_QR_vs_φ_ext, print
                 ω_q, gx, gz = minimize(E_fit_QR_low_ene, coefs_vs_φ_ext[i], (ω_r, g_Φ, E_QR_vs_φ_ext[i]),
                                                  bounds=bounds_0).x
                 coefs_vs_φ_ext[i] = ω_q, gx, gz
-                H_low_ene = hamiltonian_QR_low_ene(ω_q, gx, gz, ω_r, g_Φ, N=4)
+                H_low_ene = hamiltonian_uc_qubit_cavity(ω_q, gx, gz, ω_r, g_Φ, N=4)
                 E_low_ene_φ_ext[i] = diag(H_low_ene, 4, out='None', solver='numpy', remove_ground=True)[0]
                 continue
 
@@ -1564,7 +1606,7 @@ def fit_QR_Hamiltonian_gx_gz(fluxonium_0, resonator, g_Φ, E_QR_vs_φ_ext, print
                                              bounds=bounds).x
 
             coefs_vs_φ_ext[i] = ω_q, gx, gz
-            H_low_ene = hamiltonian_QR_low_ene(ω_q, gx, gz, ω_r, g_Φ, N=4)
+            H_low_ene = hamiltonian_uc_qubit_cavity(ω_q, gx, gz, ω_r, g_Φ, N=4)
             E_low_ene_φ_ext[i] = diag(H_low_ene, 4, out='None', solver='numpy', remove_ground=True)[0]
 
         if print_progress:
@@ -2740,14 +2782,7 @@ def decomposition_in_pauli_2xN_qubit_resonator(
 
 def decomposition_in_pauli_3xN_qutrit_resonator(
         A, print_pretty=True, test_decomposition=False, return_labels = False, print_conditioning=False, return_E_decomposition=False):
-    """
-    Decompose a 2xN Hamiltonian (qubit-resonator) in a non-orthonormal basis:
-        {σ_i ⊗ O_j},  i=0..3, j=0..3,
-    where O_j is one of {I, x, p, n} for the resonator.
 
-    A:        (2N x 2N) matrix
-    returns:  coefficients c[i,j] for the best least-squares approximation
-    """
 
     # Qutrit part
     s = gell_mann_matrices()
