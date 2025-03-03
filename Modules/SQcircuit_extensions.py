@@ -2144,7 +2144,7 @@ def gell_mann_matrices():
 
 
 #%% Generic mathematical functions
-def diag(H, n_eig=4, out='GHz', real=False, solver='scipy', remove_ground=False, qObj=False):
+def diag(H, n_eig=4, out='GHz', real=False, solver='scipy', remove_ground=False, qObj=False, fix_phase=False):
     H = qt.Qobj(H)
 
     if solver == 'scipy':
@@ -2183,6 +2183,9 @@ def diag(H, n_eig=4, out='GHz', real=False, solver='scipy', remove_ground=False,
 
     if solver == 'numpy' and qObj:
         evecs_sorted = [qt.Qobj(evecs_sorted[:, i].T) for i in range(n_eig)]
+
+    if fix_phase:
+        evecs_sorted = real_eigenvectors(evecs_sorted)
 
     return efreqs_sorted, evecs_sorted
 
