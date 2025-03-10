@@ -868,7 +868,7 @@ def hamiltonian_uc_qubit_cavity(ω_q, gx, gz, ω_r, g_Φ, N = 2):
     a_dag   = create(N)
     a       = annihilate(N)
 
-    H_f = (ω_q/2 + gz) * σ_z + gx * σ_x
+    H_f = (ω_q/2 - gz) * σ_z + gx * σ_x
     H_r = ω_r * a_dag @ a
 
     I_r = qt.identity(H_r.shape[0])
@@ -1396,6 +1396,30 @@ def ψ_0_from_H_0(H_0_list, basis_states, mediating_states, n_eig):
         ψ_0_mediating.append(qt.tensor(ψ_0_mediating_i))
 
     return H_0, E_0, ψ_0_basis, ψ_0_mediating
+
+
+def ψ0_from_H0_list(H0_list, basis_states):
+    max_n_eig_list = np.max(basis_states,0)
+
+    ψ0_list = []
+    E0_list = []
+    for n_eig, H_0_i in zip(max_n_eig_list, H0_list):
+        E0_i, ψ0_i = diag(H_0_i, n_eig, fix_phase=True)
+        E0_list.append(E0_i)
+        ψ0_list.append(ψ0_i)
+
+    ψ0_basis = []
+    E0_basis = []
+    for n, basis_indices in enumerate(basis_states) :
+        ψ0_basis_n = []
+        E0_basis_n = 0
+        for i, (E0, ψ0) in enumerate(zip(E0_list,ψ0_list)):
+            ψ0_basis_n.append(qt.Qobj(ψ0[:, basis_indices[i]]))
+            E0_basis_n += E0
+        ψ0_basis.append(qt.tensor(ψ0_basis_n))
+        E0_basis.append(E0_basis_n)
+
+    return E0_basis, ψ0_basis
 
 
 def H_eff_4x4(H, H_0, E_0, ψ_0_basis, ψ_0_mediating, n_eig, return_decomposition=False, return_E=False, remove_ground=True, return_H_eff=False):
@@ -2299,7 +2323,7 @@ def plot_H_eff_vs_param(H_eff_vs_params, H_eff_0, param_values, param_name, N_f,
     return fig, ax1, ax2
 
 
-def plot_second_order_contributions(H_eff_decomp, labels_low, labels_high, figsize = np.array([6, 5]) * 1.3, threshold=1e-10):
+def plot_second_order_contributions(H_eff_decomp, labels_low, labels_high, figsize = np.array([6, 5]) * 1.3, threshold=1e-5):
     # Filter nonzero elements in H_eff and generate labels for them
 
     H_eff = np.sum(H_eff_decomp, -1)
@@ -2320,10 +2344,10 @@ def plot_second_order_contributions(H_eff_decomp, labels_low, labels_high, figsi
         for x_pos, (i, j) in enumerate(zip(*nonzero_indices)):
             if np.abs(H_eff_decomp[i, j, k]) > threshold:  # Only include values above the threshold
                 if legend_k:
-                    plt.plot(x_pos, H_eff_decomp[i, j, k], '*', color=colors[k], label=f"{labels_high[k]}", alpha=0.5)
+                    plt.plot(x_pos+0.05*k, H_eff_decomp[i, j, k], '*', color=colors[k], label=f"{labels_high[k]}", alpha=0.5)
                     legend_k=False
                 else:
-                    plt.plot(x_pos,H_eff_decomp[i, j, k], '*', color=colors[k], alpha=0.5)
+                    plt.plot(x_pos+0.05*k,H_eff_decomp[i, j, k], '*', color=colors[k], alpha=0.5)
 
 
     # Set x-axis ticks with labels for the nonzero matrix elements
