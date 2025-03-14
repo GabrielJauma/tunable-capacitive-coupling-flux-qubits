@@ -878,6 +878,24 @@ def hamiltonian_uc_qubit_cavity(ω_q, gx, gz, ω_r, g_Φ, N = 2):
 
     return H
 
+def hamiltonian_uc_qubit_cavity_jaynes_cummings(ω_q, gx, gz, ω_r, g_Φ, N = 2):
+    σ_x, σ_y, σ_z = pauli_matrices()
+    σ_p = (σ_x + 1j * σ_y) / 2
+    σ_m = (σ_x - 1j * σ_y) / 2
+
+    a_dag   = create(N)
+    a       = annihilate(N)
+
+    H_f = (ω_q/2 - gz) * σ_z + gx * σ_x
+    H_r = ω_r * a_dag @ a
+
+    I_r = qt.identity(H_r.shape[0])
+    I_f = qt.identity(H_f.shape[0])
+
+    H = np.kron(H_f, I_r) + np.kron(I_f, H_r) + g_Φ * ( np.kron(σ_p,a) + np.kron(σ_m, a_dag) )
+
+    return H
+
 def hamintonian_fluxonium_qutrit(ωq_01, ωq_02, g_λ1, g_λ3, g_λ4, g_λ6, g_λ8):
     λ = gell_mann_matrices()
 
