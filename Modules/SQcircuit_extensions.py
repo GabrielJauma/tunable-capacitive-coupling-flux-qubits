@@ -1152,12 +1152,25 @@ def fluxonium_qubit_ops_vs_φ_ext(EJ, E_0, fluxonium_0, φ_ext, return_full=Fals
     gz_p1 = - EJ * cos_φ_ext * (cos_φ_00 - cos_φ_11) / 2
 
     sin_φ_12 = fluxonium_0.sin_op(0, 'eig')[1,2]
+    sin_φ_03 = fluxonium_0.sin_op(0, 'eig')[0,3]
+    sin_φ_14 = fluxonium_0.sin_op(0, 'eig')[1,4]
     cos_φ_02 = fluxonium_0.cos_op(0, 'eig')[0,2]
+    cos_φ_13 = fluxonium_0.cos_op(0, 'eig')[1,3]
 
-    H_eff_00_p2 = (1 / (E_0[0] - E_0[2])) * (EJ * cos_φ_ext * cos_φ_02) ** 2
-    H_eff_11_p2 = (1 / (E_0[1] - E_0[2])) * (EJ * sin_φ_ext * sin_φ_12) ** 2
+    # H_eff_00_p2 = (1 / (E_0[0] - E_0[2])) * (EJ * cos_φ_ext * cos_φ_02) ** 2
+    H_eff_00_p2 = (1 / (E_0[0] - E_0[2])) * (EJ * cos_φ_ext * cos_φ_02) ** 2 + \
+                  (1 / (E_0[0] - E_0[3])) * (EJ * sin_φ_ext * sin_φ_03) ** 2
+
+    # H_eff_11_p2 = (1 / (E_0[1] - E_0[2])) * (EJ * sin_φ_ext * sin_φ_12) ** 2
+    H_eff_11_p2 = (1 / (E_0[1] - E_0[2])) * (EJ * sin_φ_ext * sin_φ_12) ** 2 + \
+                  (1 / (E_0[1] - E_0[4])) * (EJ * sin_φ_ext * sin_φ_14) ** 2
+
     H_eff_01_p2 = 0.5 * ((1 / (E_0[0] - E_0[2]) + 1 / (E_0[1] - E_0[2])) *
-                   ( EJ * cos_φ_ext * cos_φ_02) * ( EJ * sin_φ_ext * sin_φ_12))
+                   ( EJ * cos_φ_ext * cos_φ_02) *
+                   ( EJ * sin_φ_ext * sin_φ_12)) + \
+                  0.5 * ((1 / (E_0[0] - E_0[3]) + 1 / (E_0[1] - E_0[3])) *
+                         (EJ * sin_φ_ext * sin_φ_03) *
+                         (EJ * cos_φ_ext * cos_φ_13))
 
     # gx_p2 = np.real(gx_p1 + H_eff_01_p2)
     gx_p2 = H_eff_01_p2
