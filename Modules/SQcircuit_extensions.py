@@ -1185,7 +1185,7 @@ def fluxonium_qubit_ops_vs_φ_ext(EJ, E_0, fluxonium_0, φ_ext, return_full=Fals
 #%% Momentum-space Hamiltonians
 def Hk_unit_cell_boson_ladder(δ, g_Φ, g_c, g_q, k):
     σx, σy, σz = pauli_matrices()
-    Hk = (δ/2 + (g_c+g_q)*np.cos(k)) * σz +  g_Φ * σx + 2 * np.sqrt(g_c*g_q) * np.sin(k) * σy
+    Hk = (g_c-g_q) * np.eye(2) + (δ/2 + (g_c+g_q)*np.cos(k)) * σz +  g_Φ * σx + 2 * np.sqrt(g_c*g_q) * np.sin(k) * σy
 
     return Hk
 
