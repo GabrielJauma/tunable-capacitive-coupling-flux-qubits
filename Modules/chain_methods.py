@@ -27,7 +27,7 @@ def winding_number_angle(Hk, Nk=2000):
         The winding number.
     """
 
-    σ_x, σ_y, σ_z = pauli_matrices()
+    σx, σy, σz = pauli_matrices()
 
     # sample k
     ks = np.linspace(-np.pi, np.pi, Nk, endpoint=False)
