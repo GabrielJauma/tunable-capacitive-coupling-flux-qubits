@@ -1181,14 +1181,6 @@ def fluxonium_qubit_ops_vs_φ_ext(EJ, E_0, fluxonium_0, φ_ext, return_full=Fals
     else:
         return gx_p1, gz_p1, gx_p2, gz_p2
 
-
-#%% Momentum-space Hamiltonians
-def Hk_unit_cell_boson_ladder(δ, g_Φ, g_c, g_q, k):
-    σx, σy, σz = pauli_matrices()
-    Hk = (g_c-g_q) * np.cos(k) * np.eye(2) + (δ/2 + (g_c+g_q)*np.cos(k)) * σz +  g_Φ * σx + 2 * np.sqrt(g_c*g_q) * np.sin(k) * σy
-
-    return Hk
-
 #%% Circuits vs parameters
 def KIT_qubit_vs_param(C = 15, CJ = 3, Csh= 15, Lq = 25, Lr = 10, Δ = 0.1, EJ = 10.0, φ_ext=0.5, nmax_r=15, nmax_f=25, model='composition'):
 
