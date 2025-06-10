@@ -59,9 +59,6 @@ def momentum_H_unit_cell_boson_ladder(δ, g_Φ, g_c, g_q, k):
 
 #%% Real space Hamiltonians
 
-# def pbc(n, N):
-#     return n % N
-
 
 def real_H_unit_cell_boson_ladder(omega_c, omega_q, g_Φ, g_c, g_q, N=100):
     # Total Hilbert space dimension: 2 modes per cell
@@ -84,9 +81,7 @@ def real_H_unit_cell_boson_ladder(omega_c, omega_q, g_Φ, g_c, g_q, N=100):
         H_real[idx_a, idx_b] += g_Φ
         H_real[idx_b, idx_a] += g_Φ
 
-        # Inter-cell couplings: couple cell n with cell n+1 (with periodic BC)
-        # Determine indices for cell n+1 using periodic boundary conditions:
-        # n_next = pbc(n + 1, N)
+        # Inter-cell couplings: couple cell n with cell n+1
         n_next = (n + 1) % N
         idx_a_next = 2 * n_next  # a in cell n+1
         idx_b_next = 2 * n_next + 1  # b in cell n+1
