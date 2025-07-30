@@ -1,5 +1,6 @@
 import numpy as np
-
+from scipy.sparse import lil_matrix, csr_matrix
+from scipy.sparse.linalg import expm_multiply
 
 def pauli_matrices():
     σ_x = np.array([[0, 1], [1, 0]], dtype='complex')
@@ -105,3 +106,74 @@ def real_H_unit_cell_boson_ladder(omega_c, omega_q, g_Φ, g_c, g_q, N=100):
         H_real[idx_b_next, idx_a] += np.sqrt(g_c * g_q)
 
     return H_real
+
+
+
+
+def build_H_single_excitation(omega_c, omega_q, g_Φ, g_c, g_q, N, kappa=0.0, gamma=0.0, open_bc=True,
+                              subtract_trace_average=True, dense=True):
+    """
+    Returns H (csr_matrix, shape (2L,2L)) for the single-excitation subspace.
+    Optional local losses: kappa on cavities a_n, gamma on qubits b_n
+    (included as -i*kappa/2 and -i*gamma/2 on the diagonal).
+    """
+    dim = 2*N
+    H = lil_matrix((dim, dim), dtype=np.complex128)
+
+    def ia(n): return 2*n
+    def ib(n): return 2*n+1
+
+    # On-site terms (allow non-Hermitian losses)
+    for n in range(N):
+        H[ia(n), ia(n)] += omega_c - 1j*kappa/2
+        H[ib(n), ib(n)] += omega_q - 1j*gamma/2
+        # On-site a<->b coupling g_Φ
+        H[ia(n), ib(n)] += g_Φ
+        H[ib(n), ia(n)] += g_Φ
+
+    # Intercell terms
+    for n in range(N-1 if open_bc else N):
+        m = (n+1) % N
+        # a_n <-> a_{n+1} with +g_c
+        H[ia(n), ia(m)] += g_c
+        H[ia(m), ia(n)] += g_c
+        # b_n <-> b_{n+1} with -g_q
+        H[ib(n), ib(m)] += -g_q
+        H[ib(m), ib(n)] += -g_q
+        # cross terms:
+        # b_n <-> a_{n+1} with -sqrt(g_q*g_c)
+        s = -np.sqrt(g_q*g_c)
+        H[ib(n), ia(m)] += s
+        H[ia(m), ib(n)] += s
+        # a_n <-> b_{n+1} with +sqrt(g_q*g_c)
+        s = +np.sqrt(g_q*g_c)
+        H[ia(n), ib(m)] += s
+        H[ib(m), ia(n)] += s
+
+    H = H.tocsr()
+
+    # Optional: subtract a multiple of identity to reduce spectral radius.
+    # (This removes only a global phase; observables are unchanged.)
+    if subtract_trace_average:
+        tr_avg = (omega_q + omega_c)/2.0
+        H = H - tr_avg * csr_matrix(np.eye(dim))
+
+    if dense:
+        H = np.array(H.todense())
+
+    return H
+
+
+def time_evolve(H, psi0, t_array):
+    """
+    psi(t) = exp(-i H t) psi0 for all t in t_array (in the same units as H).
+    Uses SciPy's expm_multiply (Krylov). Returns array shape (T, dim).
+    """
+    # expm_multiply expects exp(t*A) with A a matrix. Here A = -i H.
+    A = (-1j) * H
+    t0, t1 = float(t_array[0]), float(t_array[-1])
+    # SciPy can produce the whole trajectory in one shot:
+    Ps = expm_multiply(A, psi0, start=t0, stop=t1, num=len(t_array), endpoint=True)
+    # expm_multiply returns an array of shape (num, dim)
+    return np.asarray(Ps)
+
