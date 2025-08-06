@@ -241,8 +241,11 @@ class Drive:
     def coeff(self, t):
         return self.Omega * np.cos(self.omega * t + self.phi) * self.envelope(t)
 
-def evolve_with_drives(H0, N, drives, t_array, psi0_aug, rtol=1e-7, atol=1e-9, method='DOP853'):
-    H_aug = augment_with_vacuum(H0)              # H0 is (2N x 2N)
+def evolve_with_drives(H0, N, drives, t_array, psi0_aug, rtol=1e-7, atol=1e-9, method='DOP853', augment_vacumm=True):
+    if augment_vacumm:
+        H_aug = augment_with_vacuum(H0)              # H0 is (2N x 2N)
+    else:
+        H_aug = H0
     Ddim  = H_aug.shape[0]
     # sanity check
     if Ddim != 1 + 2*N:
@@ -305,11 +308,15 @@ def drive_op_qubit(N, j, D=None):
 
 def evolve_drive_time_sweep(H0, N, j_drive, Omega, omega_list, phi=0.0,
                             gamma=1e-3, T_trans=500.0, T_avg=200.0,
-                            points_per_unit=50):
+                            points_per_unit=50, augment_vacumm=True):
     """
     Returns: omegas, <total photon number> time-averaged over last T_avg
     """
-    H_aug = augment_with_vacuum(H0) - 1j*sp.diags([0.0] + [gamma]*(2*N))
+    if augment_vacumm:
+        H_aug = augment_with_vacuum(H0) - 1j*sp.diags([0.0] + [gamma]*(2*N))
+    else:
+        H_aug = H0 - 1j*sp.diags([0.0] + [gamma]*(2*N))
+
     Ddim = H_aug.shape[0]
     Dj = drive_op_qubit(N, j_drive, Ddim)
 
